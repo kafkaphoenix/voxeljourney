@@ -47,7 +47,10 @@
     {
       "name": "windows-msvc-debug",
       "configurePreset": "windows-msvc",
-      "configuration": "Debug"
+      "configuration": "Debug",
+      "targets": [
+        "ALL_BUILD"
+      ]
     },
     {
       "name": "ubuntu-gcc-debug",

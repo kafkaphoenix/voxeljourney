@@ -7,9 +7,11 @@ VCPKG_DIR_LINUX := ~/vcpkg
 VCPKG_DIR_WINDOWS := C:/vcpkg
 
 ifeq ($(OS),Windows_NT)
+BUILD_DIR := build/windows-msvc
 VCPKG_DIR := $(VCPKG_DIR_WINDOWS)
 EXE := $(BUILD_DIR)/Debug/simpleengine.exe
 else
+BUILD_DIR := build/ubuntu-gcc
 VCPKG_DIR := $(VCPKG_DIR_LINUX)
 EXE := $(BUILD_DIR)/simpleengine
 endif

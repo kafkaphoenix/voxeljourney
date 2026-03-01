@@ -48,11 +48,12 @@ target_link_libraries(${PROJECT_NAME}
 # Include the src directory for header files, so we avoid having to use relative paths in the code
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# Ensure runtime config.ini is present in the build output directory.
-configure_file(
+# Copy config.ini and assets next to the executable after building
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
     ${CMAKE_CURRENT_SOURCE_DIR}/config.ini
-    ${CMAKE_CURRENT_BINARY_DIR}/config.ini
-    COPYONLY
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/config.ini
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/assets
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets
 )
-
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/copy_assets.cmake)
