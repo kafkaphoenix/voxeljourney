@@ -82,12 +82,14 @@ class Renderer {
     void flushBatch(const BatchKey& key, BatchData& batch);
     void updateFrameUbo();
     void resetGlState();
+    void applyWireframeState();
 
     const se::scene::Camera* m_Camera = nullptr;
     std::unordered_map<BatchKey, BatchData, BatchKey::Hash> m_Batches;
     size_t m_MaxBatchSize = 1000;
     LightSet m_Lights;
     UniformBuffer m_FrameUbo{0, 0};
+    bool m_Wireframe = false;
 };
 
 }  // namespace se::render
