@@ -27,9 +27,14 @@ This project uses **[vcpkg](https://github.com/microsoft/vcpkg)** for dependency
 
 ### 1. Install Dependencies
 First install the required libraries using vcpkg:
+
+On Windows:
 ```bash
-vcpkg install --triplet x64-windows   # Windows
-vcpkg install --triplet x64-linux     # Linux
+vcpkg install --triplet x64-windows
+```
+or on Linux:
+```bash
+vcpkg install --triplet x64-linux
 ```
 ### 2. Configure
 Configure the project with the correct toolchain:
