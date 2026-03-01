@@ -10,6 +10,8 @@
 #include "Frustum.h"
 #include "assets/Texture.h"
 
+namespace se::render {
+
 namespace {
 struct PointLightUbo {
     glm::vec4 positionRange;
@@ -69,7 +71,7 @@ void Renderer::clear() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void Renderer::submit(const Renderable& renderable) {
+void Renderer::submit(const se::scene::Renderable& renderable) {
     if (!renderable.mesh) {
         throw std::runtime_error("Renderable missing mesh");
     }
@@ -111,7 +113,7 @@ void Renderer::submit(const Renderable& renderable) {
 void Renderer::flushBatch(const BatchKey& key, BatchData& batch) {
     if (batch.instances.empty()) return;
 
-    const RenderState& state = key.material->getState();
+    const auto& state = key.material->getState();
     if (state.blend) {
         glEnable(GL_BLEND);
     } else {
@@ -208,3 +210,5 @@ void Renderer::toggleWireframe() {
     wireframe = !wireframe;
     glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 }
+
+}  // namespace se::render

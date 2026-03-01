@@ -2,6 +2,8 @@
 
 #include <glad/glad.h>
 
+namespace se::render {
+
 class GlBuffer {
    public:
     explicit GlBuffer(GLenum target);
@@ -22,3 +24,5 @@ class GlBuffer {
     GLuint m_Id = 0;
     GLenum m_Target;
 };
+
+}  // namespace se::render

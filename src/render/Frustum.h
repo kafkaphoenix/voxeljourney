@@ -3,6 +3,8 @@
 
 #include "Mesh.h"
 
+namespace se::render {
+
 struct Frustum {
     glm::vec4 planes[6];  // x,y,z,w: plane normal.xyz, d
 };
@@ -71,3 +73,5 @@ inline bool frustumIntersectsAABB(const Frustum& frustum, const AABB& aabb, cons
     }
     return true;
 }
+
+}  // namespace se::render

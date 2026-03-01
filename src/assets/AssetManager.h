@@ -13,6 +13,8 @@
 #include "Texture.h"
 #include "UUID.h"
 
+namespace se::assets {
+
 class AssetManager {
    public:
     AssetManager() = default;
@@ -118,3 +120,5 @@ class AssetManager {
     template <typename T>
     friend class AssetHandle;
 };
+
+}  // namespace se::assets

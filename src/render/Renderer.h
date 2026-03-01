@@ -9,6 +9,8 @@
 #include "scene/Camera.h"
 #include "scene/Renderable.h"
 
+namespace se::render {
+
 struct InstanceData {
     glm::mat4 modelMatrix;
     glm::mat3 normalMatrix;
@@ -16,7 +18,7 @@ struct InstanceData {
 
 struct BatchKey {
     Mesh* mesh;
-    Material* material;
+    se::assets::Material* material;
 
     struct Hash {
         size_t operator()(const BatchKey& key) const {
@@ -54,9 +56,9 @@ class Renderer {
     };
     Renderer();
 
-    void setCamera(const Camera& camera) { m_Camera = &camera; }
+    void setCamera(const se::scene::Camera& camera) { m_Camera = &camera; }
     void clear();
-    void submit(const Renderable& renderable);
+    void submit(const se::scene::Renderable& renderable);
     void flush();
     void toggleWireframe();
     void setLights(const LightSet& lights) { m_Lights = lights; }
@@ -81,9 +83,11 @@ class Renderer {
     void updateFrameUbo();
     void resetGlState();
 
-    const Camera* m_Camera = nullptr;
+    const se::scene::Camera* m_Camera = nullptr;
     std::unordered_map<BatchKey, BatchData, BatchKey::Hash> m_Batches;
     size_t m_MaxBatchSize = 1000;
     LightSet m_Lights;
     UniformBuffer m_FrameUbo{0, 0};
 };
+
+}  // namespace se::render

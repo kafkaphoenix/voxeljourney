@@ -2,6 +2,8 @@
 
 #include <chrono>
 
+namespace se::core {
+
 class Timer {
    public:
     Timer() { reset(); }
@@ -19,3 +21,5 @@ class Timer {
    private:
     std::chrono::time_point<std::chrono::steady_clock> m_start;
 };
+
+}  // namespace se::core

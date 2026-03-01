@@ -9,6 +9,8 @@
 
 #include "Event.h"
 
+namespace se::core {
+
 class EventBus {
    public:
     using HandlerId = uint64_t;
@@ -125,3 +127,5 @@ class EventBus {
     std::vector<std::function<void()>> m_Queue;
     std::atomic<HandlerId> m_NextId{1};
 };
+
+}  // namespace se::core

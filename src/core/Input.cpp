@@ -1,5 +1,7 @@
 #include "Input.h"
 
+namespace se::core {
+
 void Input::beginFrame() {
     m_ScrollX = 0.0;
     m_ScrollY = 0.0;
@@ -144,3 +146,5 @@ bool Input::isValidKey(int key) const {
 bool Input::isValidMouseButton(int button) const {
     return button >= 0 && button < MouseButtonCount;
 }
+
+}  // namespace se::core

@@ -6,12 +6,14 @@
 
 #include "Asset.h"
 #include "Material.h"
-#include "rendering/Mesh.h"
+#include "render/Mesh.h"
+
+namespace se::assets {
 
 class AssetManager;
 
 struct SubMesh {
-    std::unique_ptr<Mesh> mesh;
+    std::unique_ptr<se::render::Mesh> mesh;
     MaterialHandle material;
 };
 
@@ -29,3 +31,5 @@ class Model : public Asset {
 
     std::vector<SubMesh> m_SubMeshes;
 };
+
+}  // namespace se::assets

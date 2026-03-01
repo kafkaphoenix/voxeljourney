@@ -7,6 +7,8 @@
 
 #include "EventBus.h"
 
+namespace se::core {
+
 void windowGlDebugCallback(unsigned int source, unsigned int type,
                            unsigned int id, unsigned int severity,
                            int length, const char* message, const void* userParam);
@@ -310,3 +312,5 @@ void windowGlDebugCallback(unsigned int source, unsigned int type,
                        " error (" + std::to_string(id) + "): " + message;
     throw std::runtime_error(text);
 }
+
+}  // namespace se::core

@@ -12,6 +12,8 @@
 
 #include "AssetManager.h"
 
+namespace se::assets {
+
 namespace {
 
 tinygltf::Model loadGltfModel(const std::string& gltfPath) {
@@ -207,7 +209,7 @@ void readStridedVec(const tinygltf::Model& gltfModel, const tinygltf::Accessor& 
     }
 }
 
-std::unique_ptr<Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
+std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
                                              const tinygltf::Primitive& primitive) {
     auto posIt = primitive.attributes.find("POSITION");
     if (posIt == primitive.attributes.end()) return nullptr;
@@ -235,7 +237,7 @@ std::unique_ptr<Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
     std::vector<float> vertices;
     vertices.reserve(vertexCount * 8);  // 3 pos + 3 normal + 2 tex
 
-    AABB aabb;
+    se::render::AABB aabb;
     if (vertexCount > 0 && positions.size() >= 3) {
         aabb.min = aabb.max = glm::vec3(positions[0], positions[1], positions[2]);
     }
@@ -277,7 +279,7 @@ std::unique_ptr<Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
 
     auto indices = readIndices(gltfModel, primitive, vertexCount);
 
-    return std::make_unique<Mesh>(vertices.data(), vertices.size() * sizeof(float),
+    return std::make_unique<se::render::Mesh>(vertices.data(), vertices.size() * sizeof(float),
                                   indices.data(), indices.size(), aabb);
 }
 
@@ -289,7 +291,7 @@ MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive,
     return fallback;
 }
 
-}
+} // namespace
 
 Model::Model(const std::string& gltfPath, const std::string& shaderPath, AssetManager& assetManager)
     : Asset(gltfPath) {
@@ -324,3 +326,5 @@ std::string Model::getDirectory(const std::string& filepath) {
     size_t lastSlash = filepath.find_last_of("/\\");
     return (lastSlash == std::string::npos) ? "." : filepath.substr(0, lastSlash);
 }
+
+}  // namespace se::assets

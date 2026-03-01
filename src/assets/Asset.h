@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 
+namespace se::assets {
+
 class Asset {
    public:
     virtual ~Asset() = default;
@@ -12,3 +14,5 @@ class Asset {
 
     std::string m_Path;
 };
+
+}  // namespace se::assets

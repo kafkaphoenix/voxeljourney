@@ -1,10 +1,10 @@
 #include "Application.h"
 
-#include <GLFW/glfw3.h>
-
 #include <algorithm>
 
 #include "MemoryUtils.h"
+
+namespace se::core {
 
 Application::Application()
     : m_Config(Config::load("config.ini")),
@@ -92,7 +92,7 @@ void Application::subscribeEvents() {
 
 void Application::applyConfigToCamera() {
     auto& camera = m_Scene.getPlayer().getCamera();
-    Camera::Settings settings;
+    se::scene::Camera::Settings settings;
     settings.position = {m_Config.camera().startPosX, m_Config.camera().startPosY, m_Config.camera().startPosZ};
     settings.moveSpeed = m_Config.camera().moveSpeed;
     settings.mouseSensitivity = m_Config.input().mouseSensitivity;
@@ -133,8 +133,8 @@ void Application::renderFrame() {
     renderScene();
 }
 
-Renderer::LightSet Application::buildLightSet() const {
-    Renderer::LightSet lights;
+se::render::Renderer::LightSet Application::buildLightSet() const {
+    se::render::Renderer::LightSet lights;
     const auto& sky = m_Scene.getSky();
     const auto& sun = sky.getSun().getLight();
     lights.sunDir = sun.direction;
@@ -145,10 +145,10 @@ Renderer::LightSet Application::buildLightSet() const {
     const auto& pointLights = m_Scene.getPointLights();
     lights.pointLights.reserve(pointLights.size());
     for (const auto& light : pointLights) {
-        if (light.type != LightType::Point) {
+        if (light.type != se::scene::LightType::Point) {
             continue;
         }
-        Renderer::PointLightData data;
+        se::render::Renderer::PointLightData data;
         data.position = light.position;
         data.color = light.color;
         data.intensity = light.intensity;
@@ -184,3 +184,5 @@ void Application::run() {
         m_Window.swapBuffers();
     }
 }
+
+}  // namespace se::core

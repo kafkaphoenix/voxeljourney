@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <vector>
 
+namespace se::assets {
+
 namespace {
 int calcMipLevels(int width, int height) {
     int size = std::max(width, height);
@@ -134,3 +136,5 @@ Texture::~Texture() {
 void Texture::bind(unsigned int slot) const {
     glBindTextureUnit(slot, m_ID);
 }
+
+}  // namespace se::assets

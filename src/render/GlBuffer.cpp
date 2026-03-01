@@ -1,5 +1,7 @@
 #include "GlBuffer.h"
 
+namespace se::render {
+
 GlBuffer::GlBuffer(GLenum target) : m_Target(target) {
     glCreateBuffers(1, &m_Id);
 }
@@ -37,3 +39,5 @@ void GlBuffer::release() {
         m_Id = 0;
     }
 }
+
+}  // namespace se::render

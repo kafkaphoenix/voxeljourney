@@ -2,6 +2,8 @@
 
 #include "GlBuffer.h"
 
+namespace se::render {
+
 class UniformBuffer {
    public:
     UniformBuffer(GLsizeiptr size, GLuint binding);
@@ -19,3 +21,5 @@ class UniformBuffer {
     GlBuffer m_Buffer;
     GLuint m_Binding = 0;
 };
+
+}  // namespace se::render

@@ -1,5 +1,7 @@
 #include "VertexArray.h"
 
+namespace se::render {
+
 VertexArray::VertexArray() {
     glCreateVertexArrays(1, &m_Id);
 }
@@ -60,3 +62,5 @@ void VertexArray::release() {
         m_Id = 0;
     }
 }
+
+}  // namespace se::render

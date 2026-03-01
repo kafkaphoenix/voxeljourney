@@ -8,10 +8,15 @@
 #include "assets/AssetManager.h"
 #include "assets/Model.h"
 
+namespace se::core {
 class Input;
+}
+
+namespace se::scene {
+
 class Scene {
    public:
-    Scene(float aspectRatio, AssetManager& assetManager);
+    Scene(float aspectRatio, se::assets::AssetManager& assetManager);
     ~Scene() = default;
 
     void addRenderable(const Renderable& renderable) { m_Renderables.push_back(renderable); }
@@ -26,10 +31,10 @@ class Scene {
     const std::vector<Light>& getPointLights() const { return m_PointLights; }
     std::vector<Light>& getPointLights() { return m_PointLights; }
 
-    AssetManager& getAssetManager() { return m_AssetManager; }
-    const AssetManager& getAssetManager() const { return m_AssetManager; }
+    se::assets::AssetManager& getAssetManager() { return m_AssetManager; }
+    const se::assets::AssetManager& getAssetManager() const { return m_AssetManager; }
 
-    void update(float deltaTime, const Input& input);
+    void update(float deltaTime, const se::core::Input& input);
     void initialize();
 
    private:
@@ -39,5 +44,7 @@ class Scene {
     Player m_Player;
     Sky m_Sky;
     std::vector<Light> m_PointLights;
-    AssetManager& m_AssetManager;
+    se::assets::AssetManager& m_AssetManager;
 };
+
+}  // namespace se::scene

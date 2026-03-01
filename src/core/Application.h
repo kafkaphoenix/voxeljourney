@@ -2,12 +2,14 @@
 #include <vector>
 
 #include "assets/AssetManager.h"
-#include "rendering/Renderer.h"
+#include "render/Renderer.h"
 #include "scene/Scene.h"
 #include "Config.h"
 #include "EventBus.h"
 #include "Input.h"
 #include "Window.h"
+
+namespace se::core {
 
 class Application {
    public:
@@ -26,7 +28,7 @@ class Application {
     void handleShortcuts();
     void updateScene(float deltaTime);
     void renderFrame();
-    Renderer::LightSet buildLightSet() const;
+    se::render::Renderer::LightSet buildLightSet() const;
     void renderScene();
     void updateStats(float deltaTime);
 
@@ -35,10 +37,12 @@ class Application {
     std::vector<EventBus::Subscription> m_Subscriptions;
     Input m_Input;
     Window m_Window;
-    AssetManager m_AssetManager;
-    Renderer m_Renderer;
-    Scene m_Scene;
+    se::assets::AssetManager m_AssetManager;
+    se::render::Renderer m_Renderer;
+    se::scene::Scene m_Scene;
     bool m_ShowStats = true;
     float m_StatsTimer = 0.0f;
     int m_StatsFrames = 0;
 };
+
+}  // namespace se::core

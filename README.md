@@ -95,7 +95,7 @@ make clean
 - EventBus: Small event queue used by window callbacks.
 - Config: Reads config.ini for runtime settings.
 
-### Rendering
+### Render
 - Shader: GLSL program compilation and uniform updates.
 - Texture: Image loading and OpenGL texture setup.
 - Material: Shader + textures + render state, matching glTF data. Lighting is simple diffuse.

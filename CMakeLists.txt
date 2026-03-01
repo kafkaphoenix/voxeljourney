@@ -19,10 +19,16 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cp
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 find_package(glad CONFIG REQUIRED)
+
+if(WIN32)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE "WIN32_LEAN_AND_MEAN" "NOMINMAX" "VC_EXTRA_LEAN") # Prevent windows.h from defining min and max macros, which interfere with std::min and std::max
+    target_compile_options(${PROJECT_NAME} PRIVATE /wd4005) # Disable warning about macro redefinition, since glad 1 defines APIENTRY, which windows.h also defines, and we have to include windows.h for memory usage tracking on Windows. Glad 2 doesn't have this issue but it's not in vcpkg yet.
+endif()
+
 find_package(glfw3 CONFIG REQUIRED)
-target_compile_definitions(${PROJECT_NAME} PRIVATE "GLFW_INCLUDE_NONE")
+target_compile_definitions(${PROJECT_NAME} PRIVATE "GLFW_INCLUDE_NONE") # Prevent glfw from including OpenGL headers, since glad will handle that
 find_package(glm CONFIG REQUIRED)
-target_compile_definitions(${PROJECT_NAME} PRIVATE "GLM_ENABLE_EXPERIMENTAL")
+target_compile_definitions(${PROJECT_NAME} PRIVATE "GLM_ENABLE_EXPERIMENTAL") # Enable experimental module glm::gtx https://glm.g-truc.net/0.9.0/api/a00139.html#_details
 find_package(Stb REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Stb_INCLUDE_DIR})
 target_compile_definitions(${PROJECT_NAME} PRIVATE "STBI_FAILURE_USERMSG")

@@ -7,6 +7,8 @@
 #include "Asset.h"
 #include "AssetHandle.h"
 
+namespace se::assets {
+
 struct RenderState {
     bool blend = false;
     bool depthWrite = true;
@@ -53,3 +55,5 @@ class Material : public Asset {
     MaterialParams m_Params;
     RenderState m_State;
 };
+
+}  // namespace se::assets

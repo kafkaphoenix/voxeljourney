@@ -2,6 +2,8 @@
 
 #include <glm/vec3.hpp>
 
+namespace se::scene {
+
 enum class LightType {
     Directional,
     Point
@@ -16,3 +18,5 @@ struct Light {
     glm::vec3 position{0.0f, 5.0f, 0.0f};
     float range = 25.0f;
 };
+
+}  // namespace se::scene

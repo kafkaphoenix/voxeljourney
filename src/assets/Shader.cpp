@@ -6,6 +6,8 @@
 #include <sstream>
 #include <stdexcept>
 
+namespace se::assets {
+
 static std::string loadFile(const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -132,3 +134,5 @@ void Shader::bindUniformBlock(const std::string& name, unsigned int binding) con
 
     glUniformBlockBinding(m_ID, index, binding);
 }
+
+}  // namespace se::assets

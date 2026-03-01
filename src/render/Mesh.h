@@ -8,6 +8,8 @@
 #include "GlBuffer.h"
 #include "VertexArray.h"
 
+namespace se::render {
+
 struct AABB {
     glm::vec3 min;
     glm::vec3 max;
@@ -15,17 +17,17 @@ struct AABB {
 
 class Mesh {
    public:
-    Mesh(float* vertices, unsigned int vertSize,
-         unsigned int* indices, unsigned int idxCount, const AABB& aabb);
+    Mesh(float* vertices, size_t vertSize,
+         unsigned int* indices, size_t idxCount, const AABB& aabb);
     Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;
     Mesh(Mesh&&) = delete;
     Mesh& operator=(Mesh&&) = delete;
 
-    void drawInstanced(unsigned int count) const;
+    void drawInstanced(size_t count) const;
 
     unsigned int getVAO() const { return m_Vao.id(); }
-    unsigned int getIndexCount() const { return indexCount; }
+    size_t getIndexCount() const { return indexCount; }
     void updateInstanceBuffer(const void* data, size_t size) const;
     static void setDefaultInstanceCapacityBytes(size_t bytes);
     const AABB& getAABB() const { return m_AABB; }
@@ -38,6 +40,8 @@ class Mesh {
     AABB m_AABB;
     GlBuffer m_InstanceVbo{GL_ARRAY_BUFFER};
     mutable size_t m_InstanceCapacityBytes = 0;
-    unsigned int indexCount = 0;
+    size_t indexCount = 0;
     static size_t s_DefaultInstanceCapacityBytes;
 };
+
+}  // namespace se::render

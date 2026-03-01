@@ -3,14 +3,15 @@
 BUILD_DIR := build
 .DEFAULT_GOAL := help
 
-BUILD_DIR := build
 VCPKG_DIR_LINUX := ~/vcpkg
 VCPKG_DIR_WINDOWS := C:/vcpkg
 
 ifeq ($(OS),Windows_NT)
 VCPKG_DIR := $(VCPKG_DIR_WINDOWS)
+EXE := $(BUILD_DIR)/Debug/simpleengine.exe
 else
 VCPKG_DIR := $(VCPKG_DIR_LINUX)
+EXE := $(BUILD_DIR)/simpleengine
 endif
 
 # AutoDoc
@@ -30,7 +31,8 @@ build: ## Build project
 
 .PHONY: run
 run: ##  Run the project
-	./$(BUILD_DIR)/simpleengine
+
+	./$(EXE)
 
 .PHONY: clean
 clean: ## Remove build directory

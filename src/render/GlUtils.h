@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <string>
 
+namespace se::render {
+
 #ifndef NDEBUG
 inline void checkGlError(const char* context) {
     GLenum err = glGetError();
@@ -17,3 +19,5 @@ inline void checkGlError(const char* context) {
     (void)context;
 }
 #endif
+
+}  // namespace se::render

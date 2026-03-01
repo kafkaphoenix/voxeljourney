@@ -1,6 +1,8 @@
 #pragma once
 #include <glm/glm.hpp>
 
+namespace se::scene {
+
 class Camera {
    public:
     struct Settings {
@@ -44,3 +46,5 @@ class Camera {
     float m_Near;
     float m_Far;
 };
+
+}  // namespace se::scene

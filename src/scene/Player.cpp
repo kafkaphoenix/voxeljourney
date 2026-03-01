@@ -6,6 +6,8 @@
 
 #include "core/Input.h"
 
+namespace se::scene {
+
 void Player::setMouseSmoothing(float alpha) {
     m_MouseSmoothAlpha = std::clamp(alpha, 0.0f, 1.0f);
 }
@@ -16,12 +18,12 @@ void Player::setFixedStep(float stepSeconds) {
     }
 }
 
-void Player::update(float deltaTime, const Input& input) {
+void Player::update(float deltaTime, const se::core::Input& input) {
     updateMouseLook(input);
     updateKeyboardMovement(deltaTime, input);
 }
 
-void Player::updateMouseLook(const Input& input) {
+void Player::updateMouseLook(const se::core::Input& input) {
     float rawDx = input.getMouseDeltaX();
     float rawDy = -input.getMouseDeltaY();
     m_SmoothedDx = m_SmoothedDx + (rawDx - m_SmoothedDx) * m_MouseSmoothAlpha;
@@ -30,7 +32,7 @@ void Player::updateMouseLook(const Input& input) {
     m_Camera.processMouse(m_SmoothedDx, m_SmoothedDy);
 }
 
-void Player::updateKeyboardMovement(float deltaTime, const Input& input) {
+void Player::updateKeyboardMovement(float deltaTime, const se::core::Input& input) {
     m_MoveAccumulator += deltaTime;
     int steps = 0;
     while (m_MoveAccumulator >= m_FixedStep && steps < 4) {
@@ -45,7 +47,7 @@ void Player::updateKeyboardMovement(float deltaTime, const Input& input) {
     }
 }
 
-void Player::applyKeyboardStep(float stepSeconds, const Input& input) {
+void Player::applyKeyboardStep(float stepSeconds, const se::core::Input& input) {
     m_Camera.processKeyboard(
         input.isKeyDown(GLFW_KEY_W),
         input.isKeyDown(GLFW_KEY_S),
@@ -55,3 +57,5 @@ void Player::applyKeyboardStep(float stepSeconds, const Input& input) {
         input.isKeyDown(GLFW_KEY_LEFT_CONTROL),
         stepSeconds);
 }
+
+}  // namespace se::scene

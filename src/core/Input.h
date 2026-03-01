@@ -7,6 +7,8 @@
 
 #include "Event.h"
 
+namespace se::core {
+
 class Input {
    public:
     void beginFrame();
@@ -60,3 +62,5 @@ class Input {
 
     bool m_InitializedMouse = false;
 };
+
+}  // namespace se::core

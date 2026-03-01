@@ -3,6 +3,8 @@
 
 #include <string>
 
+namespace se::core {
+
 class EventBus;
 
 class Window {
@@ -52,3 +54,5 @@ class Window {
     int m_LastFramebufferHeight = 0;
     bool m_GlDebugNotifications = false;
 };
+
+}  // namespace se::core

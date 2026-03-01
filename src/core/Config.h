@@ -1,11 +1,12 @@
 #pragma once
 
 #include <SimpleIni.h>
-
 #include <string>
 
+namespace se::core {
+
 class Config {
-   public:
+public:
     struct Window {
         std::string title = "Simple Engine";
         int width = 1280;
@@ -43,20 +44,16 @@ class Config {
     const Camera& camera() const { return m_Camera; }
     const Stats& stats() const { return m_Stats; }
 
-   private:
-    static const char* requireValue(const CSimpleIniA& ini, const char* section, const char* key);
-    static std::string readString(const CSimpleIniA& ini, const char* section, const char* key);
-    static int readInt(const CSimpleIniA& ini, const char* section, const char* key);
-    static float readFloat(const CSimpleIniA& ini, const char* section, const char* key);
-    static bool readBool(const CSimpleIniA& ini, const char* section, const char* key);
-
-    static void readWindow(const CSimpleIniA& ini, Window& window);
-    static void readInput(const CSimpleIniA& ini, Input& input);
-    static void readCamera(const CSimpleIniA& ini, Camera& camera);
-    static void readStats(const CSimpleIniA& ini, Stats& stats);
+private:
+    static void readWindow(const CSimpleIniA&, Window&);
+    static void readInput(const CSimpleIniA&, Input&);
+    static void readCamera(const CSimpleIniA&, Camera&);
+    static void readStats(const CSimpleIniA&, Stats&);
 
     Window m_Window;
     Input m_Input;
     Camera m_Camera;
     Stats m_Stats;
 };
+
+} // namespace se::core

@@ -3,6 +3,8 @@
 #include <cmath>
 #include <glm/gtc/matrix_transform.hpp>
 
+namespace se::scene {
+
 Camera::Camera(float aspectRatio)
     : m_Position(-5.0f, 5.0f, 5.0f),  // Eye level
       m_Front(0.0f, 0.0f, -1.0f),
@@ -101,3 +103,5 @@ glm::mat4 Camera::getViewProjection() const {
     glm::mat4 proj = glm::perspective(glm::radians(m_Fov), m_Aspect, m_Near, m_Far);
     return proj * view;
 }
+
+}  // namespace se::scene

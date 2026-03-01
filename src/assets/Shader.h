@@ -4,6 +4,8 @@
 
 #include "Asset.h"
 
+namespace se::assets {
+
 class Shader : public Asset {
    public:
     Shader(const std::string& shaderPath);
@@ -35,3 +37,5 @@ class Shader : public Asset {
     mutable std::unordered_map<std::string, int> m_UniformLocations;
     mutable std::unordered_map<std::string, unsigned int> m_BlockIndices;
 };
+
+}  // namespace se::assets

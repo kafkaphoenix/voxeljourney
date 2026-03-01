@@ -3,6 +3,8 @@
 #include "Light.h"
 #include "Transform.h"
 
+namespace se::scene {
+
 class Sun {
    public:
     Sun();
@@ -17,3 +19,5 @@ class Sun {
     Transform m_Transform;
     Light m_Light;
 };
+
+}  // namespace se::scene

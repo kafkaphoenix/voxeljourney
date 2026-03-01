@@ -7,14 +7,16 @@
 #include "GlUtils.h"
 #include "Renderer.h"
 
+namespace se::render {
+
 size_t Mesh::s_DefaultInstanceCapacityBytes = 0;
 
 void Mesh::setDefaultInstanceCapacityBytes(size_t bytes) {
     s_DefaultInstanceCapacityBytes = bytes;
 }
 
-Mesh::Mesh(float* vertices, unsigned int vertSize,
-           unsigned int* indices, unsigned int idxCount, const AABB& aabb)
+Mesh::Mesh(float* vertices, size_t vertSize,
+           unsigned int* indices, size_t idxCount, const AABB& aabb)
     : indexCount(idxCount), m_AABB(aabb) {
     if (!vertices || !indices || vertSize == 0 || idxCount == 0) {
         throw std::invalid_argument("Invalid mesh data provided!");
@@ -74,17 +76,17 @@ Mesh::Mesh(float* vertices, unsigned int vertSize,
     checkGlError("Mesh::Mesh");
 }
 
-void Mesh::drawInstanced(unsigned int count) const {
+void Mesh::drawInstanced(size_t count) const {
     if (count == 0) return;
 
     m_Vao.bind();
 
     glDrawElementsInstanced(
         GL_TRIANGLES,
-        indexCount,
+        static_cast<GLsizei>(indexCount),
         GL_UNSIGNED_INT,
         nullptr,
-        count);
+        static_cast<GLsizei>(count));
 
     checkGlError("Mesh::drawInstanced");
 
@@ -105,3 +107,5 @@ void Mesh::updateInstanceBuffer(const void* data, size_t size) const {
 
     m_InstanceVbo.updateSubData(0, static_cast<GLsizeiptr>(size), data);
 }
+
+}  // namespace se::render

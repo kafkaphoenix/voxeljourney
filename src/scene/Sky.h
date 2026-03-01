@@ -4,6 +4,8 @@
 
 #include "Sun.h"
 
+namespace se::scene {
+
 class Sky {
    public:
     Sky() = default;
@@ -22,3 +24,5 @@ class Sky {
     glm::vec3 m_AmbientColor{1.0f, 1.0f, 1.0f};
     float m_AmbientStrength = 0.7f;
 };
+
+}  // namespace se::scene

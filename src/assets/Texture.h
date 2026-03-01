@@ -4,6 +4,8 @@
 
 #include "Asset.h"
 
+namespace se::assets {
+
 class Texture : public Asset {
    public:
     // For textures loaded from files with stbi, we default to flipping vertically since OpenGL's texture coordinate system has (0,0) at the bottom left
@@ -23,3 +25,5 @@ class Texture : public Asset {
    private:
     unsigned int m_ID;
 };
+
+}  // namespace se::assets

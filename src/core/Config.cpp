@@ -2,181 +2,162 @@
 
 #include <SimpleIni.h>
 
+#include <charconv>
 #include <cctype>
-#include <cerrno>
-#include <cstdlib>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 
+namespace se::core {
+
 namespace {
+
 std::string formatKey(const char* section, const char* key) {
     return std::string("[") + section + "] " + key;
 }
 
-void throwConfigError(const std::string& message) {
-    throw std::runtime_error("Config error: " + message);
+[[noreturn]]
+void throwConfigError(const std::string& msg) {
+    throw std::runtime_error("Config error: " + msg);
 }
 
 bool isAllWhitespace(const char* value) {
-    for (const char* it = value; *it != '\0'; ++it) {
-        if (!std::isspace(static_cast<unsigned char>(*it))) {
+    for (; *value; ++value)
+        if (!std::isspace(static_cast<unsigned char>(*value)))
             return false;
-        }
-    }
     return true;
 }
 
-bool parseBoolToken(const char* value, bool& out) {
-    std::string token(value);
-    for (auto& ch : token) {
-        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-    }
+template<typename T>
+bool parseNumber(const char* str, T& out) {
+    const char* end = str + std::strlen(str);
+    auto [ptr, ec] = std::from_chars(str, end, out);
+    return ec == std::errc() && ptr == end;
+}
 
-    if (token == "1" || token == "true" || token == "yes" || token == "on") {
+bool parseBoolToken(const char* value, bool& out) {
+    auto eq = [&](const char* s) {
+        const char* v = value;
+        for (; *s && *v; ++s, ++v)
+            if (std::tolower(*s) != std::tolower(*v))
+                return false;
+        return *s == 0 && *v == 0;
+    };
+
+    if (eq("1") || eq("true") || eq("yes") || eq("on")) {
         out = true;
         return true;
     }
-    if (token == "0" || token == "false" || token == "no" || token == "off") {
+    if (eq("0") || eq("false") || eq("no") || eq("off")) {
         out = false;
         return true;
     }
     return false;
 }
 
-bool parseIntToken(const char* value, int& out) {
-    errno = 0;
-    char* end = nullptr;
-    long result = std::strtol(value, &end, 10);
-    if (end == value || errno != 0 || (end && *end != '\0')) {
-        return false;
-    }
-    out = static_cast<int>(result);
-    return true;
-}
-
-bool parseFloatToken(const char* value, float& out) {
-    errno = 0;
-    char* end = nullptr;
-    double result = std::strtod(value, &end);
-    if (end == value || errno != 0 || (end && *end != '\0')) {
-        return false;
-    }
-    out = static_cast<float>(result);
-    return true;
-}
-}
-
-const char* Config::requireValue(const CSimpleIniA& ini, const char* section, const char* key) {
-    const char* value = ini.GetValue(section, key, nullptr);
-    if (!value || isAllWhitespace(value)) {
+std::string requireValue(const CSimpleIniA& ini, const char* section, const char* key) {
+    const char* v = ini.GetValue(section, key, nullptr);
+    if (!v || isAllWhitespace(v))
         throwConfigError("missing key " + formatKey(section, key));
-    }
-    return value;
+    return v;
 }
 
-std::string Config::readString(const CSimpleIniA& ini, const char* section, const char* key) {
+template<typename T>
+T readNumber(const CSimpleIniA& ini, const char* section, const char* key) {
+    std::string value = requireValue(ini, section, key);
+    T parsed{};
+    if (!parseNumber(value.c_str(), parsed))
+        throwConfigError(formatKey(section,key) + " value '" + value + "' invalid number");
+    return parsed;
+}
+
+bool readBool(const CSimpleIniA& ini, const char* section, const char* key) {
+    std::string value = requireValue(ini, section, key);
+    bool parsed{};
+    if (!parseBoolToken(value.c_str(), parsed))
+        throwConfigError(formatKey(section,key) + " value '" + value + "' invalid bool");
+    return parsed;
+}
+
+std::string readString(const CSimpleIniA& ini, const char* section, const char* key) {
     return requireValue(ini, section, key);
 }
 
-int Config::readInt(const CSimpleIniA& ini, const char* section, const char* key) {
-    const char* value = requireValue(ini, section, key);
-    int parsed = 0;
-    if (!parseIntToken(value, parsed)) {
-        throwConfigError("invalid int for " + formatKey(section, key));
-    }
-    return parsed;
+template<typename T>
+void requireRange(const char* section,const char* key,T v,T min,T max){
+    if(v < min || v > max)
+        throwConfigError(formatKey(section,key) + " out of range");
 }
 
-float Config::readFloat(const CSimpleIniA& ini, const char* section, const char* key) {
-    const char* value = requireValue(ini, section, key);
-    float parsed = 0.0f;
-    if (!parseFloatToken(value, parsed)) {
-        throwConfigError("invalid float for " + formatKey(section, key));
-    }
-    return parsed;
+template<typename T>
+void requireGreater(const char* section,const char* key,T v,T min){
+    if(v <= min)
+        throwConfigError(formatKey(section,key) + " must be > " + std::to_string(min));
 }
 
-bool Config::readBool(const CSimpleIniA& ini, const char* section, const char* key) {
-    const char* value = requireValue(ini, section, key);
-    bool parsed = false;
-    if (!parseBoolToken(value, parsed)) {
-        throwConfigError("invalid bool for " + formatKey(section, key));
-    }
-    return parsed;
+} // namespace
+
+void Config::readWindow(const CSimpleIniA& ini, Window& w) {
+    w.title = readString(ini,"window","title");
+    w.width = readNumber<int>(ini,"window","width");
+    w.height = readNumber<int>(ini,"window","height");
+    w.vsync = readBool(ini,"window","vsync");
+    w.startFullscreen = readBool(ini,"window","startFullscreen");
+    w.glDebugNotifications = readBool(ini,"window","glDebugNotifications");
+
+    requireGreater("window","width",w.width,0);
+    requireGreater("window","height",w.height,0);
 }
 
-void Config::readWindow(const CSimpleIniA& ini, Window& window) {
-    window.title = readString(ini, "window", "title");
-    window.width = readInt(ini, "window", "width");
-    window.height = readInt(ini, "window", "height");
-    window.vsync = readBool(ini, "window", "vsync");
-    window.startFullscreen = readBool(ini, "window", "startFullscreen");
-    window.glDebugNotifications = readBool(ini, "window", "glDebugNotifications");
+void Config::readInput(const CSimpleIniA& ini, Input& i) {
+    i.mouseSmoothAlpha = readNumber<float>(ini,"input","mouseSmoothAlpha");
+    i.mouseSensitivity = readNumber<float>(ini,"input","mouseSensitivity");
+    i.fixedStep = readNumber<float>(ini,"input","fixedStep");
 
-    if (window.width <= 0 || window.height <= 0) {
-        throwConfigError("[window] width/height must be > 0");
-    }
+    requireRange("input","mouseSmoothAlpha",i.mouseSmoothAlpha,0.f,1.f);
+    requireGreater("input","mouseSensitivity",i.mouseSensitivity,0.f);
+    requireGreater("input","fixedStep",i.fixedStep,0.f);
 }
 
-void Config::readInput(const CSimpleIniA& ini, Input& input) {
-    input.mouseSmoothAlpha = readFloat(ini, "input", "mouseSmoothAlpha");
-    input.mouseSensitivity = readFloat(ini, "input", "mouseSensitivity");
-    input.fixedStep = readFloat(ini, "input", "fixedStep");
+void Config::readCamera(const CSimpleIniA& ini, Camera& c) {
+    c.moveSpeed = readNumber<float>(ini,"camera","moveSpeed");
+    c.fov = readNumber<float>(ini,"camera","fov");
+    c.nearPlane = readNumber<float>(ini,"camera","nearPlane");
+    c.farPlane = readNumber<float>(ini,"camera","farPlane");
+    c.startPosX = readNumber<float>(ini,"camera","startPosX");
+    c.startPosY = readNumber<float>(ini,"camera","startPosY");
+    c.startPosZ = readNumber<float>(ini,"camera","startPosZ");
 
-    if (input.mouseSmoothAlpha < 0.0f || input.mouseSmoothAlpha > 1.0f) {
-        throwConfigError("[input] mouseSmoothAlpha must be in [0, 1]");
-    }
-    if (input.mouseSensitivity <= 0.0f) {
-        throwConfigError("[input] mouseSensitivity must be > 0");
-    }
-    if (input.fixedStep <= 0.0f) {
-        throwConfigError("[input] fixedStep must be > 0");
-    }
-}
+    requireGreater("camera","moveSpeed",c.moveSpeed,0.f);
+    requireRange("camera","fov",c.fov,1.f,179.f);
+    requireGreater("camera","nearPlane",c.nearPlane,0.f);
 
-void Config::readCamera(const CSimpleIniA& ini, Camera& camera) {
-    camera.moveSpeed = readFloat(ini, "camera", "moveSpeed");
-    camera.fov = readFloat(ini, "camera", "fov");
-    camera.nearPlane = readFloat(ini, "camera", "nearPlane");
-    camera.farPlane = readFloat(ini, "camera", "farPlane");
-    camera.startPosX = readFloat(ini, "camera", "startPosX");
-    camera.startPosY = readFloat(ini, "camera", "startPosY");
-    camera.startPosZ = readFloat(ini, "camera", "startPosZ");
-
-    if (camera.moveSpeed <= 0.0f) {
-        throwConfigError("[camera] moveSpeed must be > 0");
-    }
-    if (camera.fov <= 1.0f || camera.fov >= 179.0f) {
-        throwConfigError("[camera] fov must be in (1, 179)");
-    }
-    if (camera.nearPlane <= 0.0f) {
-        throwConfigError("[camera] nearPlane must be > 0");
-    }
-    if (camera.farPlane <= camera.nearPlane) {
+    if (c.farPlane <= c.nearPlane)
         throwConfigError("[camera] farPlane must be > nearPlane");
-    }
 }
 
-void Config::readStats(const CSimpleIniA& ini, Stats& stats) {
-    stats.showStats = readBool(ini, "stats", "showStats");
-    stats.interval = readFloat(ini, "stats", "interval");
+void Config::readStats(const CSimpleIniA& ini, Stats& s) {
+    s.showStats = readBool(ini,"stats","showStats");
+    s.interval = readNumber<float>(ini,"stats","interval");
 
-    if (stats.interval <= 0.0f) {
-        throwConfigError("[stats] interval must be > 0");
-    }
+    requireGreater("stats","interval",s.interval,0.f);
 }
 
 Config Config::load(const std::string& path) {
-    Config config;
+    Config cfg;
+
     CSimpleIniA ini;
     ini.SetUnicode();
-    if (ini.LoadFile(path.c_str()) < 0) {
-        throwConfigError("failed to load " + path);
-    }
-    readWindow(ini, config.m_Window);
-    readInput(ini, config.m_Input);
-    readCamera(ini, config.m_Camera);
-    readStats(ini, config.m_Stats);
 
-    return config;
+    if (ini.LoadFile(path.c_str()) < 0)
+        throwConfigError("failed to load file '" + path + "'");
+
+    readWindow(ini, cfg.m_Window);
+    readInput(ini, cfg.m_Input);
+    readCamera(ini, cfg.m_Camera);
+    readStats(ini, cfg.m_Stats);
+
+    return cfg;
 }
+
+} // namespace se::core

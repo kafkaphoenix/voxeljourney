@@ -2,6 +2,8 @@
 
 #include <glad/glad.h>
 
+namespace se::render {
+
 class VertexArray {
    public:
     VertexArray();
@@ -29,3 +31,5 @@ class VertexArray {
 
     GLuint m_Id = 0;
 };
+
+}  // namespace se::render

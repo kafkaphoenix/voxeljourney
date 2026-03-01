@@ -6,7 +6,9 @@
 #include "core/Input.h"
 #include "core/Timer.h"
 
-Scene::Scene(float aspectRatio, AssetManager& assetManager) : m_Player(aspectRatio), m_AssetManager(assetManager) {
+namespace se::scene {
+
+Scene::Scene(float aspectRatio, se::assets::AssetManager& assetManager) : m_Player(aspectRatio), m_AssetManager(assetManager) {
 }
 
 void Scene::initialize() {
@@ -14,7 +16,7 @@ void Scene::initialize() {
 }
 
 void Scene::createSponzaModel() {
-    Timer timer;
+    se::core::Timer timer;
     Transform t;
     t.position = {0.0f, 0.0f, 0.0f};
     t.scale = {0.1f, 0.1f, 0.1f};
@@ -42,6 +44,8 @@ void Scene::createSponzaModel() {
     std::cout << "Sponza model loaded in " << timer.get_milliseconds() << " ms" << std::endl;
 }
 
-void Scene::update(float deltaTime, const Input& input) {
+void Scene::update(float deltaTime, const se::core::Input& input) {
     m_Player.update(deltaTime, input);
 }
+
+}  // namespace se::scene

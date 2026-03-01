@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+namespace se::core {
+
 enum class EventType : uint8_t {
     FramebufferResize,
     WindowFocus,
@@ -66,3 +68,5 @@ struct ScrollEvent final : Event {
     double xoffset;
     double yoffset;
 };
+
+}  // namespace se::core

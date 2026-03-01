@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <random>
 
+namespace se::assets {
+
 class UUID {
    public:
     UUID() : m_uuid(dis(gen)) {}
@@ -21,10 +23,12 @@ class UUID {
     uint64_t m_uuid{};
 };
 
+}  // namespace se::assets
+
 namespace std {
 template <>
-struct hash<UUID> {
-    std::size_t operator()(const UUID& id) const noexcept {
+struct hash<se::assets::UUID> {
+    std::size_t operator()(const se::assets::UUID& id) const noexcept {
         return std::hash<uint64_t>{}(static_cast<uint64_t>(id));
     }
 };

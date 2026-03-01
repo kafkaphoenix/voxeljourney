@@ -1,11 +1,13 @@
 #include <cstddef>
 #if defined(_WIN32)
-#include <psapi.h>
 #include <windows.h>
+#include <psapi.h>
 #else
 #include <unistd.h>
 #include <fstream>
 #endif
+
+namespace se::core {
 
 inline std::size_t getProcessMemoryUsageKB() {
 #if defined(_WIN32)
@@ -25,3 +27,5 @@ inline std::size_t getProcessMemoryUsageKB() {
     return resident * page_size_kb;
 #endif
 }
+
+}  // namespace se::core
