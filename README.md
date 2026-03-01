@@ -16,12 +16,42 @@ Both GLTF and GLB versions of the Sponza model are included in the `assets/` fol
 ![Sponza screenshot](docs/img/sponza_glb.png)
 *Sponza GLB model with embedded textures*
 
-## Build and run
-Dependency management is handled with vcpkg. Make sure to install the required libraries.
-- Configure vcpkg with CMake: `make configure`
-- Build: `make build`
-- Run: `make run`
-- Clean: `make clean`
+## Build & Run
+
+This project uses **[vcpkg](https://github.com/microsoft/vcpkg)** for dependency management and **[CMake](https://cmake.org/) + [Make](https://www.gnu.org/software/make/)** for building.
+
+> Supported platforms: Windows, Linux
+> Requires: CMake ≥ 3.20, Make, C++20 compiler
+
+---
+
+### 1. Install Dependencies
+First install the required libraries using vcpkg:
+```bash
+vcpkg install --triplet x64-windows   # Windows
+vcpkg install --triplet x64-linux     # Linux
+```
+### 2. Configure
+Configure the project with the correct toolchain:
+```bash
+make configure
+```
+> This automatically detects your OS and selects the appropriate vcpkg path.
+### 3. Build
+Build the project:
+```bash
+make build
+```
+### 4. Run
+Run the demo:
+```bash
+make run
+```
+### 5. Clean Build Files
+Optionally, you can clean the build files with:
+```bash
+make clean
+```
 
 ## Features
 - OpenGL 4.5 DSA for buffers/VAOs/textures.
@@ -36,9 +66,7 @@ Dependency management is handled with vcpkg. Make sure to install the required l
 - Asset manager with caching for shaders, textures, materials and models.
 - Simple config system with INI sections.
 
-## Dependencies
-- CMake and Makefile for building.
-- Vcpkg for dependency management.
+## Project dependencies
 - OpenGL + GLAD for rendering.
 - GLFW for windowing and input.
 - GLM for math.

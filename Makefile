@@ -1,6 +1,17 @@
 .DEFAULT_GOAL := help
 
 BUILD_DIR := build
+.DEFAULT_GOAL := help
+
+BUILD_DIR := build
+VCPKG_DIR_LINUX := ~/vcpkg
+VCPKG_DIR_WINDOWS := C:/vcpkg
+
+ifeq ($(OS),Windows_NT)
+VCPKG_DIR := $(VCPKG_DIR_WINDOWS)
+else
+VCPKG_DIR := $(VCPKG_DIR_LINUX)
+endif
 
 # AutoDoc
 # -------------------------------------------------------------------------
@@ -11,7 +22,7 @@ help: ## Show this help
 
 .PHONY: configure
 configure: ## Configure CMake project
-	cmake -S . -B $(BUILD_DIR) -DCMAKE_TOOLCHAIN_FILE=~/vcpkg/scripts/buildsystems/vcpkg.cmake
+	cmake -S . -B $(BUILD_DIR) -DCMAKE_TOOLCHAIN_FILE=$(VCPKG_DIR)/scripts/buildsystems/vcpkg.cmake
 
 .PHONY: build
 build: ## Build project
