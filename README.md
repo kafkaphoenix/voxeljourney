@@ -23,6 +23,8 @@ This project uses **[vcpkg](https://github.com/microsoft/vcpkg)** for dependency
 > Supported platforms: Windows, Linux
 > Requires: CMake ≥ 3.20, Make, C++20 compiler
 
+> A CMakePresets.json file and launch configurations are included for easy configuration with VS Code's CMake Tools extension.
+
 ---
 
 ### 1. Install Dependencies

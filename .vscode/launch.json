@@ -8,7 +8,7 @@
       "program": "${command:cmake.launchTargetPath}",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${command:cmake.launchTargetDirectory}",
+      "cwd": "${workspaceFolder}",
       "environment": [],
       "preLaunchTask": "CMake: build"
     },
@@ -19,7 +19,7 @@
       "program": "${command:cmake.launchTargetPath}",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${command:cmake.launchTargetDirectory}",
+      "cwd": "${workspaceFolder}",
       "environment": [],
       "MIMode": "gdb",
       "preLaunchTask": "CMake: build"
