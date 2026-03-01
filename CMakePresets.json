@@ -19,13 +19,19 @@
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
+      },
+      "environment": {
+        "VCPKG_ROOT": "C:/vcpkg"
       }
     },
     {
       "name": "ubuntu-gcc",
       "displayName": "Ubuntu GCC Debug",
       "inherits": "base",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
+      "environment": {
+        "VCPKG_ROOT": "~/vcpkg"
+      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
