@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <stdexcept>
 #include <vector>
 
@@ -28,13 +29,13 @@ void applyAnisotropy(GLuint textureId) {
 }
 }
 
-Texture::Texture(const std::string& path, bool flipVertically)
+Texture::Texture(std::string path, bool flipVertically)
     : Asset(path) {
     int width, height, channels;
     stbi_set_flip_vertically_on_load(flipVertically);
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+    unsigned char* data = stbi_load(m_Path.c_str(), &width, &height, &channels, 0);
     if (!data) {
-        throw std::runtime_error("Failed to load texture: " + path);
+        throw std::runtime_error(std::format("Failed to load texture: {}", m_Path));
     }
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_ID);
@@ -66,7 +67,8 @@ Texture::Texture(const std::string& path, bool flipVertically)
         format = GL_RED;
     } else {
         stbi_image_free(data);
-        throw std::runtime_error("Unsupported texture format: " + path + " (" + std::to_string(channels) + " channels)");
+        throw std::runtime_error(
+            std::format("Unsupported texture format: {} ({} channels)", m_Path, channels));
     }
 
     int mipLevels = calcMipLevels(width, height);
@@ -80,11 +82,20 @@ Texture::Texture(const std::string& path, bool flipVertically)
     stbi_image_free(data);
 }
 
-Texture::Texture(const uint8_t* data, int width, int height, int channels)
+Texture::Texture(std::span<const uint8_t> data, int width, int height, int channels)
     : Asset("<memory>") {
+    if (width <= 0 || height <= 0 || channels <= 0) {
+        throw std::runtime_error(std::format(
+            "Invalid texture dimensions: {}x{}x{}", width, height, channels));
+    }
+    size_t rowSize = static_cast<size_t>(width) * static_cast<size_t>(channels);
+    size_t expectedSize = rowSize * static_cast<size_t>(height);
+    if (data.size() < expectedSize) {
+        throw std::runtime_error(std::format(
+            "Texture data too small: expected {}, got {}", expectedSize, data.size()));
+    }
     // Flip image vertically (GLB embedded images are stored top-left, OpenGL expects bottom-left)
-    size_t rowSize = width * channels;
-    std::vector<uint8_t> flipped(data, data + rowSize * height);
+    std::vector<uint8_t> flipped(data.begin(), data.begin() + expectedSize);
     for (int y = 0; y < height / 2; ++y) {
         uint8_t* row1 = &flipped[y * rowSize];
         uint8_t* row2 = &flipped[(height - 1 - y) * rowSize];

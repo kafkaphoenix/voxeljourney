@@ -30,7 +30,7 @@
       "inherits": "base",
       "generator": "Unix Makefiles",
       "environment": {
-        "VCPKG_ROOT": "~/vcpkg"
+        "VCPKG_ROOT": "$env{HOME}/vcpkg"
       },
       "condition": {
         "type": "equals",

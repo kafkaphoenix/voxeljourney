@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <string_view>
 
 namespace se::assets {
 
@@ -7,10 +8,11 @@ class Asset {
    public:
     virtual ~Asset() = default;
 
-    virtual const std::string& getPath() const = 0;
+    virtual std::string_view getPath() const = 0;
 
    protected:
-    Asset(const std::string& path) : m_Path(path) {}
+    // explicit constructor to prevent accidental implicit conversions
+    explicit Asset(std::string path) : m_Path(std::move(path)) {}
 
     std::string m_Path;
 };

@@ -2,7 +2,7 @@
 
 namespace se::assets {
 
-Material::Material(const std::string& name,
+Material::Material(std::string name,
                    ShaderHandle shader,
                    const MaterialTextures& textures,
                    const MaterialParams& params,

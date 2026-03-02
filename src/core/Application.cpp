@@ -46,9 +46,9 @@ void Application::beginFrame() {
 }
 
 void Application::updateStats(float deltaTime) {
-    auto title = m_StatsTracker.update(deltaTime, m_Renderer.getStats(), m_Window.baseTitle());
-    if (title) {
-        m_Window.setTitle(*title);
+    auto stats = m_StatsTracker.update(deltaTime, m_Renderer.getStats(), m_Window.getBaseTitle());
+    if (stats) {
+        m_Window.setStatsTitle(*stats);
     }
 }
 

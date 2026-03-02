@@ -33,11 +33,11 @@ struct MaterialParams {
 
 class Material : public Asset {
    public:
-    Material(const std::string& name,
-             ShaderHandle shader,
-             const MaterialTextures& textures,
-             const MaterialParams& params,
-             const RenderState& state);
+    explicit Material(std::string name,
+                      ShaderHandle shader,
+                      const MaterialTextures& textures,
+                      const MaterialParams& params,
+                      const RenderState& state);
     ~Material() override = default;
 
     const ShaderHandle& getShaderHandle() const { return m_Shader; }
@@ -47,7 +47,7 @@ class Material : public Asset {
     const MaterialParams& getParams() const { return m_Params; }
     const RenderState& getState() const { return m_State; }
 
-    const std::string& getPath() const override { return m_Path; }
+    std::string_view getPath() const override { return m_Path; }
 
    private:
     ShaderHandle m_Shader;

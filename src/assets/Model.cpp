@@ -4,11 +4,14 @@
 #include <tiny_gltf.h>
 
 #include <cstdint>
+#include <format>
 #include <glm/common.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <iostream>
+#include <span>
 #include <stdexcept>
+#include <string_view>
 
 #include "AssetManager.h"
 
@@ -16,50 +19,54 @@ namespace se::assets {
 
 namespace {
 
-tinygltf::Model loadGltfModel(const std::string& gltfPath) {
+tinygltf::Model loadGltfModel(std::string_view gltfPath) {
+    std::string gltfPathStr(gltfPath);
     tinygltf::Model gltfModel;
     tinygltf::TinyGLTF loader;
     std::string err;
     std::string warn;
-    bool isBinary = gltfPath.size() >= 4 &&
-                    gltfPath.substr(gltfPath.size() - 4) == ".glb";
+    bool isBinary = gltfPath.ends_with(".glb");
 
-    bool ret = isBinary ? loader.LoadBinaryFromFile(&gltfModel, &err, &warn, gltfPath)
-                        : loader.LoadASCIIFromFile(&gltfModel, &err, &warn, gltfPath);
+    bool ret = isBinary ? loader.LoadBinaryFromFile(&gltfModel, &err, &warn, gltfPathStr)
+                        : loader.LoadASCIIFromFile(&gltfModel, &err, &warn, gltfPathStr);
 
-    if (!ret) throw std::runtime_error("Failed to load GLTF: " + err);
+    if (!ret) throw std::runtime_error(std::format("Failed to load GLTF: {}", err));
     if (!warn.empty()) std::cout << "GLTF Warning: " << warn << std::endl;
 
     return gltfModel;
 }
 
 std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel,
-                                            const std::string& gltfDir,
+                                            std::string_view gltfDir,
                                             AssetManager& assetManager) {
     std::vector<TextureHandle> gltfTextures;
     gltfTextures.reserve(gltfModel.textures.size());
 
     for (const auto& texture : gltfModel.textures) {
         if (texture.source < 0 || texture.source >= static_cast<int>(gltfModel.images.size()))
-            throw std::runtime_error("Invalid texture source: " + std::to_string(texture.source));
+            throw std::runtime_error(std::format("Invalid texture source: {}", texture.source));
 
         const auto& image = gltfModel.images[texture.source];
         TextureHandle handle;
 
         if (!image.uri.empty()) {
             // External file
-            std::string path = gltfDir + "/" + image.uri;
+            std::string path = std::string(gltfDir) + "/" + image.uri;
             handle = assetManager.getOrLoadTexture(path);
         } else if (!image.image.empty()) {
             // Embedded texture
+            auto imageBytes = std::span<const uint8_t>(
+                reinterpret_cast<const uint8_t*>(image.image.data()), image.image.size());
             handle = assetManager.getOrLoadTextureFromMemory(
-                image.image.data(), image.width, image.height, image.component);
+                imageBytes, image.width, image.height, image.component);
         } else {
             throw std::runtime_error("Texture has no URI or embedded image");
         }
 
-        if (!handle.isValid())
-            throw std::runtime_error("Failed to load texture: " + (image.uri.empty() ? "embedded" : image.uri));
+        if (!handle.isValid()) {
+            throw std::runtime_error(std::format("Failed to load texture: {}",
+                                                 image.uri.empty() ? "embedded" : image.uri));
+        }
 
         gltfTextures.push_back(handle);
     }
@@ -67,7 +74,7 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel,
     return gltfTextures;
 }
 
-MaterialHandle createDefaultMaterial(const std::string& name,
+MaterialHandle createDefaultMaterial(std::string_view name,
                                      AssetManager& assetManager,
                                      const ShaderHandle& shader) {
     MaterialTextures defaultTextures;
@@ -210,7 +217,7 @@ void readStridedVec(const tinygltf::Model& gltfModel, const tinygltf::Accessor& 
 }
 
 std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
-                                             const tinygltf::Primitive& primitive) {
+                                                         const tinygltf::Primitive& primitive) {
     auto posIt = primitive.attributes.find("POSITION");
     if (posIt == primitive.attributes.end()) return nullptr;
 
@@ -280,7 +287,7 @@ std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& 
     auto indices = readIndices(gltfModel, primitive, vertexCount);
 
     return std::make_unique<se::render::Mesh>(vertices.data(), vertices.size() * sizeof(float),
-                                  indices.data(), indices.size(), aabb);
+                                              indices.data(), indices.size(), aabb);
 }
 
 MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive,
@@ -291,17 +298,17 @@ MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive,
     return fallback;
 }
 
-} // namespace
+}  // namespace
 
-Model::Model(const std::string& gltfPath, const std::string& shaderPath, AssetManager& assetManager)
+Model::Model(std::string gltfPath, std::string shaderPath, AssetManager& assetManager)
     : Asset(gltfPath) {
     try {
-        tinygltf::Model gltfModel = loadGltfModel(gltfPath);
-        std::string gltfDir = getDirectory(gltfPath);
+        tinygltf::Model gltfModel = loadGltfModel(m_Path);
+        std::string gltfDir = getDirectory(m_Path);
 
         auto gltfTextures = loadGltfTextures(gltfModel, gltfDir, assetManager);
         auto shader = assetManager.getOrLoadShader(shaderPath);
-        auto defaultMaterial = createDefaultMaterial(m_Path + "#default", assetManager, shader);
+        auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Path), assetManager, shader);
         auto gltfMaterials = buildMaterials(gltfModel, assetManager, shader, gltfTextures);
 
         size_t totalPrimitives = 0;
@@ -317,14 +324,13 @@ Model::Model(const std::string& gltfPath, const std::string& shaderPath, AssetMa
             }
         }
     } catch (const std::exception& e) {
-        std::cerr << "Error loading model '" << gltfPath << "': " << e.what() << std::endl;
-        throw;
+        throw std::runtime_error(std::format("Failed to load model '{}': {}", m_Path, e.what()));
     }
 }
 
-std::string Model::getDirectory(const std::string& filepath) {
+std::string Model::getDirectory(std::string_view filepath) {
     size_t lastSlash = filepath.find_last_of("/\\");
-    return (lastSlash == std::string::npos) ? "." : filepath.substr(0, lastSlash);
+    return (lastSlash == std::string_view::npos) ? "." : std::string(filepath.substr(0, lastSlash));
 }
 
 }  // namespace se::assets

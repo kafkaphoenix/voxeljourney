@@ -2,9 +2,11 @@
 
 #include <glad/glad.h>
 
+#include <format>
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include "Config.h"
 #include "EventBus.h"
@@ -132,17 +134,18 @@ void windowFocusCallback(GLFWwindow* window, int focused) {
 
 }
 
-Window::Window(int width, int height, const std::string& title, EventBus* eventBus)
+Window::Window(int width, int height, std::string title, EventBus* eventBus)
     : m_EventBus(eventBus),
       m_IsFullscreen(false),
       m_WindowedWidth(width),
       m_WindowedHeight(height),
       m_WindowedPosX(100),
       m_WindowedPosY(100),
-      m_BaseTitle(title) {
+      m_Title(std::move(title)),
+      m_BaseTitle(m_Title) {
     initGlfw();
     setupGlfwHints();
-    createWindow(width, height, title);
+    createWindow(width, height, m_Title);
     glfwSetWindowUserPointer(m_Window, this);
     try {
         initGlad();
@@ -161,7 +164,8 @@ void Window::initGlfw() {
     if (!glfwInit()) {
         const char* description;
         glfwGetError(&description);
-        throw std::runtime_error("GLFW init failed: " + std::string(description ? description : "Unknown error"));
+        throw std::runtime_error(std::format(
+            "GLFW init failed: {}", description ? description : "Unknown error"));
     }
 }
 
@@ -174,8 +178,9 @@ void Window::setupGlfwHints() {
     glfwWindowHint(GLFW_SAMPLES, 4);
 }
 
-void Window::createWindow(int width, int height, const std::string& title) {
-    m_Window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+void Window::createWindow(int width, int height, std::string_view title) {
+    std::string titleStr(title);
+    m_Window = glfwCreateWindow(width, height, titleStr.c_str(), nullptr, nullptr);
     if (!m_Window) {
         throw std::runtime_error("Window creation failed");
     }
@@ -323,8 +328,9 @@ void Window::toggleFullscreen() {
     m_IsFullscreen = !m_IsFullscreen;
 }
 
-void Window::setTitle(const std::string& title) {
-    glfwSetWindowTitle(m_Window, title.c_str());
+void Window::setStatsTitle(std::string title) {
+    m_Title = std::move(title);
+    glfwSetWindowTitle(m_Window, m_Title.c_str());
 }
 
 void Window::setVsync(bool enabled) {

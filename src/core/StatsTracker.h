@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "Config.h"
 #include "render/Renderer.h"
@@ -19,11 +20,11 @@ class StatsTracker {
 
     std::optional<std::string> update(float deltaTime,
                                       const se::render::Renderer::Stats& renderStats,
-                                      const std::string& baseTitle);
+                                      std::string_view title);
 
    private:
     bool m_Enabled = true;
-    float m_Interval = 0.25f;
+    float m_Interval = 1.0f;
     float m_Timer = 0.0f;
     int m_Frames = 0;
 };

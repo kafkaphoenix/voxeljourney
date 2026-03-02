@@ -2,6 +2,7 @@
 
 #include <glad/glad.h>
 
+#include <format>
 #include <stdexcept>
 #include <string>
 
@@ -11,7 +12,7 @@ namespace se::render {
 inline void checkGlError(const char* context) {
     GLenum err = glGetError();
     if (err != GL_NO_ERROR) {
-        throw std::runtime_error(std::string("OpenGL error at ") + context + ": " + std::to_string(err));
+        throw std::runtime_error(std::format("OpenGL error at {}: {}", context, err));
     }
 }
 #else

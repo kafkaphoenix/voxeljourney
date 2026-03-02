@@ -1,6 +1,6 @@
 # A simple engine
 
-Modern C++ OpenGL engine that can be used as a starting point for more complex engines or games. It focuses on clarity and a small feature set while keeping modern practices.
+Modern C++23 OpenGL4.5 engine that can be used as a starting point for more complex engines or games. It focuses on clarity and a small feature set while keeping modern practices.
 
 ## Demo Sponza scene
 Both GLTF and GLB versions of the Sponza model are included in the `assets/` folder.
@@ -21,7 +21,7 @@ Both GLTF and GLB versions of the Sponza model are included in the `assets/` fol
 This project uses **[vcpkg](https://github.com/microsoft/vcpkg)** for dependency management and **[CMake](https://cmake.org/) + [Make](https://www.gnu.org/software/make/)** for building.
 
 > Supported platforms: Windows, Linux
-> Requires: CMake ≥ 3.20, Make, C++20 compiler
+> Requires: CMake ≥ 3.20, Make, C++23 compiler
 
 > A CMakePresets.json file and launch configurations are included for easy configuration with VS Code's CMake Tools extension.
 
@@ -84,9 +84,8 @@ make clean
 ## Project layout
 - assets: Shaders, textures, models, and materials.
 - build: CMake build output.
-- cmake: Helper CMake scripts (asset copying).
 - src: Engine code.
-- CMakeLists.txt, Makefile, vcpkg.json, vcpkg-configuration.json.
+- CMakeLists.txt, Makefile, vcpkg.json, vcpkg-configuration.json, CMakePresets.json, and launch configurations.
 
 ## Engine architecture
 

@@ -1,5 +1,7 @@
 #include "StatsTracker.h"
 
+#include <format>
+
 #include "MemoryUtils.h"
 
 namespace se::core {
@@ -15,7 +17,7 @@ void StatsTracker::reset() {
 
 std::optional<std::string> StatsTracker::update(float deltaTime,
                                                 const se::render::Renderer::Stats& renderStats,
-                                                const std::string& baseTitle) {
+                                                std::string_view title) {
     if (!m_Enabled) {
         return std::nullopt;
     }
@@ -28,14 +30,16 @@ std::optional<std::string> StatsTracker::update(float deltaTime,
 
     float fps = m_Frames / m_Timer;
     size_t memKB = getProcessMemoryUsageKB();
-    std::string title = baseTitle +
-                        " | FPS: " + std::to_string(static_cast<int>(fps)) +
-                        " | Draws: " + std::to_string(renderStats.drawCalls) +
-                        " | Triangles: " + std::to_string(renderStats.triangles) +
-                        " | RAM: " + std::to_string(memKB / 1024) + "MB";
+    std::string stats = std::format(
+        "{} | FPS: {} | Draws: {} | Triangles: {} | RAM: {}MB",
+        title,
+        static_cast<int>(fps),
+        renderStats.drawCalls,
+        renderStats.triangles,
+        memKB / 1024);
 
     reset();
-    return title;
+    return stats;
 }
 
 }  // namespace se::core

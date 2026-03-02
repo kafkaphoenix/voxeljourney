@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 
 #include <string>
+#include <string_view>
 
 #include "Config.h"
 
@@ -11,7 +12,7 @@ class EventBus;
 
 class Window {
    public:
-    Window(int width, int height, const std::string& title, EventBus* eventBus);
+    Window(int width, int height, std::string title, EventBus* eventBus);
     ~Window();
 
     void pollEvents() const;
@@ -24,8 +25,8 @@ class Window {
     void onMouseMove(double xpos, double ypos);
     void onScroll(double xoffset, double yoffset);
     void onWindowFocus(bool focused);
-    void setTitle(const std::string& title);
-    const std::string& baseTitle() const { return m_BaseTitle; }
+    void setStatsTitle(std::string title);
+    std::string_view getBaseTitle() const { return m_BaseTitle; }
     void setVsync(bool enabled);
     void setGlDebugNotifications(bool enabled);
     void applyConfig(const Config::Window& config);
@@ -38,7 +39,7 @@ class Window {
                                       int length, const char* message, const void* userParam);
     void initGlfw();
     void setupGlfwHints();
-    void createWindow(int width, int height, const std::string& title);
+    void createWindow(int width, int height, std::string_view title);
     void initGlad();
     void setupGlDebug();
     void setupCallbacks();
@@ -52,6 +53,7 @@ class Window {
     int m_WindowedHeight;
     int m_WindowedPosX;
     int m_WindowedPosY;
+    std::string m_Title;
     std::string m_BaseTitle;
     int m_LastFramebufferWidth = 0;
     int m_LastFramebufferHeight = 0;

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "Asset.h"
@@ -19,15 +20,15 @@ struct SubMesh {
 
 class Model : public Asset {
    public:
-    Model(const std::string& gltfPath,
-          const std::string& shaderPath,
+    Model(std::string gltfPath,
+          std::string shaderPath,
           AssetManager& assetManager);
 
     const std::vector<SubMesh>& getSubMeshes() const { return m_SubMeshes; }
-    const std::string& getPath() const override { return m_Path; }
+    std::string_view getPath() const override { return m_Path; }
 
    private:
-    static std::string getDirectory(const std::string& filepath);
+    static std::string getDirectory(std::string_view filepath);
 
     std::vector<SubMesh> m_SubMeshes;
 };
