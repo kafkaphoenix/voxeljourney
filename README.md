@@ -1,6 +1,6 @@
 # A simple engine
 
-Modern C++23 OpenGL4.5 engine that can be used as a starting point for more complex engines or games. It focuses on clarity and a small feature set while keeping modern practices.
+Modern C++23 OpenGL4.6 engine that can be used as a starting point for more complex engines or games. It focuses on clarity and a small feature set while keeping modern practices.
 
 ## Demo Sponza scene
 Both GLTF and GLB versions of the Sponza model are included in the `assets/` folder.
@@ -61,7 +61,7 @@ make clean
 ```
 
 ## Features
-- OpenGL 4.5 DSA for buffers/VAOs/textures.
+- OpenGL 4.6 DSA for buffers/VAOs/textures.
 - Frame UBO for per-frame camera and light data.
 - Directional sun + ambient + optional point lights.
 - Instanced rendering, CPU batching by mesh/material with frustum culling.
