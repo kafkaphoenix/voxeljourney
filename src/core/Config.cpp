@@ -117,7 +117,6 @@ void Config::readWindow(const CSimpleIniA& ini, Window& w) {
     w.height = readNumber<int>(ini, "window", "height");
     w.vsync = readBool(ini, "window", "vsync");
     w.startFullscreen = readBool(ini, "window", "startFullscreen");
-    w.glDebugNotifications = readBool(ini, "window", "glDebugNotifications");
 
     requireGreater("window", "width", w.width, 0);
     requireGreater("window", "height", w.height, 0);

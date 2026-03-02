@@ -15,7 +15,6 @@ class Config {
         int height = 720;
         bool vsync = true;
         bool startFullscreen = false;
-        bool glDebugNotifications = false;
     };
 
     struct Input {

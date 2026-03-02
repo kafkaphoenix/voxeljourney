@@ -198,7 +198,8 @@ void Window::setupGlDebug() {
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(windowGlDebugCallback, this);
-    setGlDebugNotifications(false);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE,
+                          GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
 }
 
 void Window::setupCallbacks() {
@@ -337,16 +338,8 @@ void Window::setVsync(bool enabled) {
     glfwSwapInterval(enabled ? 1 : 0);
 }
 
-void Window::setGlDebugNotifications(bool enabled) {
-    m_GlDebugNotifications = enabled;
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE,
-                          GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr,
-                          enabled ? GL_TRUE : GL_FALSE);
-}
-
 void Window::applyConfig(const Config::Window& config) {
     setVsync(config.vsync);
-    setGlDebugNotifications(config.glDebugNotifications);
 }
 
 void windowGlDebugCallback(unsigned int source, unsigned int type,
@@ -358,10 +351,6 @@ void windowGlDebugCallback(unsigned int source, unsigned int type,
 
     auto* window = static_cast<Window*>(const_cast<void*>(userParam));
     if (!window || !message) {
-        return;
-    }
-
-    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION && !window->m_GlDebugNotifications) {
         return;
     }
 

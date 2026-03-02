@@ -28,7 +28,6 @@ class Window {
     void setStatsTitle(std::string title);
     std::string_view getBaseTitle() const { return m_BaseTitle; }
     void setVsync(bool enabled);
-    void setGlDebugNotifications(bool enabled);
     void applyConfig(const Config::Window& config);
 
     GLFWwindow* native() const { return m_Window; }
@@ -57,7 +56,6 @@ class Window {
     std::string m_BaseTitle;
     int m_LastFramebufferWidth = 0;
     int m_LastFramebufferHeight = 0;
-    bool m_GlDebugNotifications = false;
 };
 
 }  // namespace se::core
