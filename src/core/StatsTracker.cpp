@@ -29,14 +29,15 @@ std::optional<std::string> StatsTracker::update(float deltaTime,
     }
 
     float fps = m_Frames / m_Timer;
-    size_t memKB = getProcessMemoryUsageKB();
+    ProcessMemoryUsage mem = getProcessMemoryUsageKB();
     std::string stats = std::format(
-        "{} | FPS: {} | Draws: {} | Triangles: {} | RAM: {}MB",
+        "{} | FPS: {} | Draws: {} | Triangles: {} | RAM: {}/{}MB",
         title,
         static_cast<int>(fps),
         renderStats.drawCalls,
         renderStats.triangles,
-        memKB / 1024);
+        mem.usedKB / 1024,
+        mem.committedKB / 1024);
 
     reset();
     return stats;
