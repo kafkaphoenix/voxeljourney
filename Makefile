@@ -32,7 +32,7 @@ build: ## Build project
 	cmake --build $(BUILD_DIR)
 
 .PHONY: run
-run: ##  Run the project
+run: ## Run the project
 
 	./$(EXE)
 
