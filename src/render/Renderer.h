@@ -9,6 +9,10 @@
 #include "scene/Camera.h"
 #include "scene/Renderable.h"
 
+namespace se::scene {
+class Scene;
+}
+
 namespace se::render {
 
 struct InstanceData {
@@ -55,6 +59,8 @@ class Renderer {
         std::vector<PointLightData> pointLights;
     };
     Renderer();
+
+    void render(const se::scene::Scene& scene);
 
     void setCamera(const se::scene::Camera& camera) { m_Camera = &camera; }
     void clear();

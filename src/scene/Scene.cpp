@@ -1,8 +1,9 @@
 #include "Scene.h"
 
-#include <stdexcept>
 #include <iostream>
+#include <stdexcept>
 
+#include "core/Config.h"
 #include "core/Input.h"
 #include "core/Timer.h"
 
@@ -46,6 +47,43 @@ void Scene::createSponzaModel() {
 
 void Scene::update(float deltaTime, const se::core::Input& input) {
     m_Player.update(deltaTime, input);
+}
+
+void Scene::applyConfig(const se::core::Config& config) {
+    se::scene::Camera::Settings settings;
+    settings.position = {config.camera().startPosX, config.camera().startPosY, config.camera().startPosZ};
+    settings.moveSpeed = config.camera().moveSpeed;
+    settings.mouseSensitivity = config.input().mouseSensitivity;
+    settings.fov = config.camera().fov;
+    settings.nearPlane = config.camera().nearPlane;
+    settings.farPlane = config.camera().farPlane;
+    m_Player.getCamera().applySettings(settings);
+    m_Player.setMouseSmoothing(config.input().mouseSmoothAlpha);
+    m_Player.setFixedStep(config.input().fixedStep);
+}
+
+se::render::Renderer::LightSet Scene::buildLightSet() const {
+    se::render::Renderer::LightSet lights;
+    const auto& sun = m_Sky.getSun().getLight();
+    lights.sunDir = sun.direction;
+    lights.sunColor = sun.color * sun.intensity;
+    lights.ambientColor = m_Sky.getAmbientColor();
+    lights.ambientStrength = m_Sky.getAmbientStrength();
+
+    lights.pointLights.reserve(m_PointLights.size());
+    for (const auto& light : m_PointLights) {
+        if (light.type != se::scene::LightType::Point) {
+            continue;
+        }
+        se::render::Renderer::PointLightData data;
+        data.position = light.position;
+        data.color = light.color;
+        data.intensity = light.intensity;
+        data.range = light.range;
+        lights.pointLights.push_back(data);
+    }
+
+    return lights;
 }
 
 }  // namespace se::scene

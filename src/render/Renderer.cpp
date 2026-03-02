@@ -9,6 +9,7 @@
 
 #include "Frustum.h"
 #include "assets/Texture.h"
+#include "scene/Scene.h"
 
 namespace se::render {
 
@@ -34,19 +35,28 @@ Renderer::Renderer() {
     Mesh::setDefaultInstanceCapacityBytes(m_MaxBatchSize * sizeof(InstanceData));
 }
 
+void Renderer::render(const se::scene::Scene& scene) {
+    setLights(scene.buildLightSet());
+    clear();
+    for (const auto& renderable : scene.getRenderables()) {
+        submit(renderable);
+    }
+    flush();
+}
+
 void Renderer::setBatchSize(size_t maxInstances) {
     m_MaxBatchSize = maxInstances;
     Mesh::setDefaultInstanceCapacityBytes(m_MaxBatchSize * sizeof(InstanceData));
 }
 
 void Renderer::setupGlState() {
-    glEnable(GL_DEPTH_TEST); // For 3D rendering allows that closer objects occlude farther ones
-    glDepthFunc(GL_LESS); // Accept fragment if it is closer to the camera than the former one
-    glEnable(GL_CULL_FACE); // Enable back-face culling to improve performance by not rendering faces that are facing away from the camera
-    glCullFace(GL_BACK); // Cull back faces. Disable culling for double-sided materials like water or foliage
-    glFrontFace(GL_CCW); // Define front faces as counter-clockwise winding order
-    glEnable(GL_BLEND); // Enable blending for transparency
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Says how to blend source and destination colors based on alpha
+    glEnable(GL_DEPTH_TEST);                            // For 3D rendering allows that closer objects occlude farther ones
+    glDepthFunc(GL_LESS);                               // Accept fragment if it is closer to the camera than the former one
+    glEnable(GL_CULL_FACE);                             // Enable back-face culling to improve performance by not rendering faces that are facing away from the camera
+    glCullFace(GL_BACK);                                // Cull back faces. Disable culling for double-sided materials like water or foliage
+    glFrontFace(GL_CCW);                                // Define front faces as counter-clockwise winding order
+    glEnable(GL_BLEND);                                 // Enable blending for transparency
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  // Says how to blend source and destination colors based on alpha
 }
 
 void Renderer::resetGlState() {
@@ -59,10 +69,10 @@ void Renderer::resetGlState() {
 void Renderer::applyWireframeState() {
     glPolygonMode(GL_FRONT_AND_BACK, m_Wireframe ? GL_LINE : GL_FILL);
     if (m_Wireframe) {
-        glEnable(GL_LINE_SMOOTH); // Enable line smoothing for better visual quality in wireframe mode
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST); // Set line smoothing hint to nicest for best quality
-        glEnable(GL_POLYGON_OFFSET_FILL); // Enable polygon offset to reduce z-fighting in wireframe mode
-        glPolygonOffset(0.5f, 1.0f); // Set polygon offset factors to push wireframe slightly back to prevent z-fighting with filled polygons
+        glEnable(GL_LINE_SMOOTH);                // Enable line smoothing for better visual quality in wireframe mode
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);  // Set line smoothing hint to nicest for best quality
+        glEnable(GL_POLYGON_OFFSET_FILL);        // Enable polygon offset to reduce z-fighting in wireframe mode
+        glPolygonOffset(0.5f, 1.0f);             // Set polygon offset factors to push wireframe slightly back to prevent z-fighting with filled polygons
     } else {
         glDisable(GL_POLYGON_OFFSET_FILL);
         glDisable(GL_LINE_SMOOTH);

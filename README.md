@@ -96,26 +96,34 @@ make clean
 - Input: Frame-based input state built from events.
 - EventBus: Small event queue used by window callbacks.
 - Config: Reads config.ini for runtime settings.
-
-### Render
-- Shader: GLSL program compilation and uniform updates.
-- Texture: Image loading and OpenGL texture setup.
-- Material: Shader + textures + render state, matching glTF data. Lighting is simple diffuse.
-- Mesh: Vertex and index buffers with instanced rendering.
-- Renderer: Batches by mesh + material and draws instanced geometry (Frame UBO + lights).
-- Renderable: Mesh + material + transform tuple submitted to the renderer.
+- StatsTracker: Tracks and averages frame time, draw calls, etc.
 
 ### Assets
 - Asset: Minimal base class with a path.
 - AssetHandle: Lightweight, type-safe references to assets.
 - AssetManager: Loads and caches shaders, textures, models, and materials.
+- Shader: GLSL program compilation and uniform updates.
+- Texture: Image loading and OpenGL texture setup.
+- Material: Shader + textures + render state, matching glTF data. Lighting is simple diffuse.
 - Model: Loads glTF/glb into meshes and materials.
+
+### Render
+- Mesh: Vertex and index buffers with instanced rendering.
+- Renderer: Batches by mesh + material and draws instanced geometry (Frame UBO + lights).
+- Renderable: Mesh + material + transform tuple submitted to the renderer.
+- Buffer: OpenGL buffer wrapper for vertex/index data.
+- VertexArray: OpenGL VAO wrapper for vertex attribute setup.
+- UniformBuffer: OpenGL UBO wrapper for per-frame data.
+- Frustum: View frustum for culling.
 
 ### Scene
 - Scene: Owns renderables and updates game logic.
 - Player: Camera controller (mouse look + WASD).
 - Camera: View and projection math.
 - Transform: Position, rotation, scale helper.
+- Light: Defines directional and point lights.
+- Sun: Directional light with color and intensity.
+- Sky: Simple sky color and ambient light.
 
 ## Controls
 - WASD: Move

@@ -131,6 +131,16 @@ void Input::resetMouse(double x, double y) {
     m_InitializedMouse = true;
 }
 
+void Input::resetMouseFromWindow(GLFWwindow* window) {
+    if (!window) {
+        return;
+    }
+    double xpos = 0.0;
+    double ypos = 0.0;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    resetMouse(xpos, ypos);
+}
+
 void Input::advanceState(ButtonState& state) {
     if (state == ButtonState::Pressed) {
         state = ButtonState::Down;

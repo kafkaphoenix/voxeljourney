@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "Config.h"
 #include "EventBus.h"
 
 namespace se::core {
@@ -335,6 +336,11 @@ void Window::setGlDebugNotifications(bool enabled) {
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE,
                           GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr,
                           enabled ? GL_TRUE : GL_FALSE);
+}
+
+void Window::applyConfig(const Config::Window& config) {
+    setVsync(config.vsync);
+    setGlDebugNotifications(config.glDebugNotifications);
 }
 
 void windowGlDebugCallback(unsigned int source, unsigned int type,

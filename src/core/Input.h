@@ -35,6 +35,7 @@ class Input {
     float getScrollY() const { return static_cast<float>(m_ScrollY); }
 
     void resetMouse(double x, double y);
+    void resetMouseFromWindow(GLFWwindow* window);
 
    private:
     enum class ButtonState : uint8_t {

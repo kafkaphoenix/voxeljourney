@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "Config.h"
+
 namespace se::core {
 
 class EventBus;
@@ -26,6 +28,7 @@ class Window {
     const std::string& baseTitle() const { return m_BaseTitle; }
     void setVsync(bool enabled);
     void setGlDebugNotifications(bool enabled);
+    void applyConfig(const Config::Window& config);
 
     GLFWwindow* native() const { return m_Window; }
 
