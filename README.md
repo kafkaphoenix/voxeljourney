@@ -7,8 +7,8 @@ Both GLTF and GLB versions of the Sponza model are included in the `assets/` fol
 
 | Format | Load Time | Size | Textures |
 |--------|-----------|------|----------|
-| GLTF | ~4–5s | 247MB | External files |
-| GLB | ~2–4s | 194MB | Embedded |
+| GLTF | ~5s | 247MB | External files |
+| GLB | ~3s | 194MB | Embedded |
 
 ![Sponza screenshot](docs/img/sponza_gltf.png)
 *Sponza GLTF model with external textures*
