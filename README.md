@@ -154,3 +154,8 @@ Settings are loaded from config.ini with sections for window, input, camera, and
 - Support different uniform variables for different shaders. Right now the uniform variables is set up in the renderer flushBatch method. For example for water it would need different uniform variables for the water shader. It could be done by either:
     1. Add a parameter to flushBatch to specify which shader to use, and set the appropriate uniforms based on that.
     2. Create a separate flushBatch method for water that sets the water-specific uniforms.
+- Event system improvements:
+    1. Add a handled flag or priority to stop propagation (useful for UI capturing input).
+    2. Add event categories to subscribe to groups (e.g., an input layer only listens to keyboard/mouse, editor tools only listen to window events).
+    3. Keep deferred (queued) events but optionally add immediate dispatch for input-only events (keyboard, mouse).
+- Multi-window support.

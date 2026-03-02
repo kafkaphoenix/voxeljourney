@@ -14,11 +14,13 @@
 namespace se::assets {
 
 namespace {
+// Compute mip levels so minified textures sample smaller images, reducing moire/aliasing.
 int calcMipLevels(int width, int height) {
     int size = std::max(width, height);
     return 1 + static_cast<int>(std::floor(std::log2(size)));
 }
 
+// Apply anisotropic filtering to keep oblique surfaces sharper (cap at 4x).
 void applyAnisotropy(GLuint textureId) {
 #ifdef GL_EXT_texture_filter_anisotropic
     float maxAniso = 0.0f;

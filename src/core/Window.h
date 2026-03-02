@@ -16,8 +16,11 @@ class Window {
     ~Window();
 
     void pollEvents() const;
+    void waitEvents(double timeoutSeconds) const;
     void swapBuffers() const;
     bool shouldClose() const;
+    bool isMinimized() const { return m_Minimized; }
+    bool isFocused() const { return m_Focused; }
     void toggleFullscreen();
     void onFramebufferResize(int width, int height);
     void onKeyEvent(int key, int scancode, int action, int mods);
@@ -27,6 +30,7 @@ class Window {
     void onWindowFocus(bool focused);
     void onWindowPos(int xpos, int ypos);
     void onWindowSize(int width, int height);
+    void onWindowIconify(bool minimized);
     void setStatsTitle(std::string title);
     std::string_view getBaseTitle() const { return m_BaseTitle; }
     void setVsync(bool enabled);
@@ -54,10 +58,12 @@ class Window {
     int m_WindowedHeight;
     int m_WindowedPosX;
     int m_WindowedPosY;
-    std::string m_Title;
-    std::string m_BaseTitle;
     int m_LastFramebufferWidth = 0;
     int m_LastFramebufferHeight = 0;
+    bool m_Minimized = false;
+    bool m_Focused = true;
+    std::string m_Title;
+    std::string m_BaseTitle;
 };
 
 }  // namespace se::core

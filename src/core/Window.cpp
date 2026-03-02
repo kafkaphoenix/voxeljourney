@@ -148,6 +148,14 @@ void windowSizeCallback(GLFWwindow* window, int width, int height) {
     self->onWindowSize(width, height);
 }
 
+void windowIconifyCallback(GLFWwindow* window, int iconified) {
+    auto* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (!self) {
+        return;
+    }
+    self->onWindowIconify(iconified != 0);
+}
+
 }
 
 Window::Window(int width, int height, std::string title, EventBus* eventBus)
@@ -227,6 +235,7 @@ void Window::setupCallbacks() {
     glfwSetWindowFocusCallback(m_Window, windowFocusCallback);
     glfwSetWindowPosCallback(m_Window, windowPosCallback);
     glfwSetWindowSizeCallback(m_Window, windowSizeCallback);
+    glfwSetWindowIconifyCallback(m_Window, windowIconifyCallback);
 }
 
 void Window::setupInitialFramebuffer(int width, int height) {
@@ -255,6 +264,7 @@ Window::~Window() {
 }
 
 void Window::pollEvents() const { glfwPollEvents(); }
+void Window::waitEvents(double timeoutSeconds) const { glfwWaitEventsTimeout(timeoutSeconds); }
 void Window::swapBuffers() const { glfwSwapBuffers(m_Window); }
 bool Window::shouldClose() const { return glfwWindowShouldClose(m_Window); }
 void Window::onFramebufferResize(int width, int height) {
@@ -309,6 +319,7 @@ void Window::onWindowFocus(bool focused) {
     if (!m_EventBus) {
         return;
     }
+    m_Focused = focused;
     WindowFocusEvent event(focused);
     m_EventBus->queue(event);
 }
@@ -331,6 +342,11 @@ void Window::onWindowSize(int width, int height) {
     m_WindowedWidth = width;
     m_WindowedHeight = height;
 }
+
+void Window::onWindowIconify(bool minimized) {
+    m_Minimized = minimized;
+}
+
 void Window::toggleFullscreen() {
     bool wasFullscreen = m_IsFullscreen;
     if (!wasFullscreen) {

@@ -67,7 +67,13 @@ void Application::subscribeEvents() {
     m_Subscriptions.push_back(m_EventBus.subscribeScoped<MouseButtonEvent>([this](const MouseButtonEvent& e) { m_Input.onMouseButtonEvent(e); }));
     m_Subscriptions.push_back(m_EventBus.subscribeScoped<MouseMoveEvent>([this](const MouseMoveEvent& e) { m_Input.onMouseMoveEvent(e); }));
     m_Subscriptions.push_back(m_EventBus.subscribeScoped<ScrollEvent>([this](const ScrollEvent& e) { m_Input.onScrollEvent(e); }));
-    m_Subscriptions.push_back(m_EventBus.subscribeScoped<WindowFocusEvent>([this](const WindowFocusEvent& e) { m_Input.onWindowFocusEvent(e); }));
+    m_Subscriptions.push_back(m_EventBus.subscribeScoped<WindowFocusEvent>([this](const WindowFocusEvent& e) {
+        m_Input.onWindowFocusEvent(e);
+        if (e.focused) {
+            // When the window regains focus, reset the mouse position to prevent sudden jumps if the mouse moved while unfocused
+            m_Input.resetMouseFromWindow(m_Window.native());
+        }
+    }));
 }
 
 void Application::handleShortcuts() {
@@ -99,6 +105,11 @@ void Application::run() {
         float dt = updateDeltaTime(lastTime);
 
         beginFrame();
+
+        if (m_Window.isMinimized() || !m_Window.isFocused()) {
+            m_Window.waitEvents(0.1);
+            continue; // Skip updating and rendering when minimized or unfocused to save resources
+        }
 
         handleShortcuts();
 

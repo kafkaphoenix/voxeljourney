@@ -67,6 +67,7 @@ void Input::onWindowFocusEvent(const WindowFocusEvent& event) {
         return;
     }
 
+    // Reset all input states when the window loses focus to prevent stuck keys/buttons when the user alt-tabs away
     for (auto& keyState : m_Keys) {
         keyState = ButtonState::Up;
     }
