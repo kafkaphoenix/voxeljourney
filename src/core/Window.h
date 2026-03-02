@@ -25,6 +25,8 @@ class Window {
     void onMouseMove(double xpos, double ypos);
     void onScroll(double xoffset, double yoffset);
     void onWindowFocus(bool focused);
+    void onWindowPos(int xpos, int ypos);
+    void onWindowSize(int width, int height);
     void setStatsTitle(std::string title);
     std::string_view getBaseTitle() const { return m_BaseTitle; }
     void setVsync(bool enabled);

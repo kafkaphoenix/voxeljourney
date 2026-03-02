@@ -132,6 +132,22 @@ void windowFocusCallback(GLFWwindow* window, int focused) {
     self->onWindowFocus(focused != 0);
 }
 
+void windowPosCallback(GLFWwindow* window, int xpos, int ypos) {
+    auto* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (!self) {
+        return;
+    }
+    self->onWindowPos(xpos, ypos);
+}
+
+void windowSizeCallback(GLFWwindow* window, int width, int height) {
+    auto* self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    if (!self) {
+        return;
+    }
+    self->onWindowSize(width, height);
+}
+
 }
 
 Window::Window(int width, int height, std::string title, EventBus* eventBus)
@@ -209,6 +225,8 @@ void Window::setupCallbacks() {
     glfwSetCursorPosCallback(m_Window, cursorPosCallback);
     glfwSetScrollCallback(m_Window, scrollCallback);
     glfwSetWindowFocusCallback(m_Window, windowFocusCallback);
+    glfwSetWindowPosCallback(m_Window, windowPosCallback);
+    glfwSetWindowSizeCallback(m_Window, windowSizeCallback);
 }
 
 void Window::setupInitialFramebuffer(int width, int height) {
@@ -294,19 +312,41 @@ void Window::onWindowFocus(bool focused) {
     WindowFocusEvent event(focused);
     m_EventBus->queue(event);
 }
+
+void Window::onWindowPos(int xpos, int ypos) {
+    if (m_IsFullscreen) {
+        return;
+    }
+    m_WindowedPosX = xpos;
+    m_WindowedPosY = ypos;
+}
+
+void Window::onWindowSize(int width, int height) {
+    if (m_IsFullscreen) {
+        return;
+    }
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+    m_WindowedWidth = width;
+    m_WindowedHeight = height;
+}
 void Window::toggleFullscreen() {
-    if (!m_IsFullscreen) {
+    bool wasFullscreen = m_IsFullscreen;
+    if (!wasFullscreen) {
         glfwGetWindowPos(m_Window, &m_WindowedPosX, &m_WindowedPosY);
         glfwGetWindowSize(m_Window, &m_WindowedWidth, &m_WindowedHeight);
     }
 
-    GLFWmonitor* monitor = m_IsFullscreen ? nullptr : glfwGetPrimaryMonitor();
+    m_IsFullscreen = !wasFullscreen;
+
+    GLFWmonitor* monitor = wasFullscreen ? nullptr : glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = monitor ? glfwGetVideoMode(monitor) : nullptr;
-    int targetX = m_IsFullscreen ? m_WindowedPosX : 0;
-    int targetY = m_IsFullscreen ? m_WindowedPosY : 0;
-    int targetW = m_IsFullscreen ? m_WindowedWidth : mode->width;
-    int targetH = m_IsFullscreen ? m_WindowedHeight : mode->height;
-    int targetRate = m_IsFullscreen ? 0 : mode->refreshRate;
+    int targetX = wasFullscreen ? m_WindowedPosX : GLFW_DONT_CARE;
+    int targetY = wasFullscreen ? m_WindowedPosY : GLFW_DONT_CARE;
+    int targetW = wasFullscreen ? m_WindowedWidth : mode->width;
+    int targetH = wasFullscreen ? m_WindowedHeight : mode->height;
+    int targetRate = wasFullscreen ? GLFW_DONT_CARE : mode->refreshRate;
 
     glfwSetWindowMonitor(m_Window, monitor, targetX, targetY, targetW, targetH, targetRate);
     glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -326,7 +366,6 @@ void Window::toggleFullscreen() {
         }
     }
 
-    m_IsFullscreen = !m_IsFullscreen;
 }
 
 void Window::setStatsTitle(std::string title) {
