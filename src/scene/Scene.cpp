@@ -1,6 +1,6 @@
 #include "Scene.h"
 
-#include <iostream>
+#include <print>
 #include <stdexcept>
 
 #include "core/Config.h"
@@ -42,7 +42,7 @@ void Scene::createSponzaModel() {
         renderable.transform = t;
         addRenderable(renderable);
     }
-    std::cout << "Sponza model loaded in " << timer.get_milliseconds() << " ms" << std::endl;
+    std::println("Sponza model loaded in {} ms", timer.get_milliseconds());
 }
 
 void Scene::update(float deltaTime, const se::core::Input& input) {

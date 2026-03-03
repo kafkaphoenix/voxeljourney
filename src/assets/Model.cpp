@@ -8,7 +8,7 @@
 #include <glm/common.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
-#include <iostream>
+#include <print>
 #include <span>
 #include <stdexcept>
 #include <string_view>
@@ -31,7 +31,7 @@ tinygltf::Model loadGltfModel(std::string_view gltfPath) {
                         : loader.LoadASCIIFromFile(&gltfModel, &err, &warn, gltfPathStr);
 
     if (!ret) throw std::runtime_error(std::format("Failed to load GLTF: {}", err));
-    if (!warn.empty()) std::cout << "GLTF Warning: " << warn << std::endl;
+    if (!warn.empty()) std::println("GLTF Warning: {}", warn);
 
     return gltfModel;
 }

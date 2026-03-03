@@ -2,8 +2,9 @@
 
 #include <glad/glad.h>
 
+#include <cstdio>
 #include <format>
-#include <iostream>
+#include <print>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -418,7 +419,7 @@ void windowGlDebugCallback(unsigned int source, unsigned int type,
         throw std::runtime_error(text);
     }
 
-    std::cerr << text << std::endl;
+    std::println(stderr, "{}", text);
 }
 
 }  // namespace se::core

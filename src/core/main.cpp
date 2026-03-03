@@ -1,14 +1,15 @@
 #include "Application.h"
 
+#include <cstdio>
 #include <exception>
-#include <iostream>
+#include <print>
 
 int main() {
     try {
         se::core::Application app;
         app.run();
     } catch (const std::exception& e) {
-        std::cerr << "An error occurred: " << e.what() << std::endl;
+        std::println(stderr, "An error occurred: {}", e.what());
         return 1;
     }
     return 0;
