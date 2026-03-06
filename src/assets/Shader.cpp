@@ -11,13 +11,21 @@
 namespace se::assets {
 
 static std::string loadFile(std::string_view path) {
-    std::ifstream file{std::string(path)};
+    // open file in binary mode and move the file pointer to the end of the file to get the file size
+    std::ifstream file(path.data(), std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         throw std::runtime_error(std::format("Failed to open shader file: {}", path));
     }
-    std::stringstream ss;
-    ss << file.rdbuf();
-    return ss.str();
+
+    // get file size
+    const std::streamsize size = file.tellg();
+    // reset file pointer to the beginning of the file
+    file.seekg(0);
+
+    // read file contents into a string with exactly the size of the file
+    std::string buffer(size, '\0');
+    file.read(buffer.data(), size);
+    return buffer;
 }
 
 static void checkShaderCompilation(unsigned int shader, std::string_view type) {
