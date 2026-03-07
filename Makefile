@@ -6,6 +6,16 @@ BUILD_DIR := build
 VCPKG_DIR_LINUX := ~/vcpkg
 VCPKG_DIR_WINDOWS := C:/vcpkg
 
+# RenderDoc command
+RENDERDOC_CMD_LINUX := renderdoc
+RENDERDOC_CMD_WINDOWS := "C:/Program Files/RenderDoc/renderdoccmd.exe"
+
+ifeq ($(OS),Windows_NT)
+RENDERDOC_CMD := $(RENDERDOC_CMD_WINDOWS)
+else
+RENDERDOC_CMD := $(RENDERDOC_CMD_LINUX)
+endif
+
 ifeq ($(OS),Windows_NT)
 BUILD_DIR := build/windows-msvc
 VCPKG_DIR := $(VCPKG_DIR_WINDOWS)
@@ -33,9 +43,12 @@ build: ## Build project
 
 .PHONY: run
 run: ## Run the project
-
-	./$(EXE)
+	./$(EXE) && cd -
 
 .PHONY: clean
 clean: ## Remove build directory
 	rm -rf $(BUILD_DIR)
+
+.PHONY: renderdoc
+renderdoc: ## Run RenderDoc
+	$(RENDERDOC_CMD) capture $(EXE) --wait-for-exit

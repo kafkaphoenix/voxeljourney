@@ -72,6 +72,12 @@ Shader::Shader(std::string shaderPath)
     glLinkProgram(m_ID);
     checkProgramLinking(m_ID);
 
+#ifdef GL_KHR_debug
+    if (glad_glObjectLabel != nullptr) {
+        glad_glObjectLabel(GL_PROGRAM, m_ID, static_cast<GLsizei>(m_Path.size()), m_Path.c_str());
+    }
+#endif
+
     glDeleteShader(vs);
     glDeleteShader(fs);
 }
