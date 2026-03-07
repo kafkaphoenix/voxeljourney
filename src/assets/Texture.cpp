@@ -56,11 +56,7 @@ Texture::Texture(std::string path, bool flipVertically)
         format = GL_RGB;
         // Fix pixel alignment for RGB textures
         // https://stackoverflow.com/questions/71284184/opengl-distorted-texture
-        if (3 * width % 4 == 0) {
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-        } else {
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        }
+        glPixelStorei(GL_UNPACK_ALIGNMENT, (3 * width % 4 == 0) ? 4 : 1);
     } else if (channels == 2) {
         internalFormat = GL_RG8;
         format = GL_RG;
