@@ -1,9 +1,24 @@
 #include "GlBuffer.h"
 
+#include <glad/glad.h>
+
 namespace se::render {
 
-GlBuffer::GlBuffer(GLenum target) : m_Target(target) {
+GlBuffer::GlBuffer() {
     glCreateBuffers(1, &m_Id);
+}
+
+void* GlBuffer::mapWrite(GLintptr offset, GLsizeiptr size) const {
+    // GL_MAP_WRITE_BIT: We only need to write to the buffer, so we can avoid some overhead by not allowing reads.
+    // GL_MAP_INVALIDATE_RANGE_BIT: We tell OpenGL that we don't care about the existing contents of the buffer
+    // in the specified range, which can allow it to avoid unnecessary synchronization and improve performance.
+    // GL_MAP_UNSYNCHRONIZED_BIT: We tell OpenGL that we will handle synchronization ourselves.
+    return glMapNamedBufferRange(m_Id, offset, size,
+                                 GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);
+}
+
+void GlBuffer::unmap() const {
+    glUnmapNamedBuffer(m_Id);
 }
 
 GlBuffer::~GlBuffer() {
@@ -11,7 +26,7 @@ GlBuffer::~GlBuffer() {
 }
 
 GlBuffer::GlBuffer(GlBuffer&& other) noexcept
-    : m_Id(other.m_Id), m_Target(other.m_Target) {
+    : m_Id(other.m_Id) {
     other.m_Id = 0;
 }
 
@@ -19,7 +34,6 @@ GlBuffer& GlBuffer::operator=(GlBuffer&& other) noexcept {
     if (this != &other) {
         release();
         m_Id = other.m_Id;
-        m_Target = other.m_Target;
         other.m_Id = 0;
     }
     return *this;

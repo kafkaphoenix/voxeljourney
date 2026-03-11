@@ -35,10 +35,10 @@ class Mesh {
 
    private:
     VertexArray m_Vao;
-    GlBuffer m_Vbo{GL_ARRAY_BUFFER};
-    GlBuffer m_Ebo{GL_ELEMENT_ARRAY_BUFFER};
+    GlBuffer m_Vbo;
+    GlBuffer m_Ebo;
     AABB m_AABB;
-    GlBuffer m_InstanceVbo{GL_ARRAY_BUFFER};
+    GlBuffer m_InstanceVbo;
     mutable size_t m_InstanceCapacityBytes = 0;
     size_t indexCount = 0;
     static size_t s_DefaultInstanceCapacityBytes;

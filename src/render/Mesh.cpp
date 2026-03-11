@@ -6,6 +6,7 @@
 
 #include "GlUtils.h"
 #include "Renderer.h"
+#include <cstring>
 
 namespace se::render {
 
@@ -46,11 +47,15 @@ Mesh::Mesh(float* vertices, size_t vertSize,
     m_Vao.setAttribFormat(2, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float));
     m_Vao.setAttribBinding(2, 0);
 
+    // Setup instance buffer with default capacity if specified
     if (s_DefaultInstanceCapacityBytes > 0) {
         m_InstanceVbo.setData(static_cast<GLsizeiptr>(s_DefaultInstanceCapacityBytes), nullptr, GL_DYNAMIC_DRAW);
         m_InstanceCapacityBytes = s_DefaultInstanceCapacityBytes;
     }
 
+    // Setup instance buffer (binding = 1) We use this buffer for Instanced data like modelMatrix and normalMatrix
+    // that's why we set the divisor to 1 below. The actual data will be uploaded later via updateInstanceBuffer()
+    // in Renderer::flushBatch() when we know how many instances we need to draw for each batch.
     const GLsizei instanceStride = static_cast<GLsizei>(sizeof(InstanceData));
     m_Vao.setVertexBuffer(1, m_InstanceVbo.id(), 0, instanceStride);
 
@@ -71,7 +76,7 @@ Mesh::Mesh(float* vertices, size_t vertSize,
             static_cast<GLuint>(offsetof(InstanceData, normalMatrix) + sizeof(glm::vec3) * i));
         m_Vao.setAttribBinding(7 + i, 1);
     }
-    m_Vao.setBindingDivisor(1, 1);
+    m_Vao.setBindingDivisor(1, 1);  // Tell OpenGL this is per-instance data
 
     checkGlError("Mesh::Mesh");
 }
@@ -105,7 +110,12 @@ void Mesh::updateInstanceBuffer(const void* data, size_t size) const {
         m_InstanceCapacityBytes = newCapacity;
     }
 
-    m_InstanceVbo.updateSubData(0, static_cast<GLsizeiptr>(size), data);
+    void* ptr = m_InstanceVbo.mapWrite(0, static_cast<GLsizeiptr>(size));
+    if (ptr) {
+        memcpy(ptr, data, size);
+        // we signal that we're done writing to the buffer so it can be used for rendering now.
+        m_InstanceVbo.unmap();
+    }
 }
 
 }  // namespace se::render

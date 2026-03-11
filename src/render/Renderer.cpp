@@ -164,6 +164,8 @@ void Renderer::flushBatch(const BatchKey& key, BatchData& batch) {
     shader->setVec4("u_BaseColorFactor", &params.baseColorFactor[0]);
     shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
 
+    // at this point we know how many instances we need to draw for this batch, so we can upload the
+    // instance data to the GPU
     key.mesh->updateInstanceBuffer(
         batch.instances.data(),
         batch.instances.size() * sizeof(InstanceData));

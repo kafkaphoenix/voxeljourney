@@ -6,7 +6,9 @@ namespace se::render {
 
 class GlBuffer {
    public:
-    explicit GlBuffer(GLenum target);
+    // Map buffer for writing (dynamic streaming)
+   public:
+    GlBuffer();
     ~GlBuffer();
 
     GlBuffer(const GlBuffer&) = delete;
@@ -16,13 +18,14 @@ class GlBuffer {
 
     void setData(GLsizeiptr size, const void* data, GLenum usage) const;
     void updateSubData(GLintptr offset, GLsizeiptr size, const void* data) const;
+    void* mapWrite(GLintptr offset, GLsizeiptr size) const;
+    void unmap() const;
     unsigned int id() const { return m_Id; }
 
    private:
     void release();
 
     GLuint m_Id = 0;
-    GLenum m_Target;
 };
 
 }  // namespace se::render
