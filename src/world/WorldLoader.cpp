@@ -33,11 +33,6 @@ void WorldLoader::loadSky(World& world) {
 }
 
 void WorldLoader::loadModels(World& world) {
-    se::core::Timer timer;
-    const auto& model = m_AssetManager.getOrLoadModel("assets/models/sponza_glb/sponza.glb",
-                                               "assets/shaders/model");
-    std::println("Sponza loaded in {} ms", timer.millis());
-    submitModel(model, world);
 }
 
 void WorldLoader::submitModel(const se::assets::ModelHandle& model, World& world) {

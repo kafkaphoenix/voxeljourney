@@ -1,8 +1,8 @@
 {
-  "name": "simpleengine",
+  "name": "voxeljourney",
   "version": "0.1.0",
-  "description": "A simple OpenGL-based game engine written in C++",
-  "homepage": "https://github.com/kafkaphoenix/simpleengine",
+  "description": "A voxel engine written in modern C++ and OpenGL, with a focus on learning and documentation.",
+  "homepage": "https://github.com/kafkaphoenix/voxeljourney",
   "license": "MIT",
   "dependencies": [
     {

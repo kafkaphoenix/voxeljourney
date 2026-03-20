@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(simpleengine
-    DESCRIPTION "A simple OpenGL-based game engine written in C++"
+project(voxeljourney
+    DESCRIPTION "A voxel engine written in modern C++ and OpenGL, with a focus on learning and documentation."
     VERSION 0.1.0
     LANGUAGES CXX
 )

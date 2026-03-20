@@ -19,11 +19,11 @@ endif
 ifeq ($(OS),Windows_NT)
 BUILD_DIR := build/windows-msvc
 VCPKG_DIR := $(VCPKG_DIR_WINDOWS)
-EXE := $(BUILD_DIR)/Debug/simpleengine.exe
+EXE := $(BUILD_DIR)/Debug/voxeljourney.exe
 else
 BUILD_DIR := build/ubuntu-gcc
 VCPKG_DIR := $(VCPKG_DIR_LINUX)
-EXE := $(BUILD_DIR)/simpleengine
+EXE := $(BUILD_DIR)/voxeljourney
 endif
 
 # AutoDoc

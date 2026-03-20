@@ -1,5 +1,6 @@
-# A simple engine
-Modern C++23 OpenGL4.6 engine that can be used as a starting point for more complex engines or games. It focuses on clarity and a small feature set while keeping modern practices.
+# Voxel Journey
+This project is a fork of [simpleengine](https://github.com/kafkaphoenix/simpleengine), focused on building a voxel engine. It’s fully open-source and documented as it evolves.
+Along the way, I’ll be sharing blog posts that cover design decisions, implementation details, and the challenges I run into. You can find them in the blog section [voxel-journey](https://kafkaphoenix.github.io/categories/voxel-journey/).
 
 ## Engine Features
 - Instanced forward rendering, CPU batching by mesh/material with frustum culling.
@@ -19,25 +20,10 @@ For a more detailed look at the engine’s architecture and possible improvement
 
 See the [build instructions](docs/build.md) for detailed steps on how to build and run the engine.
 
-## Demo Sponza scene
-
-A demo scene is included with the Sponza model.
-
-### Controls
+## Controls
 - WASD: Move
 - Mouse: Look
 - Space / Left Ctrl: Up / down
 - F3: Wireframe toggle
 - F12: Toggle fullscreen
 - Esc: Quit
-
-| Format | Load Time | Size | Textures |
-|--------|-----------|------|----------|
-| GLTF | ~5s | 325MB | External files |
-| GLB | ~3s | 325MB | Embedded |
-
-![Sponza screenshot](docs/img/sponza_gltf.png)
-*Sponza GLTF model with external textures*
-
-![Sponza screenshot](docs/img/sponza_glb.png)
-*Sponza GLB model with embedded textures*
