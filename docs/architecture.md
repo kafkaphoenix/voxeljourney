@@ -24,6 +24,7 @@ The engine is organized into several modules, each responsible for a specific as
 - EventBus: Small event queue used by window callbacks.
 - Config: Reads config.ini for runtime settings.
 - StatsTracker: Tracks and averages frame time, draw calls, etc.
+- Level: Owns the scene and the player. Loads the demo scene and updates the scene each frame. It also handles input for the player and the initial configuration of the scene.
 
 ### Assets
 - Asset: Minimal base class with a path.
@@ -46,9 +47,9 @@ The engine is organized into several modules, each responsible for a specific as
 - RenderQueue: Collects renderables each frame to be processed by each renderer at the end of the frame.
 - RenderStats: Tracks draw calls, triangles for stats display.
 
-### World
-- World: Owns the scene objects, lights (sun), and the sky.
-- WorldLoader: Loads the demo scene with the Sponza model and sets up the lights.
+### Scene
+- Scene: Owns the scene objects, lights (sun), and the sky.
+- SceneBuilder: Builds the demo scene with the Sponza model and sets up the lights.
 - Light: Defines different light types (directional, point, and spot).
 - Sun: Directional light with color and intensity.
 - Sky: Simple sky color and ambient light.
@@ -56,9 +57,6 @@ The engine is organized into several modules, each responsible for a specific as
 - Renderable: Defines a renderable object composed of a mesh, material, and transform.
 - Camera: Simple perspective camera with view/projection matrix calculation.
 - Player: Camera controller with WASD movement and mouse look, no physics, collisions or model.
-
-### Scene
-- Level: Owns the world and the player. Loads the demo scene and updates the world each frame. It also handles input for the player and the initial configuration of the scene.
 
 ## Potential improvements
 - More complete glTF/glb support (animations, PBR materials, Draco compression, etc).

@@ -2,7 +2,7 @@
 #include "Light.h"
 #include "Transform.h"
 
-namespace se::world {
+namespace se::scene {
 
 class Sun {
    public:
@@ -15,4 +15,4 @@ class Sun {
     Transform m_Transform;
 };
 
-}  // namespace se::world
+}  // namespace se::scene

@@ -1,41 +1,38 @@
-#include "WorldLoader.h"
+#include "SceneBuilder.h"
 
 #include <glm/glm.hpp>
 #include <print>
 #include <stdexcept>
 
-#include "World.h"
+#include "Scene.h"
 #include "assets/AssetManager.h"
 #include "core/Timer.h"
-#include "world/Light.h"
-#include "world/Sun.h"
-#include "world/Transform.h"
+#include "scene/Light.h"
+#include "scene/Sun.h"
+#include "scene/Transform.h"
 
-namespace se::world {
+namespace se::scene {
 
-WorldLoader::WorldLoader(se::assets::AssetManager& assetManager)
-    : m_AssetManager(assetManager) {}
-
-void WorldLoader::load(World& world) {
-    loadSky(world);
-    loadModels(world);
+void SceneBuilder::Build(Scene& scene, se::assets::AssetManager& assetManager) {
+    LoadSky(scene);
+    LoadModels(scene, assetManager);
 }
 
-void WorldLoader::loadSky(World& world) {
+void SceneBuilder::LoadSky(Scene& scene) {
     DirectionalLight sun;
     sun.direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.3f));
     sun.color = glm::vec3(1.0f, 0.95f, 0.9f);
     sun.intensity = 1.0f;
-    world.addDirectionalLight(sun);
+    scene.addDirectionalLight(sun);
 
-    world.getSky().setAmbientColor(glm::vec3(1.0f, 1.0f, 1.0f));
-    world.getSky().setAmbientStrength(0.7f);
+    scene.getSky().setAmbientColor(glm::vec3(1.0f, 1.0f, 1.0f));
+    scene.getSky().setAmbientStrength(0.7f);
 }
 
-void WorldLoader::loadModels(World& world) {
+void SceneBuilder::LoadModels(Scene& scene, se::assets::AssetManager& assetManager) {
 }
 
-void WorldLoader::submitModel(const se::assets::ModelHandle& model, World& world) {
+void SceneBuilder::SubmitModel(const se::assets::ModelHandle& model, Scene& scene) {
     Transform t;
     t.position = {0.0f, 0.0f, 0.0f};
     t.scale = {0.1f, 0.1f, 0.1f};
@@ -52,7 +49,7 @@ void WorldLoader::submitModel(const se::assets::ModelHandle& model, World& world
         r.mesh = sub.mesh.get();
         r.material = sub.material;
         r.transform = t;
-        world.addRenderable(r);
+        scene.addRenderable(r);
     }
 }
-}  // namespace se::world
+}  // namespace se::scene

@@ -159,18 +159,18 @@ void windowIconifyCallback(GLFWwindow* window, int iconified) {
 
 }
 
-Window::Window(int width, int height, std::string title, EventBus* eventBus)
+Window::Window(const Config::Window& config, EventBus* eventBus)
     : m_EventBus(eventBus),
       m_IsFullscreen(false),
-      m_WindowedWidth(width),
-      m_WindowedHeight(height),
+      m_WindowedWidth(config.width),
+      m_WindowedHeight(config.height),
       m_WindowedPosX(100),
       m_WindowedPosY(100),
-      m_Title(std::move(title)),
+      m_Title(std::move(config.title)),
       m_BaseTitle(m_Title) {
     initGlfw();
     setupGlfwHints();
-    createWindow(width, height, m_Title);
+    createWindow(config.width, config.height, m_Title);
     glfwSetWindowUserPointer(m_Window, this);
     try {
         initGlad();
@@ -181,7 +181,7 @@ Window::Window(int width, int height, std::string title, EventBus* eventBus)
     }
     setupGlDebug();
     setupCallbacks();
-    setupInitialFramebuffer(width, height);
+    setupInitialFramebuffer(config.width, config.height);
     setupInputMode();
 }
 

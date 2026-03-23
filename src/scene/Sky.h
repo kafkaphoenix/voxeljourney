@@ -1,7 +1,7 @@
 #pragma once
 #include <glm/vec3.hpp>
 
-namespace se::world {
+namespace se::scene {
 
 class Sky {
    public:
@@ -15,4 +15,4 @@ class Sky {
     float m_AmbientStrength = 0.2f;
 };
 
-}  // namespace se::world
+}  // namespace se::scene

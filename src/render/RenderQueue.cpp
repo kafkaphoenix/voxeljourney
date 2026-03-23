@@ -7,7 +7,7 @@
 
 namespace se::render {
 
-void RenderQueue::submit(const se::world::Renderable& renderable, const Frustum& frustum) {
+void RenderQueue::submit(const se::scene::Renderable& renderable, const Frustum& frustum) {
     if (!renderable.mesh)
         throw std::runtime_error("Renderable missing mesh");
 

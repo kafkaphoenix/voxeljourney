@@ -7,7 +7,7 @@
 #include "core/Config.h"
 #include "core/Input.h"
 
-namespace se::world {
+namespace se::scene {
 
 void Player::setMouseSmoothing(float alpha) {
     m_MouseSmoothAlpha = std::clamp(alpha, 0.0f, 1.0f);
@@ -25,17 +25,18 @@ void Player::update(float deltaTime, const se::core::Input& input) {
 }
 
 void Player::applyConfig(const se::core::Config& config) {
-    Camera::Settings s;
-    s.position = {config.camera().startPosX,
+    Camera::Config c;
+    c.position = {config.camera().startPosX,
                   config.camera().startPosY,
                   config.camera().startPosZ};
-    s.moveSpeed = config.camera().moveSpeed;
-    s.mouseSensitivity = config.input().mouseSensitivity;
-    s.fov = config.camera().fov;
-    s.nearPlane = config.camera().nearPlane;
-    s.farPlane = config.camera().farPlane;
+    c.moveSpeed = config.camera().moveSpeed;
+    c.mouseSensitivity = config.input().mouseSensitivity;
+    c.fov = config.camera().fov;
+    c.nearPlane = config.camera().nearPlane;
+    c.farPlane = config.camera().farPlane;
+    c.aspectRatio = static_cast<float>(config.window().width) / static_cast<float>(config.window().height);
 
-    m_Camera.applySettings(s);
+    m_Camera.applyConfig(c);
     setMouseSmoothing(config.input().mouseSmoothAlpha);
     setFixedStep(config.input().fixedStep);
 }
@@ -75,4 +76,4 @@ void Player::applyKeyboardStep(float stepSeconds, const se::core::Input& input) 
         stepSeconds);
 }
 
-}  // namespace se::world
+}  // namespace se::scene

@@ -6,7 +6,7 @@ namespace se::render {
 class Mesh;
 }
 
-namespace se::world {
+namespace se::scene {
 
 struct Renderable {
     se::render::Mesh* mesh = nullptr;
@@ -14,4 +14,4 @@ struct Renderable {
     Transform transform;
 };
 
-}  // namespace se::world
+}  // namespace se::scene

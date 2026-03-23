@@ -4,9 +4,12 @@
 #include "Frustum.h"
 #include "ModelRenderer.h"
 #include "RenderStats.h"
-#include "world/Camera.h"
-#include "world/LightData.h"
-#include "world/Renderable.h"
+
+namespace se::scene {
+class Camera;
+class LightData;
+class Renderable;
+}
 
 namespace se::render {
 
@@ -14,9 +17,9 @@ class RenderManager {
    public:
     RenderManager();
 
-    void beginFrame(const se::world::Camera& camera);
-    void submit(const se::world::Renderable& renderable);
-    void endFrame(const se::world::LightData& lights);
+    void beginFrame(const se::scene::Camera& camera);
+    void submit(const se::scene::Renderable& renderable);
+    void endFrame(const se::scene::LightData& lights);
 
     void toggleWireframe();
     void setBatchSize(size_t maxInstances);
@@ -28,10 +31,11 @@ class RenderManager {
     void clear();
     void setupGlState();
 
-    const se::world::Camera* m_Camera = nullptr;
+    const se::scene::Camera* m_Camera = nullptr;
     Frustum m_Frustum{};
     ModelRenderer m_ModelRenderer;
     RenderStats m_Stats;
+    bool m_Wireframe = false;
 };
 
 }  // namespace se::render

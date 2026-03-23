@@ -1,7 +1,7 @@
 #pragma once
 #include <glm/vec3.hpp>
 
-namespace se::world {
+namespace se::scene {
 
 struct DirectionalLight {
     glm::vec3 direction{0.0f, -1.0f, 0.0f};
@@ -26,4 +26,4 @@ struct SpotLight {
     float outerAngle = 30.0f;
 };
 
-}  // namespace se::world
+}  // namespace se::scene

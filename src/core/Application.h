@@ -4,10 +4,10 @@
 #include "Config.h"
 #include "EventBus.h"
 #include "Input.h"
+#include "Level.h"
 #include "StatsTracker.h"
 #include "Window.h"
 #include "assets/AssetManager.h"
-#include "scene/Level.h"
 #include "render/RenderManager.h"
 
 namespace se::core {
@@ -37,7 +37,7 @@ class Application {
     Window m_Window;
     se::assets::AssetManager m_AssetManager;
     se::render::RenderManager m_RenderManager;
-    se::scene::Level m_Level;
+    Level m_Level;
 };
 
 }  // namespace se::core

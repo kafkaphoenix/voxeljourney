@@ -52,7 +52,6 @@ void Mesh::setupInstanceAttributes(GLuint baseIndex) {
     const GLsizei instanceStride = static_cast<GLsizei>(sizeof(InstanceData));
     m_Vao.setVertexBuffer(1, m_InstanceVbo.id(), 0, instanceStride);
 
-    // mat4 modelMatrix — 4 x vec4
     for (int i = 0; i < 4; i++) {
         const GLuint slot = baseIndex + static_cast<GLuint>(i);
         m_Vao.enableAttrib(slot);
@@ -62,7 +61,6 @@ void Mesh::setupInstanceAttributes(GLuint baseIndex) {
         m_Vao.setAttribBinding(slot, 1);
     }
 
-    // mat3 normalMatrix — 3 x vec3
     for (int i = 0; i < 3; i++) {
         const GLuint slot = baseIndex + 4 + static_cast<GLuint>(i);
         m_Vao.enableAttrib(slot);

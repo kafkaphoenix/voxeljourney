@@ -5,9 +5,8 @@
 
 #include "Frustum.h"
 #include "Mesh.h"
-#include "RenderStats.h"
 #include "assets/Material.h"
-#include "world/Renderable.h"
+#include "scene/Renderable.h"
 
 namespace se::render {
 
@@ -40,20 +39,16 @@ using BatchMap = std::unordered_map<BatchKey, BatchData, BatchKey::Hash>;
 
 class RenderQueue {
    public:
-    void submit(const se::world::Renderable& renderable, const Frustum& frustum);
+    void submit(const se::scene::Renderable& renderable, const Frustum& frustum);
     void clear();
 
     BatchMap& getOpaqueBatches() { return m_OpaqueBatches; }
     BatchMap& getTransparentBatches() { return m_TransparentBatches; }
     const BatchMap& getOpaqueBatches() const { return m_OpaqueBatches; }
     const BatchMap& getTransparentBatches() const { return m_TransparentBatches; }
-
-    const RenderStats& getStats() const noexcept { return m_Stats; }
-
    private:
     BatchMap m_OpaqueBatches;
     BatchMap m_TransparentBatches;
-    RenderStats m_Stats;
 };
 
 }  // namespace se::render

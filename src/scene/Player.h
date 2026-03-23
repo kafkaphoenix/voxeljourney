@@ -6,14 +6,15 @@ class Input;
 class Config;
 }
 
-namespace se::world {
+namespace se::scene {
 
 class Player {
    public:
-    Player(float aspectRatio) : m_Camera(aspectRatio) {}
+    Player() = default;
+    ~Player() = default;
 
-    void update(float deltaTime, const se::core::Input& input);
     void applyConfig(const se::core::Config& config);
+    void update(float deltaTime, const se::core::Input& input);
     void setMouseSmoothing(float alpha);
     void setFixedStep(float stepSeconds);
     Camera& getCamera() { return m_Camera; }
@@ -32,4 +33,4 @@ class Player {
     float m_FixedStep = 1.0f / 120.0f;
 };
 
-}  // namespace se::world
+}  // namespace se::scene

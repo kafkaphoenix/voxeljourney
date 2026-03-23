@@ -15,6 +15,9 @@ class UniformBuffer {
     UniformBuffer(UniformBuffer&& other) noexcept = default;
     UniformBuffer& operator=(UniformBuffer&& other) noexcept = default;
 
+    unsigned int id() const { return m_Buffer.id(); }
+    unsigned int binding() const { return m_Binding; }
+
     void update(std::span<const std::byte> data) const;
     void updateSubData(GLintptr offset, std::span<const std::byte> data) const;
 

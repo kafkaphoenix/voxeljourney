@@ -7,9 +7,9 @@ namespace se::core {
 Application::Application()
     : m_Config(Config::load("config.ini")),
       m_StatsTracker(m_Config.stats()),
-      m_Window(m_Config.window().width, m_Config.window().height, m_Config.window().title, &m_EventBus),
+      m_Window(m_Config.window(), &m_EventBus),
       m_RenderManager(),
-      m_Level(static_cast<float>(m_Config.window().width) / static_cast<float>(m_Config.window().height), m_AssetManager) {
+      m_Level() {
     setupWindow();
     subscribeEvents();
 
@@ -19,10 +19,8 @@ Application::Application()
 
     m_EventBus.dispatchQueued();
 
-    m_Level.initialize();
-    m_Level.applyConfig(m_Config);
+    m_Level.initialize(m_Config, m_RenderManager, m_AssetManager);
     m_Input.resetMouseFromWindow(m_Window.native());
-    m_Level.getPlayer().update(0.0f, m_Input);
 }
 
 Application::~Application() {

@@ -7,15 +7,13 @@
 #include "Renderable.h"
 #include "Sky.h"
 
-namespace se::world {
+namespace se::scene {
 
-class World {
+class Scene {
    public:
-    // renderables
     void addRenderable(const Renderable& r) { m_Renderables.push_back(r); }
     const std::vector<Renderable>& getRenderables() const { return m_Renderables; }
 
-    // lights
     std::span<const DirectionalLight> getDirectionalLights() const { return m_DirectionalLights; }
     std::span<const PointLight> getPointLights() const { return m_PointLights; }
     std::span<const SpotLight> getSpotLights() const { return m_SpotLights; }
@@ -23,11 +21,9 @@ class World {
     void addPointLight(const PointLight& l) { m_PointLights.push_back(l); }
     void addSpotLight(const SpotLight& l) { m_SpotLights.push_back(l); }
 
-    // sky
     Sky& getSky() { return m_Sky; }
     const Sky& getSky() const { return m_Sky; }
 
-    // render data — zero alloc, spans point into our vectors
     LightData getLightData() const {
         LightData d;
         d.sun = m_DirectionalLights.empty() ? nullptr : &m_DirectionalLights[0];
@@ -46,4 +42,4 @@ class World {
     std::vector<Renderable> m_Renderables;
 };
 
-}  // namespace se::world
+}  // namespace se::scene

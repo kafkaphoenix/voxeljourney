@@ -36,30 +36,53 @@ ModelRenderer::ModelRenderer() {
     Mesh::setDefaultInstanceCapacityBytes(m_MaxBatchSize * sizeof(InstanceData));
 }
 
-void ModelRenderer::submit(const se::world::Renderable& renderable, const Frustum& frustum) {
+void ModelRenderer::submit(const se::scene::Renderable& renderable,
+                           const Frustum& frustum) {
     m_Queue.submit(renderable, frustum);
 }
 
-void ModelRenderer::flush(const se::world::LightData& lights,
-                          const se::world::Camera& camera) {
-    m_Stats = m_Queue.getStats();
+void ModelRenderer::flush(const se::scene::LightData& lights,
+                          const se::scene::Camera& camera,
+                          RenderStats& stats) {
+    if (m_Queue.getOpaqueBatches().empty() &&
+        m_Queue.getTransparentBatches().empty()) return;
 
     updateFrameUbo(lights, camera);
 
-    // Opaque pass — depth writes on, blending off
+    // opaque pass
     glDisable(GL_BLEND);
     glDepthMask(GL_TRUE);
-    for (auto& [key, batch] : m_Queue.getOpaqueBatches())
-        flushBatch(key, batch);
+    glEnable(GL_CULL_FACE);
+    glPolygonMode(GL_FRONT_AND_BACK, m_Wireframe ? GL_LINE : GL_FILL);
+    if (m_Wireframe) {
+        glEnable(GL_LINE_SMOOTH);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(0.5f, 1.0f);
+    }
 
-    // Transparent pass — sorted back-to-front, depth writes off
+    for (auto& [key, batch] : m_Queue.getOpaqueBatches())
+        flushBatch(key, batch, stats);
+
+    // transparent pass
     glEnable(GL_BLEND);
     glDepthMask(GL_FALSE);
     for (auto& draw : getSortedTransparentDraws(camera))
-        flushBatch(draw.key, *draw.batch);
+        flushBatch(draw.key, *draw.batch, stats);
+
+    // restore known good state
+    glEnable(GL_BLEND);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_CULL_FACE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glDisable(GL_LINE_SMOOTH);
 
     m_Queue.clear();
-    resetGlState();
+}
+
+void ModelRenderer::setWireframe(bool enabled) {
+    m_Wireframe = enabled;
 }
 
 void ModelRenderer::setBatchSize(const size_t maxInstances) {
@@ -74,27 +97,9 @@ void ModelRenderer::setupFrameUbo() {
     m_FrameUbo.emplace(sizeof(FrameUbo), 0);
 }
 
-void ModelRenderer::resetGlState() {
-    glEnable(GL_BLEND);
-    glDepthMask(GL_TRUE);
-    glEnable(GL_CULL_FACE);
-    applyWireframeState();
-}
-
-void ModelRenderer::applyWireframeState() {
-    glPolygonMode(GL_FRONT_AND_BACK, m_Wireframe ? GL_LINE : GL_FILL);
-    if (m_Wireframe) {
-        glEnable(GL_LINE_SMOOTH);
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-        glEnable(GL_POLYGON_OFFSET_FILL);
-        glPolygonOffset(0.5f, 1.0f);
-    } else {
-        glDisable(GL_POLYGON_OFFSET_FILL);
-        glDisable(GL_LINE_SMOOTH);
-    }
-}
-
-void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch) {
+void ModelRenderer::flushBatch(const BatchKey& key,
+                               BatchData& batch,
+                               RenderStats& stats) {
     if (batch.instances.empty()) return;
 
     const auto& state = key.material->getState();
@@ -113,23 +118,22 @@ void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch) {
     key.mesh->updateInstanceBuffer(batch.instances);
     key.mesh->drawInstanced(batch.instances.size());
 
-    ++m_Stats.drawCalls;
-    m_Stats.triangles += static_cast<unsigned int>(
+    ++stats.modelDrawCalls;
+    stats.modelTriangles += static_cast<unsigned int>(
         (key.mesh->getIndexCount() / 3) * batch.instances.size());
 }
 
 std::vector<ModelRenderer::TransparentDraw>
-ModelRenderer::getSortedTransparentDraws(const se::world::Camera& camera) {
+ModelRenderer::getSortedTransparentDraws(const se::scene::Camera& camera) {
     std::vector<TransparentDraw> draws;
     draws.reserve(m_Queue.getTransparentBatches().size());
 
     const glm::vec3 camPos = camera.getPosition();
-
     for (auto& [key, batch] : m_Queue.getTransparentBatches()) {
         if (batch.instances.empty()) continue;
         const glm::vec3 center = batch.centerSum /
                                  static_cast<float>(batch.instances.size());
-        draws.push_back(TransparentDraw{
+        draws.push_back({
             .distance = glm::length2(camPos - center),
             .key = key,
             .batch = &batch,
@@ -140,11 +144,9 @@ ModelRenderer::getSortedTransparentDraws(const se::world::Camera& camera) {
     return draws;
 }
 
-void ModelRenderer::updateFrameUbo(const se::world::LightData& lights,
-                                   const se::world::Camera& camera) {
-    FrameUbo data{
-        .viewProj = camera.getViewProjection(),
-    };
+void ModelRenderer::updateFrameUbo(const se::scene::LightData& lights,
+                                   const se::scene::Camera& camera) {
+    FrameUbo data{.viewProj = camera.getViewProjection()};
 
     if (lights.sun) {
         data.sunDir = glm::vec4(glm::normalize(lights.sun->direction), 0.0f);
@@ -153,28 +155,19 @@ void ModelRenderer::updateFrameUbo(const se::world::LightData& lights,
 
     data.ambient = glm::vec4(lights.ambientColor, lights.ambientStrength);
 
-    const int pointCount = std::min(static_cast<int>(lights.pointLights.size()), 4);
-    data.lightCounts = glm::vec4(static_cast<float>(pointCount), 0.0f, 0.0f, 0.0f);
+    const int pointCount = std::min(
+        static_cast<int>(lights.pointLights.size()), 4);
+    data.lightCounts = glm::vec4(static_cast<float>(pointCount), 0, 0, 0);
 
     for (int i = 0; i < pointCount; ++i) {
         const auto& l = lights.pointLights[i];
-        data.pointLights[i] = PointLightGpuData{
+        data.pointLights[i] = {
             .positionRange = glm::vec4(l.position, l.range),
             .colorIntensity = glm::vec4(l.color * l.intensity, l.intensity),
         };
     }
 
     m_FrameUbo->updateSubData(0, data);
-}
-
-void ModelRenderer::reset() {
-    m_Queue.clear();
-    m_Stats.reset();
-}
-
-void ModelRenderer::toggleWireframe() {
-    m_Wireframe = !m_Wireframe;
-    applyWireframeState();
 }
 
 }  // namespace se::render

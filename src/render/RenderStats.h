@@ -3,16 +3,10 @@
 namespace se::render {
 
 struct RenderStats {
-    unsigned int drawCalls = 0;
-    unsigned int triangles = 0;
+    unsigned int modelDrawCalls = 0;
+    unsigned int modelTriangles = 0;
 
-    void reset() noexcept { drawCalls = triangles = 0; }
-
-    RenderStats& operator+=(const RenderStats& other) noexcept {
-        drawCalls += other.drawCalls;
-        triangles += other.triangles;
-        return *this;
-    }
+    void reset() noexcept { modelDrawCalls = modelTriangles = 0; }
 };
 
 }  // namespace se::render

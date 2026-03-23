@@ -9,7 +9,7 @@ struct Frustum {
     glm::vec4 planes[6];  // x,y,z,w: plane normal.xyz, d
 };
 
-inline Frustum extractFrustum(const glm::mat4& vp) {
+inline Frustum calculateFrustrum(const glm::mat4& vp) {
     Frustum frustum;
     // Left
     frustum.planes[0] = glm::vec4(

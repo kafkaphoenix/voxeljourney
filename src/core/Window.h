@@ -12,7 +12,7 @@ class EventBus;
 
 class Window {
    public:
-    Window(int width, int height, std::string title, EventBus* eventBus);
+    Window(const Config::Window& config, EventBus* eventBus);
     ~Window();
 
     void pollEvents() const;

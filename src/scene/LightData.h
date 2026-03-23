@@ -4,7 +4,7 @@
 
 #include "Light.h"
 
-namespace se::world {
+namespace se::scene {
 
 struct LightData {
     const DirectionalLight* sun = nullptr;
@@ -14,4 +14,4 @@ struct LightData {
     float ambientStrength = 0.2f;
 };
 
-}  // namespace se::world
+}  // namespace se::scene

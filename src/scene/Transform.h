@@ -3,7 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-namespace se::world {
+namespace se::scene {
 
 struct Transform {
     glm::vec3 position{0.0f};
@@ -18,4 +18,4 @@ struct Transform {
     }
 };
 
-}  // namespace se::world
+}  // namespace se::scene
