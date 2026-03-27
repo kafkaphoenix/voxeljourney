@@ -9,18 +9,9 @@ Application::Application()
       m_StatsTracker(m_Config.stats()),
       m_Window(m_Config.window(), &m_EventBus),
       m_RenderManager(),
-      m_Level() {
-    setupWindow();
+      m_Level(m_Config, m_RenderManager, m_AssetManager) {
     subscribeEvents();
-
-    if (m_Config.window().startFullscreen) {
-        m_Window.toggleFullscreen();
-    }
-
     m_EventBus.dispatchQueued();
-
-    m_Level.initialize(m_Config, m_RenderManager, m_AssetManager);
-    m_Input.resetMouseFromWindow(m_Window.native());
 }
 
 Application::~Application() {
@@ -49,14 +40,10 @@ void Application::updateStats(float deltaTime) {
     }
 }
 
-void Application::setupWindow() {
-    m_Window.applyConfig(m_Config.window());
-}
-
 void Application::subscribeEvents() {
     m_Subscriptions.push_back(m_EventBus.subscribeScoped<FramebufferResizeEvent>([this](const FramebufferResizeEvent& e) {
         if (e.width > 0 && e.height > 0) {
-            m_Level.getPlayer().getCamera().setAspect(
+            m_Level.getPlayer().getCamera().setAspectRatio(
                 static_cast<float>(e.width) / static_cast<float>(e.height));
         }
     }));
@@ -83,8 +70,14 @@ void Application::handleShortcuts() {
     }
 
     if (m_Input.isKeyPressed(GLFW_KEY_F12)) {
-        m_Window.toggleFullscreen();
-        m_Input.resetMouseFromWindow(m_Window.native());
+        switch (m_Window.mode()) {
+            case Window::Mode::Windowed:
+                m_Window.setMode(Window::Mode::Fullscreen);
+                break;
+            case Window::Mode::Fullscreen:
+                m_Window.setMode(Window::Mode::Windowed);
+                break;
+        }
     }
 }
 

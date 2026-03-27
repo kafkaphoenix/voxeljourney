@@ -1,6 +1,7 @@
 #pragma once
 #include <SimpleIni.h>
 
+#include <glm/glm.hpp>
 #include <string>
 #include <string_view>
 
@@ -12,13 +13,15 @@ class Config {
         std::string title = "Simple Engine";
         int width = 1280;
         int height = 720;
+        int posX = 100;
+        int posY = 100;
         bool vsync = true;
-        bool startFullscreen = false;
+        // "windowed", "borderless", or "fullscreen"
+        std::string mode = "windowed";
     };
 
     struct Input {
         float mouseSmoothAlpha = 0.5f;
-        float mouseSensitivity = 0.1f;
         float fixedStep = 1.0f / 120.0f;
     };
 
@@ -29,16 +32,16 @@ class Config {
         // For big models like Sponza, we need a far plane of at least 500 to avoid clipping geometry.
         // We set it to 1000 by default to give some extra headroom, but it can be adjusted in the config if needed.
         float farPlane = 1000.0f;
-        float startPosX = -5.0f;
-        float startPosY = 5.0f;
-        float startPosZ = 5.0f;
+        glm::vec3 position = glm::vec3(-5.0f, 5.0f, 5.0f);
+        float aspectRatio = 16.0f / 9.0f;
+        float sensitivity = 0.1f;
     };
 
     struct Stats {
-        bool showStats = true;
+        bool enabled = true;
         // How often to update stats in seconds. A lower interval will update more frequently
         // but may cause more performance overhead.
-        float interval = 1.0f;
+        float refreshInterval = 1.0f;
     };
 
     static Config load(std::string_view path);

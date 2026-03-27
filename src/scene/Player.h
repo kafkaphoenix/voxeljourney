@@ -1,4 +1,7 @@
 #pragma once
+
+#include <glm/glm.hpp>
+
 #include "Camera.h"
 
 namespace se::core {
@@ -10,15 +13,15 @@ namespace se::scene {
 
 class Player {
    public:
-    Player() = default;
+    Player(const se::core::Config& config);
     ~Player() = default;
 
-    void applyConfig(const se::core::Config& config);
     void update(float deltaTime, const se::core::Input& input);
     void setMouseSmoothing(float alpha);
     void setFixedStep(float stepSeconds);
     Camera& getCamera() { return m_Camera; }
     const Camera& getCamera() const { return m_Camera; }
+    glm::vec3 getPosition() const { return m_Camera.getPosition(); }
 
    private:
     void updateMouseLook(const se::core::Input& input);

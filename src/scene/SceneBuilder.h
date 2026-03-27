@@ -17,7 +17,7 @@ class SceneBuilder {
     static void Build(Scene& scene, se::assets::AssetManager& assetManager);
 
    private:
-    static void LoadSky(Scene& scene);
+    static void CreateSky(Scene& scene);
     static void LoadModels(Scene& scene, se::assets::AssetManager& assetManager);
     static void SubmitModel(const se::assets::ModelHandle& model, Scene& scene);
 };

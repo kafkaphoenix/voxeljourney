@@ -5,7 +5,15 @@
 
 namespace se::scene {
 
-Camera::Camera() {
+Camera::Camera(const se::core::Config::Camera& config) {
+    m_AspectRatio = config.aspectRatio;
+    m_Position = config.position;
+    m_Speed = config.moveSpeed;
+    m_Sensitivity = config.sensitivity;
+    m_Fov = config.fov;
+    m_Near = config.nearPlane;
+    m_Far = config.farPlane;
+
     updateVectors();
 }
 
@@ -51,10 +59,10 @@ void Camera::setMouseSensitivity(float sensitivity) {
     if (sensitivity > 0.0f) m_Sensitivity = sensitivity;
 }
 
-void Camera::setFov(float fovDegrees) {
-    if (fovDegrees > 1.0f && fovDegrees < 179.0f) m_Fov = fovDegrees;
+void Camera::setFov(float fov) {
+    if (fov > 1.0f && fov < 179.0f) m_Fov = fov;
 }
-
+    
 void Camera::setClipPlanes(float nearPlane, float farPlane) {
     if (nearPlane > 0.0f && farPlane > nearPlane) {
         m_Near = nearPlane;
@@ -62,20 +70,10 @@ void Camera::setClipPlanes(float nearPlane, float farPlane) {
     }
 }
 
-void Camera::applyConfig(const Config& config) {
-    setAspect(config.aspectRatio);
-    setPosition(config.position);
-    setMoveSpeed(config.moveSpeed);
-    setMouseSensitivity(config.mouseSensitivity);
-    setFov(config.fov);
-    setClipPlanes(config.nearPlane, config.farPlane);
-    updateVectors();
-}
-
 glm::mat4 Camera::getViewProjection() const {
     const glm::mat4 view = glm::lookAt(m_Position, m_Position + m_Front, m_Up);
     const glm::mat4 proj = glm::perspective(
-        glm::radians(m_Fov), m_Aspect, m_Near, m_Far);
+        glm::radians(m_Fov), m_AspectRatio, m_Near, m_Far);
     return proj * view;
 }
 

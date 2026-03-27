@@ -9,6 +9,11 @@
 
 namespace se::scene {
 
+Player::Player(const se::core::Config& config) : m_Camera(config.camera()) {
+    m_MouseSmoothAlpha = config.input().mouseSmoothAlpha;
+    m_FixedStep = config.input().fixedStep;
+}
+
 void Player::setMouseSmoothing(float alpha) {
     m_MouseSmoothAlpha = std::clamp(alpha, 0.0f, 1.0f);
 }
@@ -22,23 +27,6 @@ void Player::setFixedStep(float stepSeconds) {
 void Player::update(float deltaTime, const se::core::Input& input) {
     updateMouseLook(input);
     updateKeyboardMovement(deltaTime, input);
-}
-
-void Player::applyConfig(const se::core::Config& config) {
-    Camera::Config c;
-    c.position = {config.camera().startPosX,
-                  config.camera().startPosY,
-                  config.camera().startPosZ};
-    c.moveSpeed = config.camera().moveSpeed;
-    c.mouseSensitivity = config.input().mouseSensitivity;
-    c.fov = config.camera().fov;
-    c.nearPlane = config.camera().nearPlane;
-    c.farPlane = config.camera().farPlane;
-    c.aspectRatio = static_cast<float>(config.window().width) / static_cast<float>(config.window().height);
-
-    m_Camera.applyConfig(c);
-    setMouseSmoothing(config.input().mouseSmoothAlpha);
-    setFixedStep(config.input().fixedStep);
 }
 
 void Player::updateMouseLook(const se::core::Input& input) {

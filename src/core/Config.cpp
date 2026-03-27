@@ -114,20 +114,22 @@ void Config::readWindow(const CSimpleIniA& ini, Window& w) {
     w.title = readString(ini, "window", "title");
     w.width = readNumber<int>(ini, "window", "width");
     w.height = readNumber<int>(ini, "window", "height");
+    w.posX = readNumber<int>(ini, "window", "posX");
+    w.posY = readNumber<int>(ini, "window", "posY");
     w.vsync = readBool(ini, "window", "vsync");
-    w.startFullscreen = readBool(ini, "window", "startFullscreen");
+    w.mode = readString(ini, "window", "mode");
 
     requireGreater("window", "width", w.width, 0);
     requireGreater("window", "height", w.height, 0);
+    if (w.mode != "windowed" && w.mode != "borderless" && w.mode != "fullscreen")
+        throwConfigError(formatKey("window", "mode") + " must be 'windowed', 'borderless', or 'fullscreen'");
 }
 
 void Config::readInput(const CSimpleIniA& ini, Input& i) {
     i.mouseSmoothAlpha = readNumber<float>(ini, "input", "mouseSmoothAlpha");
-    i.mouseSensitivity = readNumber<float>(ini, "input", "mouseSensitivity");
     i.fixedStep = readNumber<float>(ini, "input", "fixedStep");
 
     requireRange("input", "mouseSmoothAlpha", i.mouseSmoothAlpha, 0.f, 1.f);
-    requireGreater("input", "mouseSensitivity", i.mouseSensitivity, 0.f);
     requireGreater("input", "fixedStep", i.fixedStep, 0.f);
 }
 
@@ -136,23 +138,27 @@ void Config::readCamera(const CSimpleIniA& ini, Camera& c) {
     c.fov = readNumber<float>(ini, "camera", "fov");
     c.nearPlane = readNumber<float>(ini, "camera", "nearPlane");
     c.farPlane = readNumber<float>(ini, "camera", "farPlane");
-    c.startPosX = readNumber<float>(ini, "camera", "startPosX");
-    c.startPosY = readNumber<float>(ini, "camera", "startPosY");
-    c.startPosZ = readNumber<float>(ini, "camera", "startPosZ");
+    c.position.x = readNumber<float>(ini, "camera", "startPosX");
+    c.position.y = readNumber<float>(ini, "camera", "startPosY");
+    c.position.z = readNumber<float>(ini, "camera", "startPosZ");
+    c.aspectRatio = readNumber<float>(ini, "camera", "aspectRatio");
+    c.sensitivity = readNumber<float>(ini, "camera", "sensitivity");
 
     requireGreater("camera", "moveSpeed", c.moveSpeed, 0.f);
     requireRange("camera", "fov", c.fov, 1.f, 179.f);
     requireGreater("camera", "nearPlane", c.nearPlane, 0.f);
+    requireGreater("camera", "aspectRatio", c.aspectRatio, 0.f);
+    requireGreater("camera", "sensitivity", c.sensitivity, 0.f);
 
     if (c.farPlane <= c.nearPlane)
         throwConfigError("[camera] farPlane must be > nearPlane");
 }
 
 void Config::readStats(const CSimpleIniA& ini, Stats& s) {
-    s.showStats = readBool(ini, "stats", "showStats");
-    s.interval = readNumber<float>(ini, "stats", "interval");
+    s.enabled = readBool(ini, "stats", "enabled");
+    s.refreshInterval = readNumber<float>(ini, "stats", "refreshInterval");
 
-    requireGreater("stats", "interval", s.interval, 0.f);
+    requireGreater("stats", "refreshInterval", s.refreshInterval, 0.f);
 }
 
 Config Config::load(std::string_view path) {

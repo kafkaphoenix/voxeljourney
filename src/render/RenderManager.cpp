@@ -15,7 +15,7 @@ void RenderManager::beginFrame(const se::scene::Camera& camera) {
         throw std::runtime_error("RenderManager: null camera passed to beginFrame!");
 
     m_Camera = &camera;
-    m_Frustum = calculateFrustrum(m_Camera->getViewProjection());
+    m_Frustum = calculateFrustum(m_Camera->getViewProjection());
     clear();
 }
 

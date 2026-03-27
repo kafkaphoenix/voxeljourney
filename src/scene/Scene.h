@@ -11,7 +11,9 @@ namespace se::scene {
 
 class Scene {
    public:
-    void addRenderable(const Renderable& r) { m_Renderables.push_back(r); }
+    Scene() = default;
+
+    void addRenderable(Renderable&& r) { m_Renderables.push_back(std::move(r)); }
     const std::vector<Renderable>& getRenderables() const { return m_Renderables; }
 
     std::span<const DirectionalLight> getDirectionalLights() const { return m_DirectionalLights; }
@@ -24,14 +26,16 @@ class Scene {
     Sky& getSky() { return m_Sky; }
     const Sky& getSky() const { return m_Sky; }
 
-    LightData getLightData() const {
-        LightData d;
-        d.sun = m_DirectionalLights.empty() ? nullptr : &m_DirectionalLights[0];
-        d.pointLights = m_PointLights;
-        d.spotLights = m_SpotLights;
-        d.ambientColor = m_Sky.getAmbientColor();
-        d.ambientStrength = m_Sky.getAmbientStrength();
-        return d;
+    // LightData is a zero-copy view into Scene's light vectors.
+    // Translation to GPU layout happens once in updateFrameUbo.
+    LightData prepareLightData() const {
+        return LightData{
+            .directionalLights = m_DirectionalLights,
+            .pointLights = m_PointLights,
+            .spotLights = m_SpotLights,
+            .ambientColor = m_Sky.getAmbientColor(),
+            .ambientStrength = m_Sky.getAmbientStrength(),
+        };
     }
 
    private:

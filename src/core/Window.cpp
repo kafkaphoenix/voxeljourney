@@ -130,7 +130,7 @@ void windowFocusCallback(GLFWwindow* window, int focused) {
     if (!self) {
         return;
     }
-    self->onWindowFocus(focused != 0);
+    self->onFocusChange(focused != 0);
 }
 
 void windowPosCallback(GLFWwindow* window, int xpos, int ypos) {
@@ -138,7 +138,7 @@ void windowPosCallback(GLFWwindow* window, int xpos, int ypos) {
     if (!self) {
         return;
     }
-    self->onWindowPos(xpos, ypos);
+    self->onPositionChange(xpos, ypos);
 }
 
 void windowSizeCallback(GLFWwindow* window, int width, int height) {
@@ -146,7 +146,7 @@ void windowSizeCallback(GLFWwindow* window, int width, int height) {
     if (!self) {
         return;
     }
-    self->onWindowSize(width, height);
+    self->onSizeChange(width, height);
 }
 
 void windowIconifyCallback(GLFWwindow* window, int iconified) {
@@ -154,20 +154,20 @@ void windowIconifyCallback(GLFWwindow* window, int iconified) {
     if (!self) {
         return;
     }
-    self->onWindowIconify(iconified != 0);
+    self->onIconifyChange(iconified != 0);
 }
 
 }
 
 Window::Window(const Config::Window& config, EventBus* eventBus)
     : m_EventBus(eventBus),
-      m_IsFullscreen(false),
-      m_WindowedWidth(config.width),
-      m_WindowedHeight(config.height),
-      m_WindowedPosX(100),
-      m_WindowedPosY(100),
-      m_Title(std::move(config.title)),
-      m_BaseTitle(m_Title) {
+      m_Width(config.width),
+      m_Height(config.height),
+      m_PosX(config.posX),
+      m_PosY(config.posY),
+      m_Title(config.title),
+      m_BaseTitle(config.title),
+      m_Vsync(config.vsync) {
     initGlfw();
     setupGlfwHints();
     createWindow(config.width, config.height, m_Title);
@@ -183,6 +183,8 @@ Window::Window(const Config::Window& config, EventBus* eventBus)
     setupCallbacks();
     setupInitialFramebuffer(config.width, config.height);
     setupInputMode();
+    setupMode(config.mode);
+    setVsync(m_Vsync);
 }
 
 void Window::initGlfw() {
@@ -259,6 +261,13 @@ void Window::setupInitialFramebuffer(int width, int height) {
 void Window::setupInputMode() {
     glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
+
+void Window::setupMode(std::string_view mode) {
+    Mode newMode = mode == "fullscreen" ? Mode::Fullscreen : mode == "borderless" ? Mode::Borderless
+                                                                                  : Mode::Windowed;
+    setMode(newMode);
+}
+
 Window::~Window() {
     glfwDestroyWindow(m_Window);
     glfwTerminate();
@@ -316,7 +325,7 @@ void Window::onScroll(double xoffset, double yoffset) {
     m_EventBus->queue(event);
 }
 
-void Window::onWindowFocus(bool focused) {
+void Window::onFocusChange(bool focused) {
     if (!m_EventBus) {
         return;
     }
@@ -325,51 +334,87 @@ void Window::onWindowFocus(bool focused) {
     m_EventBus->queue(event);
 }
 
-void Window::onWindowPos(int xpos, int ypos) {
-    if (m_IsFullscreen) {
+void Window::onPositionChange(int xpos, int ypos) {
+    if (m_Mode != Mode::Windowed || m_IgnoreSizeEvents || m_LastMode != Mode::Windowed) {
         return;
     }
-    m_WindowedPosX = xpos;
-    m_WindowedPosY = ypos;
+    m_PosX = xpos;
+    m_PosY = ypos;
 }
 
-void Window::onWindowSize(int width, int height) {
-    if (m_IsFullscreen) {
+void Window::onSizeChange(int width, int height) {
+    if (m_Mode != Mode::Windowed || m_IgnoreSizeEvents || m_LastMode != Mode::Windowed) {
         return;
     }
     if (width <= 0 || height <= 0) {
         return;
     }
-    m_WindowedWidth = width;
-    m_WindowedHeight = height;
+    m_Width = width;
+    m_Height = height;
 }
 
-void Window::onWindowIconify(bool minimized) {
+void Window::onIconifyChange(bool minimized) {
     m_Minimized = minimized;
 }
 
-void Window::toggleFullscreen() {
-    bool wasFullscreen = m_IsFullscreen;
-    if (!wasFullscreen) {
-        glfwGetWindowPos(m_Window, &m_WindowedPosX, &m_WindowedPosY);
-        glfwGetWindowSize(m_Window, &m_WindowedWidth, &m_WindowedHeight);
+void Window::setMode(Mode newMode) {
+    if (m_Mode == newMode) return;
+
+    m_LastMode = m_Mode;
+    m_Mode = newMode;
+    GLFWmonitor* monitor = nullptr;
+    int xpos, ypos, width, height, refresh = GLFW_DONT_CARE;
+
+    m_IgnoreSizeEvents = true;
+    if (newMode == Mode::Windowed) {
+        xpos = m_PosX;
+        ypos = m_PosY;
+        width = m_Width;
+        height = m_Height;
+        glfwSetWindowAttrib(m_Window, GLFW_DECORATED, GLFW_TRUE);
+        monitor = nullptr;
+        refresh = GLFW_DONT_CARE;
+        glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    } else {
+        int nmonitors;
+        GLFWmonitor** monitors = glfwGetMonitors(&nmonitors);
+        monitor = glfwGetPrimaryMonitor();
+        if (monitors && nmonitors > 0) {
+            int wx, wy, ww, wh;
+            glfwGetWindowPos(m_Window, &wx, &wy);
+            glfwGetWindowSize(m_Window, &ww, &wh);
+            for (int i = 0; i < nmonitors; ++i) {
+                int mx, my;
+                glfwGetMonitorPos(monitors[i], &mx, &my);
+                const GLFWvidmode* vm = glfwGetVideoMode(monitors[i]);
+                if (wx + ww / 2 >= mx && wx + ww / 2 < mx + vm->width &&
+                    wy + wh / 2 >= my && wy + wh / 2 < my + vm->height) {
+                    monitor = monitors[i];
+                    break;
+                }
+            }
+        }
+        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+        xpos = 0;
+        ypos = 0;
+        width = mode->width;
+        height = mode->height;
+        refresh = mode->refreshRate;
+        if (newMode == Mode::Borderless) {
+            glfwSetWindowAttrib(m_Window, GLFW_DECORATED, GLFW_FALSE);
+        } else {
+            glfwSetWindowAttrib(m_Window, GLFW_DECORATED, GLFW_TRUE);
+        }
+        glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
-    m_IsFullscreen = !wasFullscreen;
+    glfwSetWindowMonitor(m_Window, monitor, xpos, ypos, width, height, refresh);
+    if (newMode == Mode::Windowed) {
+        glfwSetWindowPos(m_Window, xpos, ypos);
+    }
+    m_IgnoreSizeEvents = false;
 
-    GLFWmonitor* monitor = wasFullscreen ? nullptr : glfwGetPrimaryMonitor();
-    const GLFWvidmode* mode = monitor ? glfwGetVideoMode(monitor) : nullptr;
-    int targetX = wasFullscreen ? m_WindowedPosX : GLFW_DONT_CARE;
-    int targetY = wasFullscreen ? m_WindowedPosY : GLFW_DONT_CARE;
-    int targetW = wasFullscreen ? m_WindowedWidth : mode->width;
-    int targetH = wasFullscreen ? m_WindowedHeight : mode->height;
-    int targetRate = wasFullscreen ? GLFW_DONT_CARE : mode->refreshRate;
-
-    glfwSetWindowMonitor(m_Window, monitor, targetX, targetY, targetW, targetH, targetRate);
-    glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-    int fbWidth = 0;
-    int fbHeight = 0;
+    int fbWidth = 0, fbHeight = 0;
     glfwGetFramebufferSize(m_Window, &fbWidth, &fbHeight);
     if (fbWidth > 0 && fbHeight > 0) {
         if (fbWidth != m_LastFramebufferWidth || fbHeight != m_LastFramebufferHeight) {
@@ -390,11 +435,8 @@ void Window::setStatsTitle(std::string title) {
 }
 
 void Window::setVsync(bool enabled) {
+    m_Vsync = enabled;
     glfwSwapInterval(enabled ? 1 : 0);
-}
-
-void Window::applyConfig(const Config::Window& config) {
-    setVsync(config.vsync);
 }
 
 void windowGlDebugCallback(unsigned int source, unsigned int type,

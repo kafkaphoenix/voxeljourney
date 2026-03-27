@@ -7,8 +7,7 @@
 namespace se::core {
 
 StatsTracker::StatsTracker(const Config::Stats& config)
-    : m_Enabled(config.showStats),
-      m_Interval(config.interval) {}
+    : m_Enabled(config.enabled), m_RefreshInterval(config.refreshInterval) {}
 
 void StatsTracker::reset() {
     m_Timer = 0.0f;
@@ -24,14 +23,14 @@ std::optional<std::string> StatsTracker::update(float deltaTime,
 
     m_Timer += deltaTime;
     m_Frames++;
-    if (m_Timer < m_Interval) {
+    if (m_Timer < m_RefreshInterval) {
         return std::nullopt;
     }
 
     float fps = m_Frames / m_Timer;
     ProcessMemoryUsage mem = getProcessMemoryUsageKB();
     std::string stats = std::format(
-        "{} FPS: {} RAM: {}/{}MB | Model: Draws {} Triangles {}",
+        "{} FPS: {} RAM: {}/{}MB | Models: Draws {} Triangles {}",
         title,
         static_cast<int>(fps),
         mem.usedKB / 1024,

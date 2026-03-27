@@ -14,7 +14,7 @@ class StatsTracker {
 
     void setEnabled(bool enabled) { m_Enabled = enabled; }
     bool enabled() const { return m_Enabled; }
-    void setInterval(float seconds) { m_Interval = seconds; }
+    void setRefreshInterval(float seconds) { m_RefreshInterval = seconds; }
     void reset();
 
     std::optional<std::string> update(float deltaTime,
@@ -23,7 +23,7 @@ class StatsTracker {
 
    private:
     bool m_Enabled = true;
-    float m_Interval = 1.0f;
+    float m_RefreshInterval = 1.0f;
     float m_Timer = 0.0f;
     int m_Frames = 0;
 };

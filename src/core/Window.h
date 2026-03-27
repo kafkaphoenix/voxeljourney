@@ -15,26 +15,33 @@ class Window {
     Window(const Config::Window& config, EventBus* eventBus);
     ~Window();
 
+    enum class Mode {
+        Windowed,
+        Fullscreen,
+        Borderless
+    };
+
     void pollEvents() const;
     void waitEvents(double timeoutSeconds) const;
     void swapBuffers() const;
     bool shouldClose() const;
     bool isMinimized() const { return m_Minimized; }
     bool isFocused() const { return m_Focused; }
-    void toggleFullscreen();
+    Window::Mode mode() const { return m_Mode; }
+    bool isVsync() const { return m_Vsync; }
+    void setMode(Mode mode);
     void onFramebufferResize(int width, int height);
     void onKeyEvent(int key, int scancode, int action, int mods);
     void onMouseButtonEvent(int button, int action, int mods);
     void onMouseMove(double xpos, double ypos);
     void onScroll(double xoffset, double yoffset);
-    void onWindowFocus(bool focused);
-    void onWindowPos(int xpos, int ypos);
-    void onWindowSize(int width, int height);
-    void onWindowIconify(bool minimized);
+    void onFocusChange(bool focused);
+    void onPositionChange(int xpos, int ypos);
+    void onSizeChange(int width, int height);
+    void onIconifyChange(bool minimized);
     void setStatsTitle(std::string title);
     std::string_view getBaseTitle() const { return m_BaseTitle; }
     void setVsync(bool enabled);
-    void applyConfig(const Config::Window& config);
 
     GLFWwindow* native() const { return m_Window; }
 
@@ -50,20 +57,24 @@ class Window {
     void setupCallbacks();
     void setupInitialFramebuffer(int width, int height);
     void setupInputMode();
+    void setupMode(std::string_view newMode);
 
     GLFWwindow* m_Window;
     EventBus* m_EventBus = nullptr;
-    bool m_IsFullscreen = false;
-    int m_WindowedWidth;
-    int m_WindowedHeight;
-    int m_WindowedPosX;
-    int m_WindowedPosY;
-    int m_LastFramebufferWidth = 0;
-    int m_LastFramebufferHeight = 0;
+    int m_Width;
+    int m_Height;
+    int m_PosX;
+    int m_PosY;
     bool m_Minimized = false;
     bool m_Focused = true;
+    bool m_IgnoreSizeEvents = false;
+    Mode m_LastMode = Mode::Windowed;
     std::string m_Title;
     std::string m_BaseTitle;
+    bool m_Vsync;
+    Mode m_Mode = Mode::Windowed;
+    int m_LastFramebufferWidth = 0;
+    int m_LastFramebufferHeight = 0;
 };
 
 }  // namespace se::core

@@ -22,7 +22,6 @@ class Application {
    private:
     float updateDeltaTime(float& lastTime);
     void beginFrame();
-    void setupWindow();
     void subscribeEvents();
     void handleShortcuts();
     void update(float deltaTime);
