@@ -45,23 +45,32 @@ public:
         float refreshInterval = 1.0f;
     };
 
+    struct World {
+        // How many chunks away from the player to render. A higher render distance will show more of the world
+        // but may cause more performance overhead.
+        int renderDistance = 8;
+    };
+
     static Config load(std::string_view path);
 
     [[nodiscard]] const Window& window() const { return m_Window; }
     [[nodiscard]] const Input& input() const { return m_Input; }
     [[nodiscard]] const Camera& camera() const { return m_Camera; }
     [[nodiscard]] const Stats& stats() const { return m_Stats; }
+    [[nodiscard]] const World& world() const { return m_World; }
 
 private:
     static void readWindow(const CSimpleIniA& ini, Window& w);
     static void readInput(const CSimpleIniA& ini, Input& i);
     static void readCamera(const CSimpleIniA& ini, Camera& c);
     static void readStats(const CSimpleIniA& ini, Stats& s);
+    static void readWorld(const CSimpleIniA& ini, World& w);
 
     Window m_Window;
     Input m_Input;
     Camera m_Camera;
     Stats m_Stats;
+    World m_World;
 };
 
 }  // namespace se::core

@@ -2,10 +2,12 @@
 #include <span>
 #include <vector>
 
+#include "ChunkRenderable.h"
 #include "Light.h"
 #include "LightData.h"
 #include "Renderable.h"
 #include "Sky.h"
+#include "voxel/VoxelHash.h"
 
 namespace se::scene {
 
@@ -15,6 +17,12 @@ public:
 
     void addRenderable(Renderable r) { m_Renderables.push_back(r); }
     [[nodiscard]] const std::vector<Renderable>& getRenderables() const { return m_Renderables; }
+    void updateChunkRenderable(ChunkRenderable r) { m_ChunkRenderables[r.position] = r; }
+    void removeChunkRenderable(const glm::ivec3& pos) { m_ChunkRenderables.erase(pos); }
+    [[nodiscard]] const std::unordered_map<glm::ivec3, ChunkRenderable, se::voxel::IVec3Hash>& getChunkRenderables()
+        const {
+        return m_ChunkRenderables;
+    }
 
     [[nodiscard]] std::span<const DirectionalLight> getDirectionalLights() const { return m_DirectionalLights; }
     [[nodiscard]] std::span<const PointLight> getPointLights() const { return m_PointLights; }
@@ -44,6 +52,7 @@ private:
     std::vector<PointLight> m_PointLights;
     std::vector<SpotLight> m_SpotLights;
     std::vector<Renderable> m_Renderables;
+    std::unordered_map<glm::ivec3, ChunkRenderable, se::voxel::IVec3Hash> m_ChunkRenderables;
 };
 
 }  // namespace se::scene

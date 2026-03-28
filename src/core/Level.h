@@ -1,6 +1,7 @@
 #pragma once
 #include "scene/Player.h"
 #include "scene/Scene.h"
+#include "voxel/World.h"
 
 namespace se::render {
 class RenderManager;
@@ -26,6 +27,7 @@ public:
 private:
     se::scene::Scene m_Scene;
     se::scene::Player m_Player;
+    se::voxel::World m_World;
 };
 
 }  // namespace se::core

@@ -31,7 +31,7 @@ The engine is organized into several modules, each responsible for a specific as
 - EventBus: Small event queue used by window callbacks.
 - Config: Reads config.ini for runtime settings.
 - StatsTracker: Tracks and averages frame time, draw calls, etc.
-- Level: Owns the scene and the player. Loads the demo scene and updates the scene each frame. It also handles input for the player and the initial configuration of the scene.
+- Level: Owns and coordinates the core simulation objects: Scene, World, and Player. Each frame it drives chunk streaming and mesh rebuilding via World, forwards input to Player, and keeps Scene in sync with the current world state. Also responsible for initial scene setup on load.
 
 ### Assets
 - Asset: Minimal base class with a path.
@@ -51,19 +51,28 @@ The engine is organized into several modules, each responsible for a specific as
 - Frustum: Simple CPU frustum culling for renderables outside the camera view.
 - RenderManager: Manages rendering each frame, including frustum culling and calling renderers.
 - ModelRenderer: Handles submitting model renderables to the RenderQueue and grouping them for efficient rendering.
+- TerrainRenderer: Submits visible chunk renderables to a draw list.
 - RenderQueue: Collects renderables each frame to be processed by each renderer at the end of the frame.
 - RenderStats: Tracks draw calls, triangles for stats display.
 
 ### Scene
-- Scene: Owns the scene objects, lights (sun), and the sky.
-- SceneBuilder: Builds the demo scene loading the Sponza model and sets up the lights.
+- Scene: Owns the scene objects, lights, and the sky.
+- SceneBuilder: Builds the initial scene with a sun, sky, player and the terrain.
 - Light: Defines different light types (directional, point, and spot).
 - Sun: Directional light with color and intensity.
 - Sky: Simple sky color and ambient light.
 - Transform: Defines position, rotation, and scale.
 - Renderable: Defines a renderable object composed of a mesh, material, and transform.
+- ChunkRenderable: Renderable for a chunk composed of a mesh and transform.
 - Camera: Simple perspective camera with view/projection matrix calculation.
 - Player: Camera controller with WASD movement and mouse look, no physics, collisions or model.
+
+### Voxel
+- Voxel: Enum of block types (air, grass, dirt, stone, etc).
+- Chunk: Represents a chunk of voxels, with a flat array of block types and a mesh for rendering.
+- ChunkManager: Manages loaded chunks, provides access and modification methods.
+- ChunkMesher: Static class that generates a mesh for a chunk based on its block data and neighboring chunks.
+- World: Owns the chunk manager and handles chunk streaming and rebuilding.
 
 ## Potential improvements
 - More complete glTF/glb support (animations, PBR materials, Draco compression, etc).

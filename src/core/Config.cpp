@@ -41,7 +41,7 @@ std::optional<bool> parseBoolToken(std::string_view value) {
         if (token.size() != value.size()) {
             return false;
         }
-        const auto* valueIt = value.begin();
+        auto valueIt = value.begin();
         for (auto tokenCh : token) {
             auto left = static_cast<unsigned char>(tokenCh);
             auto right = static_cast<unsigned char>(*valueIt);
@@ -164,6 +164,12 @@ void Config::readStats(const CSimpleIniA& ini, Stats& s) {
     requireGreater("stats", "refreshInterval", s.refreshInterval, 0.f);
 }
 
+void Config::readWorld(const CSimpleIniA& ini, World& w) {
+    w.renderDistance = readNumber<int>(ini, "world", "renderDistance");
+
+    requireGreater("world", "renderDistance", w.renderDistance, 0);
+}
+
 Config Config::load(std::string_view path) {
     Config cfg;
 
@@ -179,6 +185,7 @@ Config Config::load(std::string_view path) {
     readInput(ini, cfg.m_Input);
     readCamera(ini, cfg.m_Camera);
     readStats(ini, cfg.m_Stats);
+    readWorld(ini, cfg.m_World);
 
     return cfg;
 }

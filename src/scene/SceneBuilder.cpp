@@ -30,8 +30,7 @@ void SceneBuilder::createSky(Scene& scene) {
     scene.getSky().setAmbientStrength(0.7f);
 }
 
-void SceneBuilder::LoadModels(Scene& scene, se::assets::AssetManager& assetManager) {
-}
+void SceneBuilder::loadModels(Scene& scene, se::assets::AssetManager& assetManager) {}
 
 void SceneBuilder::submitModel(const se::assets::ModelHandle& model, Scene& scene) {
     auto modelPtr = model.get();
@@ -47,7 +46,10 @@ void SceneBuilder::submitModel(const se::assets::ModelHandle& model, Scene& scen
         scene.addRenderable(Renderable{
             .mesh = sub.mesh.get(),
             .material = sub.material,
-            .transform = Transform{.position = {0.0f, 0.0f, 0.0f}, .scale = {0.1f, 0.1f, 0.1f}},
+            .transform =
+                Transform{
+                    .position = {0.0f, 0.0f, 0.0f},
+                },
         });
     }
 }

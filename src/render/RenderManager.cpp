@@ -22,12 +22,21 @@ void RenderManager::submit(const se::scene::Renderable& renderable) {
     m_ModelRenderer.submit(renderable, m_Frustum);
 }
 
+void RenderManager::submit(const se::scene::ChunkRenderable& chunkRenderable) {
+    if (!m_Camera) {
+        throw std::runtime_error("RenderManager: submit called before beginFrame!");
+    }
+    m_TerrainRenderer.submit(chunkRenderable, m_Frustum);
+}
+
 void RenderManager::endFrame(const se::scene::LightData& lights) {
     if (!m_Camera) {
         throw std::runtime_error("RenderManager: endFrame called before beginFrame!");
     }
 
     m_Stats.reset();
+
+    m_TerrainRenderer.flush(lights, *m_Camera, m_Stats);
     m_ModelRenderer.flush(lights, *m_Camera, m_Stats);
 
     m_Camera = nullptr;  // invalidate for next frame
@@ -35,10 +44,13 @@ void RenderManager::endFrame(const se::scene::LightData& lights) {
 
 void RenderManager::toggleWireframe() {
     m_Wireframe = !m_Wireframe;
+    m_TerrainRenderer.setWireframe(m_Wireframe);
     m_ModelRenderer.setWireframe(m_Wireframe);
 }
 
 void RenderManager::setBatchSize(const size_t maxInstances) { m_ModelRenderer.setBatchSize(maxInstances); }
+
+void RenderManager::setTerrainShader(se::assets::ShaderHandle shader) { m_TerrainRenderer.setShader(shader); }
 
 void RenderManager::reset() {
     m_Stats.reset();
