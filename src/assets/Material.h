@@ -31,24 +31,19 @@ struct MaterialParams {
 };
 
 class Material : public Asset {
-   public:
-    explicit Material(std::string name,
-                      ShaderHandle shader,
-                      const MaterialTextures& textures,
-                      const MaterialParams& params,
-                      const RenderState& state);
+public:
+    explicit Material(std::string path, ShaderHandle shader, const MaterialTextures& textures,
+                      const MaterialParams& params, const RenderState& state);
     ~Material() override = default;
 
-    const ShaderHandle& getShaderHandle() const { return m_Shader; }
-    const TextureHandle& getBaseColorHandle() const { return m_Textures.baseColor; }
-    const TextureHandle& getAlbedoHandle() const { return m_Textures.baseColor; }
-    const MaterialTextures& getTextures() const { return m_Textures; }
-    const MaterialParams& getParams() const { return m_Params; }
-    const RenderState& getState() const { return m_State; }
+    [[nodiscard]] const ShaderHandle& getShaderHandle() const { return m_Shader; }
+    [[nodiscard]] const TextureHandle& getBaseColorHandle() const { return m_Textures.baseColor; }
+    [[nodiscard]] const TextureHandle& getAlbedoHandle() const { return m_Textures.baseColor; }
+    [[nodiscard]] const MaterialTextures& getTextures() const { return m_Textures; }
+    [[nodiscard]] const MaterialParams& getParams() const { return m_Params; }
+    [[nodiscard]] const RenderState& getState() const { return m_State; }
 
-    std::string_view getPath() const override { return m_Path; }
-
-   private:
+private:
     ShaderHandle m_Shader;
     MaterialTextures m_Textures;
     MaterialParams m_Params;

@@ -11,7 +11,7 @@
 namespace se::core {
 
 class EventBus {
-   public:
+public:
     using HandlerId = uint64_t;
 
     struct Subscription {
@@ -20,16 +20,12 @@ class EventBus {
         HandlerId id = 0;
 
         Subscription() = default;
-        Subscription(EventBus* bus, EventType type, HandlerId id)
-            : bus(bus), type(type), id(id) {}
+        Subscription(EventBus* bus, EventType type, HandlerId id) : bus(bus), type(type), id(id) {}
 
         Subscription(const Subscription&) = delete;
         Subscription& operator=(const Subscription&) = delete;
 
-        Subscription(Subscription&& other) noexcept {
-            bus = other.bus;
-            type = other.type;
-            id = other.id;
+        Subscription(Subscription&& other) noexcept : bus(other.bus), type(other.type), id(other.id) {
             other.bus = nullptr;
             other.id = 0;
         }
@@ -49,7 +45,7 @@ class EventBus {
         ~Subscription() { reset(); }
 
         void reset() {
-            if (bus && id != 0) {
+            if (bus != nullptr && id != 0) {
                 bus->unsubscribe(*this);
             }
             bus = nullptr;
@@ -63,17 +59,15 @@ class EventBus {
     template <typename T>
     HandlerId subscribe(Handler<T> handler) {
         HandlerId id = m_NextId.fetch_add(1);
-        auto wrapper = [handler](const Event& e) {
-            handler(static_cast<const T&>(e));
-        };
-        m_Handlers[T::kType].push_back({id, std::move(wrapper)});
+        auto wrapper = [handler](const Event& e) { handler(static_cast<const T&>(e)); };
+        m_Handlers[T::K_TYPE].push_back({id, std::move(wrapper)});
         return id;
     }
 
     template <typename T>
     Subscription subscribeScoped(Handler<T> handler) {
         HandlerId id = subscribe<T>(std::move(handler));
-        return Subscription(this, T::kType, id);
+        return Subscription(this, T::K_TYPE, id);
     }
 
     void unsubscribe(const Subscription& subscription) {
@@ -83,25 +77,18 @@ class EventBus {
         }
 
         auto& handlers = it->second;
-        handlers.erase(
-            std::remove_if(
-                handlers.begin(),
-                handlers.end(),
-                [&subscription](const auto& entry) { return entry.id == subscription.id; }),
-            handlers.end());
+        handlers.erase(std::remove_if(handlers.begin(), handlers.end(),
+                                      [&subscription](const auto& entry) { return entry.id == subscription.id; }),
+                       handlers.end());
     }
 
     template <typename T>
     void queue(const T& event) {
-        m_Queue.push_back([this, event]() {
-            dispatch(event);
-        });
+        m_Queue.push_back([this, event]() { dispatch(event); });
     }
 
     void dispatchQueued() {
-        for (const auto& dispatch : m_Queue) {
-            dispatch();
-        }
+        for (const auto& dispatch : m_Queue) { dispatch(); }
         m_Queue.clear();
     }
 
@@ -110,12 +97,10 @@ class EventBus {
         if (it == m_Handlers.end()) {
             return;
         }
-        for (const auto& handler : it->second) {
-            handler.fn(event);
-        }
+        for (const auto& handler : it->second) { handler.fn(event); }
     }
 
-   private:
+private:
     using HandlerFn = std::function<void(const Event&)>;
     struct HandlerEntry {
         HandlerId id;

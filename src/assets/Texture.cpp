@@ -31,12 +31,13 @@ void applyAnisotropy(GLuint textureId) {
 }
 }
 
-Texture::Texture(std::string path, bool flipVertically)
-    : Asset(path) {
-    int width, height, channels;
-    stbi_set_flip_vertically_on_load(flipVertically);
+Texture::Texture(std::string path, bool flipVertically) : Asset(std::move(path)) {
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_set_flip_vertically_on_load(static_cast<int>(flipVertically));
     unsigned char* data = stbi_load(m_Path.c_str(), &width, &height, &channels, 0);
-    if (!data) {
+    if (data == nullptr) {
         throw std::runtime_error(std::format("Failed to load texture: {}", m_Path));
     }
 
@@ -47,7 +48,8 @@ Texture::Texture(std::string path, bool flipVertically)
     glTextureParameteri(m_Id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     applyAnisotropy(m_Id);
 
-    GLenum internalFormat, format;
+    GLenum internalFormat = 0;
+    GLenum format = 0;
     if (channels == 4) {
         internalFormat = GL_RGBA8;
         format = GL_RGBA;
@@ -65,8 +67,7 @@ Texture::Texture(std::string path, bool flipVertically)
         format = GL_RED;
     } else {
         stbi_image_free(data);
-        throw std::runtime_error(
-            std::format("Unsupported texture format: {} ({} channels)", m_Path, channels));
+        throw std::runtime_error(std::format("Unsupported texture format: {} ({} channels)", m_Path, channels));
     }
 
     int mipLevels = calcMipLevels(width, height);
@@ -78,30 +79,27 @@ Texture::Texture(std::string path, bool flipVertically)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     stbi_image_free(data);
-    if (glad_glObjectLabel) {
+    if (glad_glObjectLabel != nullptr) {
         std::string texLabel = std::format("Texture [{}]", path);
         glad_glObjectLabel(GL_TEXTURE, m_Id, static_cast<GLsizei>(texLabel.size()), texLabel.c_str());
     }
 }
 
-Texture::Texture(std::span<const uint8_t> data, int width, int height, int channels)
-    : Asset("<memory>") {
+Texture::Texture(std::span<const uint8_t> data, int width, int height, int channels) : Asset("<memory>") {
     if (width <= 0 || height <= 0 || channels <= 0) {
-        throw std::runtime_error(std::format(
-            "Invalid texture dimensions: {}x{}x{}", width, height, channels));
+        throw std::runtime_error(std::format("Invalid texture dimensions: {}x{}x{}", width, height, channels));
     }
     size_t rowSize = static_cast<size_t>(width) * static_cast<size_t>(channels);
     size_t expectedSize = rowSize * static_cast<size_t>(height);
     if (data.size() < expectedSize) {
-        throw std::runtime_error(std::format(
-            "Texture data too small: expected {}, got {}", expectedSize, data.size()));
+        throw std::runtime_error(std::format("Texture data too small: expected {}, got {}", expectedSize, data.size()));
     }
     // Flip image vertically (GLB embedded images are stored top-left, OpenGL expects bottom-left)
-    std::vector<uint8_t> flipped(data.begin(), data.begin() + expectedSize);
+    std::vector<uint8_t> flipped(data.begin(), std::next(data.begin(), static_cast<std::ptrdiff_t>(expectedSize)));
     for (int y = 0; y < height / 2; ++y) {
         uint8_t* row1 = &flipped[y * rowSize];
         uint8_t* row2 = &flipped[(height - 1 - y) * rowSize];
-        for (size_t x = 0; x < rowSize; ++x) std::swap(row1[x], row2[x]);
+        for (size_t x = 0; x < rowSize; ++x) { std::swap(row1[x], row2[x]); }
     }
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_Id);
@@ -111,7 +109,8 @@ Texture::Texture(std::span<const uint8_t> data, int width, int height, int chann
     glTextureParameteri(m_Id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     applyAnisotropy(m_Id);
 
-    GLenum internalFormat, format;
+    GLenum internalFormat = 0;
+    GLenum format = 0;
     if (channels == 4) {
         internalFormat = GL_RGBA8;
         format = GL_RGBA;
@@ -130,8 +129,9 @@ Texture::Texture(std::span<const uint8_t> data, int width, int height, int chann
     } else if (channels == 1) {
         internalFormat = GL_R8;
         format = GL_RED;
-    } else
+    } else {
         throw std::runtime_error("Unsupported texture format from memory");
+    }
 
     int mipLevels = calcMipLevels(width, height);
     glTextureStorage2D(m_Id, mipLevels, internalFormat, width, height);
@@ -142,12 +142,8 @@ Texture::Texture(std::span<const uint8_t> data, int width, int height, int chann
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 }
 
-Texture::~Texture() {
-    glDeleteTextures(1, &m_Id);
-}
+Texture::~Texture() { glDeleteTextures(1, &m_Id); }
 
-void Texture::bind(unsigned int slot) const {
-    glBindTextureUnit(slot, m_Id);
-}
+void Texture::bind(unsigned int slot) const { glBindTextureUnit(slot, m_Id); }
 
 }  // namespace se::assets

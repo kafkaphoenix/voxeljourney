@@ -11,24 +11,15 @@ namespace se::core {
 class EventBus;
 
 class Window {
-   public:
+public:
     Window(const Config::Window& config, EventBus* eventBus);
     ~Window();
 
-    enum class Mode {
-        Windowed,
-        Fullscreen,
-        Borderless
-    };
+    enum class Mode : uint8_t { Windowed, Fullscreen, Borderless };
 
-    void pollEvents() const;
-    void waitEvents(double timeoutSeconds) const;
+    static void pollEvents() { glfwPollEvents(); }
+    static void waitEvents(double timeoutSeconds) { glfwWaitEventsTimeout(timeoutSeconds); }
     void swapBuffers() const;
-    bool shouldClose() const;
-    bool isMinimized() const { return m_Minimized; }
-    bool isFocused() const { return m_Focused; }
-    Window::Mode mode() const { return m_Mode; }
-    bool isVsync() const { return m_Vsync; }
     void setMode(Mode mode);
     void onFramebufferResize(int width, int height);
     void onKeyEvent(int key, int scancode, int action, int mods);
@@ -40,17 +31,21 @@ class Window {
     void onSizeChange(int width, int height);
     void onIconifyChange(bool minimized);
     void setStatsTitle(std::string title);
-    std::string_view getBaseTitle() const { return m_BaseTitle; }
     void setVsync(bool enabled);
 
-    GLFWwindow* native() const { return m_Window; }
+    [[nodiscard]] bool shouldClose() const;
+    [[nodiscard]] bool isMinimized() const { return m_Minimized; }
+    [[nodiscard]] bool isFocused() const { return m_Focused; }
+    [[nodiscard]] Window::Mode mode() const { return m_Mode; }
+    [[nodiscard]] bool isVsync() const { return m_Vsync; }
+    [[nodiscard]] std::string_view getBaseTitle() const { return m_BaseTitle; }
+    [[nodiscard]] GLFWwindow* native() const { return m_Window; }
 
-   private:
-    friend void windowGlDebugCallback(unsigned int source, unsigned int type,
-                                      unsigned int id, unsigned int severity,
+private:
+    friend void windowGlDebugCallback(unsigned int source, unsigned int type, unsigned int id, unsigned int severity,
                                       int length, const char* message, const void* userParam);
-    void initGlfw();
-    void setupGlfwHints();
+    static void initGlfw();
+    static void setupGlfwHints();
     void createWindow(int width, int height, std::string_view title);
     void initGlad();
     void setupGlDebug();
@@ -59,7 +54,7 @@ class Window {
     void setupInputMode();
     void setupMode(std::string_view newMode);
 
-    GLFWwindow* m_Window;
+    GLFWwindow* m_Window = nullptr;
     EventBus* m_EventBus = nullptr;
     int m_Width;
     int m_Height;

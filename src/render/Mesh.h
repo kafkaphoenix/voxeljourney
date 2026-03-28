@@ -17,18 +17,15 @@ struct AABB {
 };
 
 class Mesh {
-   public:
-    Mesh(std::span<const std::byte> vertices,
-         std::span<const unsigned int> indices,
-         const AABB& aabb, const BufferLayout& layout,
-         bool instanced = false);
+public:
+    Mesh(std::span<const std::byte> vertices, std::span<const unsigned int> indices, const AABB& aabb,
+         const BufferLayout& layout, bool instanced = false);
 
-    // Convenience constructor. Allows passing typed vertex data directly, as long as it's laid out in memory according to the layout.
+    // Convenience constructor. Allows passing typed vertex data directly, as long as it's laid out in memory
+    // according to the layout.
     template <typename T>
-    Mesh(const std::vector<T>& vertices,
-         const std::vector<unsigned int>& indices,
-         const AABB& aabb, const BufferLayout& layout,
-         bool instanced = false)
+    Mesh(const std::vector<T>& vertices, const std::vector<unsigned int>& indices, const AABB& aabb,
+         const BufferLayout& layout, bool instanced = false)
         : Mesh(std::as_bytes(std::span(vertices)), std::span(indices), aabb, layout, instanced) {}
 
     Mesh(const Mesh&) = delete;
@@ -46,19 +43,19 @@ class Mesh {
         updateInstanceBuffer(std::as_bytes(std::span(data)));
     }
 
-    unsigned int getVAO() const { return m_Vao.id(); }
-    size_t getIndexCount() const { return indexCount; }
-    bool isInstanced() const { return m_Instanced; }
+    [[nodiscard]] unsigned int getVAO() const { return m_Vao.id(); }
+    [[nodiscard]] size_t getIndexCount() const { return m_IndexCount; }
+    [[nodiscard]] bool isInstanced() const { return m_Instanced; }
 
     // First attrib slot used by instance data
-    GLuint getInstanceAttribBase() const { return m_InstanceAttribBase; }
+    [[nodiscard]] GLuint getInstanceAttribBase() const { return m_InstanceAttribBase; }
 
     static void setDefaultInstanceCapacityBytes(size_t bytes);
 
-    const AABB& getAABB() const { return m_AABB; }
+    [[nodiscard]] const AABB& getAABB() const { return m_AABB; }
     void setAABB(const AABB& aabb) { m_AABB = aabb; }
 
-   private:
+private:
     // Sets up per-vertex attribs from layout on binding 0.
     // Returns the first free attrib slot after the layout (used as instanceAttribBase).
     GLuint setupVertexAttributes(const BufferLayout& layout);
@@ -78,7 +75,7 @@ class Mesh {
     GLuint m_InstanceAttribBase = 0;
     bool m_Instanced = false;
 
-    size_t indexCount = 0;
+    size_t m_IndexCount = 0;
     static size_t s_DefaultInstanceCapacityBytes;
 };
 

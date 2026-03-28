@@ -9,14 +9,12 @@
 
 namespace se::scene {
 
-Player::Player(const se::core::Config& config) : m_Camera(config.camera()) {
-    m_MouseSmoothAlpha = config.input().mouseSmoothAlpha;
-    m_FixedStep = config.input().fixedStep;
-}
+Player::Player(const se::core::Config& config)
+    : m_Camera(config.camera()),
+      m_MouseSmoothAlpha(config.input().mouseSmoothAlpha),
+      m_FixedStep(config.input().fixedStep) {}
 
-void Player::setMouseSmoothing(float alpha) {
-    m_MouseSmoothAlpha = std::clamp(alpha, 0.0f, 1.0f);
-}
+void Player::setMouseSmoothing(float alpha) { m_MouseSmoothAlpha = std::clamp(alpha, 0.0f, 1.0f); }
 
 void Player::setFixedStep(float stepSeconds) {
     if (stepSeconds > 0.0f) {
@@ -54,14 +52,9 @@ void Player::updateKeyboardMovement(float deltaTime, const se::core::Input& inpu
 }
 
 void Player::applyKeyboardStep(float stepSeconds, const se::core::Input& input) {
-    m_Camera.processKeyboard(
-        input.isKeyDown(GLFW_KEY_W),
-        input.isKeyDown(GLFW_KEY_S),
-        input.isKeyDown(GLFW_KEY_A),
-        input.isKeyDown(GLFW_KEY_D),
-        input.isKeyDown(GLFW_KEY_SPACE),
-        input.isKeyDown(GLFW_KEY_LEFT_CONTROL),
-        stepSeconds);
+    m_Camera.processKeyboard(input.isKeyDown(GLFW_KEY_W), input.isKeyDown(GLFW_KEY_S), input.isKeyDown(GLFW_KEY_A),
+                             input.isKeyDown(GLFW_KEY_D), input.isKeyDown(GLFW_KEY_SPACE),
+                             input.isKeyDown(GLFW_KEY_LEFT_CONTROL), stepSeconds);
 }
 
 }  // namespace se::scene

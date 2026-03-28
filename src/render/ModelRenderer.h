@@ -15,7 +15,7 @@
 namespace se::render {
 
 class ModelRenderer {
-   public:
+public:
     ModelRenderer();
 
     void submit(const se::scene::Renderable& renderable, const Frustum& frustum);
@@ -23,7 +23,7 @@ class ModelRenderer {
     void setWireframe(bool enabled);
     void setBatchSize(size_t maxInstances);
 
-   private:
+private:
     struct TransparentDraw {
         float distance = 0.0f;
         BatchKey key;
@@ -31,12 +31,10 @@ class ModelRenderer {
     };
 
     void setupFrameUbo();
-    void flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats);
-    void updateFrameUbo(const se::scene::LightData& lights,
-                        const se::scene::Camera& camera);
+    static void flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats);
+    void updateFrameUbo(const se::scene::LightData& lights, const se::scene::Camera& camera);
 
-    std::vector<TransparentDraw> getSortedTransparentDraws(
-        const se::scene::Camera& camera);
+    std::vector<TransparentDraw> getSortedTransparentDraws(const se::scene::Camera& camera);
 
     RenderQueue m_Queue;
     size_t m_MaxBatchSize = 1000;

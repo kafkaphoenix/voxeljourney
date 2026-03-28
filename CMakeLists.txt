@@ -14,6 +14,20 @@ message(VERBOSE "*")
 message(VERBOSE "* ${PROJECT_NAME} v${PROJECT_VERSION})")
 message(VERBOSE "*")
 
+# Static Analysis
+# -------------------------------------------------------------------------
+option(ENABLE_CLANG_TIDY "Enable static analysis with clang-tidy" OFF)
+
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
+    set(CMAKE_CXX_CLANG_TIDY
+        ${CLANG_TIDY_EXE}
+        --extra-arg=-std=c++23
+        --header-filter=${CMAKE_CURRENT_SOURCE_DIR}/src/.*
+    )
+    message(STATUS "clang-tidy enabled: ${CLANG_TIDY_EXE}")
+endif()
+
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCES})

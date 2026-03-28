@@ -4,20 +4,20 @@
 namespace se::core {
 
 class Timer {
-   public:
+public:
     Timer() { reset(); }
 
     void reset() { m_start = std::chrono::steady_clock::now(); }
 
-    double seconds() const {
+    [[nodiscard]] double seconds() const {
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - m_start).count();
     }
 
-    double millis() const {
+    [[nodiscard]] double millis() const {
         return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - m_start).count();
     }
 
-   private:
+private:
     std::chrono::time_point<std::chrono::steady_clock> m_start;
 };
 

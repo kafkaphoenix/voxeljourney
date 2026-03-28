@@ -15,9 +15,7 @@ inline void checkGlError(const char* context) {
     }
 }
 #else
-inline void checkGlError(const char* context) {
-    (void)context;
-}
+inline void checkGlError(const char* context) { (void)context; }
 #endif
 
 }  // namespace se::render

@@ -8,7 +8,6 @@ Application::Application()
     : m_Config(Config::load("config.ini")),
       m_StatsTracker(m_Config.stats()),
       m_Window(m_Config.window(), &m_EventBus),
-      m_RenderManager(),
       m_Level(m_Config, m_RenderManager, m_AssetManager) {
     subscribeEvents();
     m_EventBus.dispatchQueued();
@@ -20,7 +19,7 @@ Application::~Application() {
 }
 
 float Application::updateDeltaTime(float& lastTime) {
-    float currentTime = static_cast<float>(glfwGetTime());
+    auto currentTime = static_cast<float>(glfwGetTime());
     float dt = currentTime - lastTime;
     dt = std::min(dt, 0.1f);
     lastTime = currentTime;
@@ -29,7 +28,7 @@ float Application::updateDeltaTime(float& lastTime) {
 
 void Application::beginFrame() {
     m_Input.beginFrame();
-    m_Window.pollEvents();
+    Window::pollEvents();
     m_EventBus.dispatchQueued();
 }
 
@@ -41,20 +40,25 @@ void Application::updateStats(float deltaTime) {
 }
 
 void Application::subscribeEvents() {
-    m_Subscriptions.push_back(m_EventBus.subscribeScoped<FramebufferResizeEvent>([this](const FramebufferResizeEvent& e) {
+    m_Subscriptions.push_back(m_EventBus.subscribeScoped<FramebufferResizeEvent>([this](
+                                                                                     const FramebufferResizeEvent& e) {
         if (e.width > 0 && e.height > 0) {
-            m_Level.getPlayer().getCamera().setAspectRatio(
-                static_cast<float>(e.width) / static_cast<float>(e.height));
+            m_Level.getPlayer().getCamera().setAspectRatio(static_cast<float>(e.width) / static_cast<float>(e.height));
         }
     }));
-    m_Subscriptions.push_back(m_EventBus.subscribeScoped<KeyEvent>([this](const KeyEvent& e) { m_Input.onKeyEvent(e); }));
-    m_Subscriptions.push_back(m_EventBus.subscribeScoped<MouseButtonEvent>([this](const MouseButtonEvent& e) { m_Input.onMouseButtonEvent(e); }));
-    m_Subscriptions.push_back(m_EventBus.subscribeScoped<MouseMoveEvent>([this](const MouseMoveEvent& e) { m_Input.onMouseMoveEvent(e); }));
-    m_Subscriptions.push_back(m_EventBus.subscribeScoped<ScrollEvent>([this](const ScrollEvent& e) { m_Input.onScrollEvent(e); }));
+    m_Subscriptions.push_back(
+        m_EventBus.subscribeScoped<KeyEvent>([this](const KeyEvent& e) { m_Input.onKeyEvent(e); }));
+    m_Subscriptions.push_back(m_EventBus.subscribeScoped<MouseButtonEvent>(
+        [this](const MouseButtonEvent& e) { m_Input.onMouseButtonEvent(e); }));
+    m_Subscriptions.push_back(
+        m_EventBus.subscribeScoped<MouseMoveEvent>([this](const MouseMoveEvent& e) { m_Input.onMouseMoveEvent(e); }));
+    m_Subscriptions.push_back(
+        m_EventBus.subscribeScoped<ScrollEvent>([this](const ScrollEvent& e) { m_Input.onScrollEvent(e); }));
     m_Subscriptions.push_back(m_EventBus.subscribeScoped<WindowFocusEvent>([this](const WindowFocusEvent& e) {
         m_Input.onWindowFocusEvent(e);
         if (e.focused) {
-            // When the window regains focus, reset the mouse position to prevent sudden jumps if the mouse moved while unfocused
+            // When the window regains focus, reset the mouse position to prevent sudden jumps if the mouse moved while
+            // unfocused
             m_Input.resetMouseFromWindow(m_Window.native());
         }
     }));
@@ -62,7 +66,7 @@ void Application::subscribeEvents() {
 
 void Application::handleShortcuts() {
     if (m_Input.isKeyDown(GLFW_KEY_ESCAPE)) {
-        glfwSetWindowShouldClose(m_Window.native(), true);
+        glfwSetWindowShouldClose(m_Window.native(), static_cast<int>(true));
     }
 
     if (m_Input.isKeyPressed(GLFW_KEY_F3)) {
@@ -71,23 +75,15 @@ void Application::handleShortcuts() {
 
     if (m_Input.isKeyPressed(GLFW_KEY_F12)) {
         switch (m_Window.mode()) {
-            case Window::Mode::Windowed:
-                m_Window.setMode(Window::Mode::Fullscreen);
-                break;
-            case Window::Mode::Fullscreen:
-                m_Window.setMode(Window::Mode::Windowed);
-                break;
+        case Window::Mode::Windowed: m_Window.setMode(Window::Mode::Fullscreen); break;
+        case Window::Mode::Fullscreen: m_Window.setMode(Window::Mode::Windowed); break;
         }
     }
 }
 
-void Application::update(float deltaTime) {
-    m_Level.update(deltaTime, m_Input);
-}
+void Application::update(float deltaTime) { m_Level.update(deltaTime, m_Input); }
 
-void Application::render() {
-    m_Level.render(m_RenderManager);
-}
+void Application::render() { m_Level.render(m_RenderManager); }
 
 void Application::run() {
     float lastTime = 0.0f;
@@ -97,7 +93,7 @@ void Application::run() {
         beginFrame();
 
         if (m_Window.isMinimized() || !m_Window.isFocused()) {
-            m_Window.waitEvents(0.1);
+            Window::waitEvents(0.1);
             continue;
         }
 

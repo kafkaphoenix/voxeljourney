@@ -6,7 +6,7 @@
 namespace se::render {
 
 class Buffer {
-   public:
+public:
     Buffer();
     ~Buffer();
 
@@ -18,11 +18,11 @@ class Buffer {
     void setData(std::span<const std::byte> data, GLenum usage) const;
     void setData(GLsizeiptr size, GLenum usage) const;  // allocate only, no data
     void updateSubData(GLintptr offset, std::span<const std::byte> data) const;
-    void* mapWrite(GLintptr offset, GLsizeiptr size) const;
+    [[nodiscard]] void* mapWrite(GLintptr offset, GLsizeiptr size) const;
     void unmap() const;
-    unsigned int id() const { return m_Id; }
+    [[nodiscard]] unsigned int id() const { return m_Id; }
 
-   private:
+private:
     void release();
 
     unsigned int m_Id = 0;

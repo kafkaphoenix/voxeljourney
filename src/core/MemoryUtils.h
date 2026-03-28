@@ -26,10 +26,7 @@ inline ProcessMemoryUsage getProcessMemoryUsageKB() {
 #if defined(_WIN32)
 
     PROCESS_MEMORY_COUNTERS_EX pmc{};
-    if (GetProcessMemoryInfo(
-            GetCurrentProcess(),
-            reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc),
-            sizeof(pmc))) {
+    if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc), sizeof(pmc))) {
         ProcessMemoryUsage usage{};
         usage.usedKB = static_cast<std::size_t>(pmc.WorkingSetSize / 1024);
         usage.committedKB = static_cast<std::size_t>(pmc.PrivateUsage / 1024);
@@ -41,18 +38,20 @@ inline ProcessMemoryUsage getProcessMemoryUsageKB() {
 #else
 
     std::ifstream statm("/proc/self/statm");
-    if (!statm.is_open())
+    if (!statm.is_open()) {
         return {};
+    }
 
     std::size_t size = 0;
     std::size_t resident = 0;
-    if (!(statm >> size >> resident))
+    if (!(statm >> size >> resident)) {
         return {};
+    }
 
-    const long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024;
+    const long pageSizeKB = sysconf(_SC_PAGE_SIZE) / 1024;
     ProcessMemoryUsage usage{};
-    usage.usedKB = resident * static_cast<std::size_t>(page_size_kb);
-    usage.committedKB = size * static_cast<std::size_t>(page_size_kb);
+    usage.usedKB = resident * static_cast<std::size_t>(pageSizeKB);
+    usage.committedKB = size * static_cast<std::size_t>(pageSizeKB);
     return usage;
 
 #endif

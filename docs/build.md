@@ -48,3 +48,17 @@ make renderdoc
 ```
 Then open Renderdoc, select the running process, and start capturing frames.
 > Labels are used in the render logic to help identify draw calls and resources in Renderdoc.
+
+### 7. Static Analysis
+To run clang-tidy static analysis:
+```bash
+make tidy
+```
+> This requires CMake to be configured with `-DENABLE_CLANG_TIDY=ON` and a compatible clang-tidy installation. Make sure to have clang-tidy in your PATH for this to work. It uses the .clang-tidy file included in the project.
+
+### 8. Code Formatting
+To format the code using clang-format:
+```bash
+make format
+```
+> Make sure to have clang-format in your PATH for this to work. It uses the .clang-format file included in the project.

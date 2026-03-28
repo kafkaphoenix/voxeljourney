@@ -9,19 +9,19 @@
 namespace se::core {
 
 class StatsTracker {
-   public:
+public:
     explicit StatsTracker(const Config::Stats& config);
 
     void setEnabled(bool enabled) { m_Enabled = enabled; }
-    bool enabled() const { return m_Enabled; }
+    [[nodiscard]] bool enabled() const { return m_Enabled; }
     void setRefreshInterval(float seconds) { m_RefreshInterval = seconds; }
+    [[nodiscard]] float getRefreshInterval() const { return m_RefreshInterval; }
     void reset();
 
-    std::optional<std::string> update(float deltaTime,
-                                      const se::render::RenderStats& renderStats,
+    std::optional<std::string> update(float deltaTime, const se::render::RenderStats& renderStats,
                                       std::string_view title);
 
-   private:
+private:
     bool m_Enabled = true;
     float m_RefreshInterval = 1.0f;
     float m_Timer = 0.0f;

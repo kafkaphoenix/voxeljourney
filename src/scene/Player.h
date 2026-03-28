@@ -12,18 +12,18 @@ class Config;
 namespace se::scene {
 
 class Player {
-   public:
+public:
     Player(const se::core::Config& config);
     ~Player() = default;
 
     void update(float deltaTime, const se::core::Input& input);
     void setMouseSmoothing(float alpha);
     void setFixedStep(float stepSeconds);
-    Camera& getCamera() { return m_Camera; }
-    const Camera& getCamera() const { return m_Camera; }
-    glm::vec3 getPosition() const { return m_Camera.getPosition(); }
+    [[nodiscard]] Camera& getCamera() { return m_Camera; }
+    [[nodiscard]] const Camera& getCamera() const { return m_Camera; }
+    [[nodiscard]] glm::vec3 getPosition() const { return m_Camera.getPosition(); }
 
-   private:
+private:
     void updateMouseLook(const se::core::Input& input);
     void updateKeyboardMovement(float deltaTime, const se::core::Input& input);
     void applyKeyboardStep(float stepSeconds, const se::core::Input& input);

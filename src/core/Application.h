@@ -13,14 +13,14 @@
 namespace se::core {
 
 class Application {
-   public:
+public:
     Application();
     ~Application();
 
     void run();
 
-   private:
-    float updateDeltaTime(float& lastTime);
+private:
+    static float updateDeltaTime(float& lastTime);
     void beginFrame();
     void subscribeEvents();
     void handleShortcuts();

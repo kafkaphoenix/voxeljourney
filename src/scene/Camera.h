@@ -6,17 +6,14 @@
 namespace se::scene {
 
 class Camera {
-   public:
+public:
     Camera(const se::core::Config::Camera& config);
 
     void processMouse(float xoffset, float yoffset);
-    void processKeyboard(bool forward, bool backward,
-                         bool left, bool right,
-                         bool up, bool down,
-                         float deltaTime);
+    void processKeyboard(bool forward, bool backward, bool left, bool right, bool up, bool down, float deltaTime);
 
-    glm::mat4 getViewProjection() const;
-    glm::vec3 getPosition() const { return m_Position; }
+    [[nodiscard]] glm::mat4 getViewProjection() const;
+    [[nodiscard]] glm::vec3 getPosition() const { return m_Position; }
 
     void setAspectRatio(float aspectRatio) { m_AspectRatio = aspectRatio; }
     void setPosition(const glm::vec3& position) { m_Position = position; }
@@ -25,7 +22,7 @@ class Camera {
     void setFov(float fov);
     void setClipPlanes(float nearPlane, float farPlane);
 
-   private:
+private:
     void updateVectors();
 
     glm::vec3 m_Front{0.0f, 0.0f, -1.0f};

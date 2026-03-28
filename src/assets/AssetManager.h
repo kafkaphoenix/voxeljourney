@@ -22,69 +22,55 @@
 namespace se::assets {
 
 class AssetManager {
-   public:
+public:
     AssetManager() = default;
     ~AssetManager() = default;
 
     ShaderHandle getOrLoadShader(std::string_view shaderPath) {
-        return getOrLoadAsset<Shader>(
-            std::format("shader_{}", shaderPath), std::string(shaderPath));
+        return getOrLoadAsset<Shader>(std::format("shader_{}", shaderPath), std::string(shaderPath));
     }
     ModelHandle getOrLoadModel(std::string_view gltfPath, std::string_view shaderPath) {
-        return getOrLoadAsset<Model>(
-            std::format("model_{}", gltfPath), std::string(gltfPath), std::string(shaderPath), *this);
+        return getOrLoadAsset<Model>(std::format("model_{}", gltfPath), std::string(gltfPath), std::string(shaderPath),
+                                     *this);
     }
     TextureHandle getOrLoadTexture(std::string_view path) {
         return getOrLoadAsset<Texture>(std::format("texture_{}", path), std::string(path));
     }
     TextureHandle getOrLoadTextureFromMemory(std::span<const uint8_t> data, int width, int height, int channels) {
-        std::string key = std::format("texture_<memory>_{}:{}",
-                                      reinterpret_cast<uintptr_t>(data.data()),
-                                      data.size());
+        std::string key = std::format("texture_<memory>_{}:{}", reinterpret_cast<uintptr_t>(data.data()), data.size());
         auto it = m_PathToId.find(key);
         if (it != m_PathToId.end()) {
-            return TextureHandle(this, it->second);
+            return {this, it->second};
         }
 
         UUID id = UUID();
         auto tex = std::make_shared<Texture>(data, width, height, channels);
         m_Assets[id] = tex;
         m_PathToId[key] = id;
-        return TextureHandle(this, id);
+        return {this, id};
     }
-    MaterialHandle getOrLoadMaterial(std::string_view name,
-                                     ShaderHandle shader,
-                                     const MaterialTextures& textures,
-                                     const MaterialParams& params,
-                                     const RenderState& state) {
-        return getOrLoadAsset<Material>(
-            std::format("material_{}", name), std::string(name), shader, textures, params, state);
+    MaterialHandle getOrLoadMaterial(std::string_view name, ShaderHandle shader, const MaterialTextures& textures,
+                                     const MaterialParams& params, const RenderState& state) {
+        return getOrLoadAsset<Material>(std::format("material_{}", name), std::string(name), shader, textures, params,
+                                        state);
     }
 
-    void removeShader(std::string_view shaderPath) {
-        removeAssetByPath(std::format("shader_{}", shaderPath));
-    }
-    void removeModel(std::string_view gltfPath) {
-        removeAssetByPath(std::format("model_{}", gltfPath));
-    }
-    void removeTexture(std::string_view path) {
-        removeAssetByPath(std::format("texture_{}", path));
-    }
-    void removeMaterial(std::string_view name) {
-        removeAssetByPath(std::format("material_{}", name));
-    }
+    void removeShader(std::string_view shaderPath) { removeAssetByPath(std::format("shader_{}", shaderPath)); }
+    void removeModel(std::string_view gltfPath) { removeAssetByPath(std::format("model_{}", gltfPath)); }
+    void removeTexture(std::string_view path) { removeAssetByPath(std::format("texture_{}", path)); }
+    void removeMaterial(std::string_view name) { removeAssetByPath(std::format("material_{}", name)); }
 
-    ShaderHandle getShader(UUID id) const { return getAssetById<Shader>(id); }
-    ModelHandle getModel(UUID id) const { return getAssetById<Model>(id); }
-    TextureHandle getTexture(UUID id) const { return getAssetById<Texture>(id); }
-    MaterialHandle getMaterial(UUID id) const { return getAssetById<Material>(id); }
+    ShaderHandle getShader(UUID id) { return getAssetById<Shader>(id); }
+    ModelHandle getModel(UUID id) { return getAssetById<Model>(id); }
+    TextureHandle getTexture(UUID id) { return getAssetById<Texture>(id); }
+    MaterialHandle getMaterial(UUID id) { return getAssetById<Material>(id); }
 
     void clear() {
         m_Assets.clear();
         m_PathToId.clear();
     }
 
-   private:
+private:
     template <typename T, typename... Args>
     AssetHandle<T> getOrLoadAsset(std::string_view path, Args&&... args) {
         auto it = m_PathToId.find(path);
@@ -107,12 +93,12 @@ class AssetManager {
     }
 
     template <typename T>
-    AssetHandle<T> getAssetById(UUID id) const {
+    AssetHandle<T> getAssetById(UUID id) {
         auto it = m_Assets.find(id);
         if (it != m_Assets.end()) {
-            return AssetHandle<T>(const_cast<AssetManager*>(this), id);
+            return {this, id};
         }
-        return AssetHandle<T>();  // invalid
+        return {};  // invalid
     }
 
     template <typename T>
@@ -124,7 +110,8 @@ class AssetManager {
         return nullptr;
     }
 
-    // No multithreading support, so no need for mutexes. If you add multithreading, you'll need to add mutexes to protect these maps.
+    // No multithreading support, so no need for mutexes. If you add multithreading, you'll need to add mutexes to
+    // protect these maps.
     std::unordered_map<UUID, std::shared_ptr<Asset>> m_Assets;
     std::unordered_map<std::string, UUID, TransparentStringHash, std::equal_to<>> m_PathToId;
 

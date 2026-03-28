@@ -5,12 +5,12 @@
 namespace se::scene {
 
 class Sun {
-   public:
+public:
     Sun() = default;
-    const DirectionalLight& getLight() const { return m_Light; }
-    DirectionalLight& getLight() { return m_Light; }
+    [[nodiscard]] const DirectionalLight& getLight() const { return m_Light; }
+    [[nodiscard]] DirectionalLight& getLight() { return m_Light; }
 
-   private:
+private:
     DirectionalLight m_Light;
     Transform m_Transform;
 };

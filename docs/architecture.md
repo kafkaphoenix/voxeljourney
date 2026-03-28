@@ -4,7 +4,14 @@
 - assets: Shaders, textures, models, and materials.
 - build: CMake build output.
 - src: Engine code.
-- CMakeLists.txt, Makefile, vcpkg.json, vcpkg-configuration.json, CMakePresets.json, and launch configurations.
+- CMakeLists.txt: CMake configuration for the project, including dependencies and build targets.
+- .clang-format: ClangFormat configuration for code formatting.
+- .clang-tidy: ClangTidy configuration for static analysis.
+- Makefile: Makefile for build automation (check [build instructions](./build.md) for usage).
+- vcpkg.json: vcpkg manifest for dependencies.
+- vcpkg-configuration.json: vcpkg configuration for custom triplets and settings.
+- CMakePresets.json: CMake presets for easy configuration with VS Code's CMake Tools extension.
+- .vscode/launch.json: VS Code launch configurations for debugging.
 
 ## Project dependencies
 - OpenGL + GLAD for rendering.

@@ -5,12 +5,12 @@
 namespace se::assets {
 
 class Asset {
-   public:
+public:
     virtual ~Asset() = default;
 
-    virtual std::string_view getPath() const = 0;
+    [[nodiscard]] std::string_view getPath() const { return m_Path; }
 
-   protected:
+protected:
     explicit Asset(std::string path) : m_Path(std::move(path)) {}
 
     std::string m_Path;

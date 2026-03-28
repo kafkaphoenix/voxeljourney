@@ -16,16 +16,16 @@ struct BufferElement {
 };
 
 class BufferLayout {
-   public:
+public:
     BufferLayout() = default;
     BufferLayout(const std::vector<BufferElement>& elements);
 
-    const std::vector<BufferElement>& getElements() const { return m_Elements; }
-    GLuint getStride() const { return m_Stride; }
+    [[nodiscard]] const std::vector<BufferElement>& getElements() const { return m_Elements; }
+    [[nodiscard]] GLuint getStride() const { return m_Stride; }
 
     void calculateOffsetsAndStride();
 
-   private:
+private:
     std::vector<BufferElement> m_Elements;
     GLuint m_Stride = 0;
 };

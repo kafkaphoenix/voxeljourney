@@ -6,7 +6,6 @@ BUILD_DIR := build
 VCPKG_DIR_LINUX := ~/vcpkg
 VCPKG_DIR_WINDOWS := C:/vcpkg
 
-# RenderDoc command
 RENDERDOC_CMD_LINUX := renderdoc
 RENDERDOC_CMD_WINDOWS := "C:/Program Files/RenderDoc/renderdoccmd.exe"
 
@@ -56,3 +55,14 @@ clean: ## Remove build directory
 .PHONY: renderdoc
 renderdoc: ## Run RenderDoc
 	$(RENDERDOC_CMD) capture $(EXE) --wait-for-exit
+
+.PHONY: tidy
+tidy: ## Run clang-tidy static analysis
+	cmake -S . -B $(BUILD_DIR) \
+		-DCMAKE_TOOLCHAIN_FILE=$(VCPKG_DIR)/scripts/buildsystems/vcpkg.cmake \
+		-DENABLE_CLANG_TIDY=ON
+	cmake --build $(BUILD_DIR) --clean-first
+
+.PHONY: format
+format: ## Run clang-format on all source files
+	find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i

@@ -12,13 +12,9 @@ VertexArray::VertexArray() {
     }
 }
 
-VertexArray::~VertexArray() {
-    release();
-}
+VertexArray::~VertexArray() { release(); }
 
-VertexArray::VertexArray(VertexArray&& other) noexcept : m_Id(other.m_Id) {
-    other.m_Id = 0;
-}
+VertexArray::VertexArray(VertexArray&& other) noexcept : m_Id(other.m_Id) { other.m_Id = 0; }
 
 VertexArray& VertexArray::operator=(VertexArray&& other) noexcept {
     if (this != &other) {
@@ -29,17 +25,11 @@ VertexArray& VertexArray::operator=(VertexArray&& other) noexcept {
     return *this;
 }
 
-void VertexArray::bind() const {
-    glBindVertexArray(m_Id);
-}
+void VertexArray::bind() const { glBindVertexArray(m_Id); }
 
-void VertexArray::unbind() {
-    glBindVertexArray(0);
-}
+void VertexArray::unbind() { glBindVertexArray(0); }
 
-void VertexArray::enableAttrib(GLuint index) const {
-    glEnableVertexArrayAttrib(m_Id, index);
-}
+void VertexArray::enableAttrib(GLuint index) const { glEnableVertexArrayAttrib(m_Id, index); }
 
 void VertexArray::setAttribFormat(GLuint index, GLint size, GLenum type, GLboolean normalized,
                                   GLuint relativeOffset) const {
@@ -54,9 +44,7 @@ void VertexArray::setVertexBuffer(GLuint binding, GLuint buffer, GLintptr offset
     glVertexArrayVertexBuffer(m_Id, binding, buffer, offset, stride);
 }
 
-void VertexArray::setElementBuffer(GLuint buffer) const {
-    glVertexArrayElementBuffer(m_Id, buffer);
-}
+void VertexArray::setElementBuffer(GLuint buffer) const { glVertexArrayElementBuffer(m_Id, buffer); }
 
 void VertexArray::setBindingDivisor(GLuint binding, GLuint divisor) const {
     glVertexArrayBindingDivisor(m_Id, binding, divisor);

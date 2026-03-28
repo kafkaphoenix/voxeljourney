@@ -10,25 +10,25 @@
 namespace se::scene {
 
 class Scene {
-   public:
+public:
     Scene() = default;
 
-    void addRenderable(Renderable&& r) { m_Renderables.push_back(std::move(r)); }
-    const std::vector<Renderable>& getRenderables() const { return m_Renderables; }
+    void addRenderable(Renderable r) { m_Renderables.push_back(r); }
+    [[nodiscard]] const std::vector<Renderable>& getRenderables() const { return m_Renderables; }
 
-    std::span<const DirectionalLight> getDirectionalLights() const { return m_DirectionalLights; }
-    std::span<const PointLight> getPointLights() const { return m_PointLights; }
-    std::span<const SpotLight> getSpotLights() const { return m_SpotLights; }
+    [[nodiscard]] std::span<const DirectionalLight> getDirectionalLights() const { return m_DirectionalLights; }
+    [[nodiscard]] std::span<const PointLight> getPointLights() const { return m_PointLights; }
+    [[nodiscard]] std::span<const SpotLight> getSpotLights() const { return m_SpotLights; }
     void addDirectionalLight(const DirectionalLight& l) { m_DirectionalLights.push_back(l); }
     void addPointLight(const PointLight& l) { m_PointLights.push_back(l); }
     void addSpotLight(const SpotLight& l) { m_SpotLights.push_back(l); }
 
-    Sky& getSky() { return m_Sky; }
-    const Sky& getSky() const { return m_Sky; }
+    [[nodiscard]] Sky& getSky() { return m_Sky; }
+    [[nodiscard]] const Sky& getSky() const { return m_Sky; }
 
     // LightData is a zero-copy view into Scene's light vectors.
     // Translation to GPU layout happens once in updateFrameUbo.
-    LightData prepareLightData() const {
+    [[nodiscard]] LightData prepareLightData() const {
         return LightData{
             .directionalLights = m_DirectionalLights,
             .pointLights = m_PointLights,
@@ -38,7 +38,7 @@ class Scene {
         };
     }
 
-   private:
+private:
     Sky m_Sky;
     std::vector<DirectionalLight> m_DirectionalLights;
     std::vector<PointLight> m_PointLights;

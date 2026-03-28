@@ -8,17 +8,20 @@
 namespace se::render {
 
 void RenderQueue::submit(const se::scene::Renderable& renderable, const Frustum& frustum) {
-    if (!renderable.mesh)
+    if (!renderable.mesh) {
         throw std::runtime_error("Renderable missing mesh");
+    }
 
     const auto materialPtr = renderable.material.get();
-    if (!materialPtr)
+    if (!materialPtr) {
         throw std::runtime_error("Renderable missing material");
+    }
 
     const glm::mat4 modelMatrix = renderable.transform.getMatrix();
 
-    if (!frustumIntersectsAABB(frustum, renderable.mesh->getAABB(), modelMatrix))
+    if (!frustumIntersectsAABB(frustum, renderable.mesh->getAABB(), modelMatrix)) {
         return;
+    }
 
     const BatchKey key{renderable.mesh, materialPtr.get()};
     const InstanceData data{

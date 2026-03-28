@@ -4,7 +4,7 @@
 namespace se::render {
 
 class VertexArray {
-   public:
+public:
     VertexArray();
     ~VertexArray();
 
@@ -15,17 +15,16 @@ class VertexArray {
 
     void bind() const;
     static void unbind();
-    unsigned int id() const { return m_Id; }
+    [[nodiscard]] unsigned int id() const { return m_Id; }
 
     void enableAttrib(GLuint index) const;
-    void setAttribFormat(GLuint index, GLint size, GLenum type, GLboolean normalized,
-                         GLuint relativeOffset) const;
+    void setAttribFormat(GLuint index, GLint size, GLenum type, GLboolean normalized, GLuint relativeOffset) const;
     void setAttribBinding(GLuint index, GLuint binding) const;
     void setVertexBuffer(GLuint binding, GLuint buffer, GLintptr offset, GLsizei stride) const;
     void setElementBuffer(GLuint buffer) const;
     void setBindingDivisor(GLuint binding, GLuint divisor) const;
 
-   private:
+private:
     void release();
 
     unsigned int m_Id = 0;

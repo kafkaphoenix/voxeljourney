@@ -38,7 +38,7 @@ struct BatchData {
 using BatchMap = std::unordered_map<BatchKey, BatchData, BatchKey::Hash>;
 
 class RenderQueue {
-   public:
+public:
     void submit(const se::scene::Renderable& renderable, const Frustum& frustum);
     void clear();
 
@@ -46,7 +46,8 @@ class RenderQueue {
     BatchMap& getTransparentBatches() { return m_TransparentBatches; }
     const BatchMap& getOpaqueBatches() const { return m_OpaqueBatches; }
     const BatchMap& getTransparentBatches() const { return m_TransparentBatches; }
-   private:
+
+private:
     BatchMap m_OpaqueBatches;
     BatchMap m_TransparentBatches;
 };

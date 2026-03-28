@@ -9,7 +9,7 @@
 namespace se::core {
 
 class Input {
-   public:
+public:
     void beginFrame();
 
     void onKeyEvent(const KeyEvent& event);
@@ -18,40 +18,35 @@ class Input {
     void onScrollEvent(const ScrollEvent& event);
     void onWindowFocusEvent(const WindowFocusEvent& event);
 
-    bool isKeyDown(int key) const;
-    bool isKeyPressed(int key) const;
-    bool isKeyReleased(int key) const;
+    [[nodiscard]] bool isKeyDown(int key) const;
+    [[nodiscard]] bool isKeyPressed(int key) const;
+    [[nodiscard]] bool isKeyReleased(int key) const;
 
-    bool isMouseButtonDown(int button) const;
-    bool isMouseButtonPressed(int button) const;
-    bool isMouseButtonReleased(int button) const;
+    [[nodiscard]] bool isMouseButtonDown(int button) const;
+    [[nodiscard]] bool isMouseButtonPressed(int button) const;
+    [[nodiscard]] bool isMouseButtonReleased(int button) const;
 
-    float getMouseX() const { return static_cast<float>(m_MouseX); }
-    float getMouseY() const { return static_cast<float>(m_MouseY); }
-    float getMouseDeltaX() const { return static_cast<float>(m_MouseDeltaX); }
-    float getMouseDeltaY() const { return static_cast<float>(m_MouseDeltaY); }
-    float getScrollX() const { return static_cast<float>(m_ScrollX); }
-    float getScrollY() const { return static_cast<float>(m_ScrollY); }
+    [[nodiscard]] float getMouseX() const { return static_cast<float>(m_MouseX); }
+    [[nodiscard]] float getMouseY() const { return static_cast<float>(m_MouseY); }
+    [[nodiscard]] float getMouseDeltaX() const { return static_cast<float>(m_MouseDeltaX); }
+    [[nodiscard]] float getMouseDeltaY() const { return static_cast<float>(m_MouseDeltaY); }
+    [[nodiscard]] float getScrollX() const { return static_cast<float>(m_ScrollX); }
+    [[nodiscard]] float getScrollY() const { return static_cast<float>(m_ScrollY); }
 
     void resetMouse(double x, double y);
     void resetMouseFromWindow(GLFWwindow* window);
 
-   private:
-    enum class ButtonState : uint8_t {
-        Up,
-        Pressed,
-        Down,
-        Released
-    };
-    void advanceState(ButtonState& state);
-    bool isValidKey(int key) const;
-    bool isValidMouseButton(int button) const;
+private:
+    enum class ButtonState : uint8_t { Up, Pressed, Down, Released };
+    static void advanceState(ButtonState& state);
+    [[nodiscard]] static bool isValidKey(int key);
+    [[nodiscard]] static bool isValidMouseButton(int button);
 
-    static constexpr int KeyCount = GLFW_KEY_LAST + 1;
-    static constexpr int MouseButtonCount = GLFW_MOUSE_BUTTON_LAST + 1;
+    static constexpr int KEY_COUNT = GLFW_KEY_LAST + 1;
+    static constexpr int MOUSE_BUTTON_COUNT = GLFW_MOUSE_BUTTON_LAST + 1;
 
-    std::array<ButtonState, KeyCount> m_Keys{};
-    std::array<ButtonState, MouseButtonCount> m_MouseButtons{};
+    std::array<ButtonState, KEY_COUNT> m_Keys{};
+    std::array<ButtonState, MOUSE_BUTTON_COUNT> m_MouseButtons{};
 
     double m_MouseX = 0.0;
     double m_MouseY = 0.0;

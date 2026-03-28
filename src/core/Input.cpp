@@ -8,19 +8,15 @@ void Input::beginFrame() {
     m_MouseDeltaX = 0.0;
     m_MouseDeltaY = 0.0;
 
-    for (auto& keyState : m_Keys) {
-        advanceState(keyState);
-    }
-    for (auto& buttonState : m_MouseButtons) {
-        advanceState(buttonState);
-    }
+    for (auto& keyState : m_Keys) { advanceState(keyState); }
+    for (auto& buttonState : m_MouseButtons) { advanceState(buttonState); }
 }
 
 void Input::onKeyEvent(const KeyEvent& event) {
     if (!isValidKey(event.key)) {
         return;
     }
-    auto& state = m_Keys[event.key];
+    auto& state = m_Keys.at(event.key);
     if (event.action == GLFW_PRESS) {
         state = ButtonState::Pressed;
     } else if (event.action == GLFW_RELEASE) {
@@ -32,7 +28,7 @@ void Input::onMouseButtonEvent(const MouseButtonEvent& event) {
     if (!isValidMouseButton(event.button)) {
         return;
     }
-    auto& state = m_MouseButtons[event.button];
+    auto& state = m_MouseButtons.at(event.button);
     if (event.action == GLFW_PRESS) {
         state = ButtonState::Pressed;
     } else if (event.action == GLFW_RELEASE) {
@@ -68,12 +64,8 @@ void Input::onWindowFocusEvent(const WindowFocusEvent& event) {
     }
 
     // Reset all input states when the window loses focus to prevent stuck keys/buttons when the user alt-tabs away
-    for (auto& keyState : m_Keys) {
-        keyState = ButtonState::Up;
-    }
-    for (auto& buttonState : m_MouseButtons) {
-        buttonState = ButtonState::Up;
-    }
+    for (auto& keyState : m_Keys) { keyState = ButtonState::Up; }
+    for (auto& buttonState : m_MouseButtons) { buttonState = ButtonState::Up; }
     m_MouseDeltaX = 0.0;
     m_MouseDeltaY = 0.0;
     m_ScrollX = 0.0;
@@ -84,7 +76,7 @@ bool Input::isKeyDown(int key) const {
     if (!isValidKey(key)) {
         return false;
     }
-    const auto& state = m_Keys[key];
+    const auto& state = m_Keys.at(key);
     return state == ButtonState::Down || state == ButtonState::Pressed;
 }
 
@@ -92,21 +84,21 @@ bool Input::isKeyPressed(int key) const {
     if (!isValidKey(key)) {
         return false;
     }
-    return m_Keys[key] == ButtonState::Pressed;
+    return m_Keys.at(key) == ButtonState::Pressed;
 }
 
 bool Input::isKeyReleased(int key) const {
     if (!isValidKey(key)) {
         return false;
     }
-    return m_Keys[key] == ButtonState::Released;
+    return m_Keys.at(key) == ButtonState::Released;
 }
 
 bool Input::isMouseButtonDown(int button) const {
     if (!isValidMouseButton(button)) {
         return false;
     }
-    const auto& state = m_MouseButtons[button];
+    const auto& state = m_MouseButtons.at(button);
     return state == ButtonState::Down || state == ButtonState::Pressed;
 }
 
@@ -114,14 +106,14 @@ bool Input::isMouseButtonPressed(int button) const {
     if (!isValidMouseButton(button)) {
         return false;
     }
-    return m_MouseButtons[button] == ButtonState::Pressed;
+    return m_MouseButtons.at(button) == ButtonState::Pressed;
 }
 
 bool Input::isMouseButtonReleased(int button) const {
     if (!isValidMouseButton(button)) {
         return false;
     }
-    return m_MouseButtons[button] == ButtonState::Released;
+    return m_MouseButtons.at(button) == ButtonState::Released;
 }
 
 void Input::resetMouse(double x, double y) {
@@ -150,12 +142,8 @@ void Input::advanceState(ButtonState& state) {
     }
 }
 
-bool Input::isValidKey(int key) const {
-    return key >= 0 && key < KeyCount;
-}
+bool Input::isValidKey(int key) { return key >= 0 && key < KEY_COUNT; }
 
-bool Input::isValidMouseButton(int button) const {
-    return button >= 0 && button < MouseButtonCount;
-}
+bool Input::isValidMouseButton(int button) { return button >= 0 && button < MOUSE_BUTTON_COUNT; }
 
 }  // namespace se::core

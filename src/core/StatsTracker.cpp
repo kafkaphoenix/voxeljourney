@@ -14,8 +14,7 @@ void StatsTracker::reset() {
     m_Frames = 0;
 }
 
-std::optional<std::string> StatsTracker::update(float deltaTime,
-                                                const se::render::RenderStats& renderStats,
+std::optional<std::string> StatsTracker::update(float deltaTime, const se::render::RenderStats& renderStats,
                                                 std::string_view title) {
     if (!m_Enabled) {
         return std::nullopt;
@@ -27,16 +26,11 @@ std::optional<std::string> StatsTracker::update(float deltaTime,
         return std::nullopt;
     }
 
-    float fps = m_Frames / m_Timer;
+    float fps = static_cast<float>(m_Frames) / m_Timer;
     ProcessMemoryUsage mem = getProcessMemoryUsageKB();
-    std::string stats = std::format(
-        "{} FPS: {} RAM: {}/{}MB | Models: Draws {} Triangles {}",
-        title,
-        static_cast<int>(fps),
-        mem.usedKB / 1024,
-        mem.committedKB / 1024,
-        renderStats.modelDrawCalls,
-        renderStats.modelTriangles);
+    std::string stats =
+        std::format("{} FPS: {} RAM: {}/{}MB | Models: Draws {} Triangles {}", title, static_cast<int>(fps),
+                    mem.usedKB / 1024, mem.committedKB / 1024, renderStats.modelDrawCalls, renderStats.modelTriangles);
 
     reset();
     return stats;

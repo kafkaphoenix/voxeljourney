@@ -11,15 +11,15 @@ namespace se::scene {
 class Scene;
 
 class SceneBuilder {
-   public:
+public:
     SceneBuilder() = delete;
 
-    static void Build(Scene& scene, se::assets::AssetManager& assetManager);
+    static void build(Scene& scene, se::assets::AssetManager& assetManager);
 
-   private:
-    static void CreateSky(Scene& scene);
-    static void LoadModels(Scene& scene, se::assets::AssetManager& assetManager);
-    static void SubmitModel(const se::assets::ModelHandle& model, Scene& scene);
+private:
+    static void createSky(Scene& scene);
+    static void loadModels(Scene& scene, se::assets::AssetManager& assetManager);
+    static void submitModel(const se::assets::ModelHandle& model, Scene& scene);
 };
 
 }  // namespace se::scene

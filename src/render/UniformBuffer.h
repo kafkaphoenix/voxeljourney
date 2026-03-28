@@ -6,7 +6,7 @@
 
 namespace se::render {
 class UniformBuffer {
-   public:
+public:
     UniformBuffer(GLsizeiptr size, GLuint binding);
     ~UniformBuffer() = default;
 
@@ -15,8 +15,8 @@ class UniformBuffer {
     UniformBuffer(UniformBuffer&& other) noexcept = default;
     UniformBuffer& operator=(UniformBuffer&& other) noexcept = default;
 
-    unsigned int id() const { return m_Buffer.id(); }
-    unsigned int binding() const { return m_Binding; }
+    [[nodiscard]] unsigned int id() const { return m_Buffer.id(); }
+    [[nodiscard]] unsigned int binding() const { return m_Binding; }
 
     void update(std::span<const std::byte> data) const;
     void updateSubData(GLintptr offset, std::span<const std::byte> data) const;
@@ -33,7 +33,7 @@ class UniformBuffer {
         updateSubData(offset, std::as_bytes(std::span(&value, 1)));
     }
 
-   private:
+private:
     Buffer m_Buffer;
     GLuint m_Binding = 0;
 };

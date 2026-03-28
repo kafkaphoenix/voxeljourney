@@ -5,7 +5,7 @@
 namespace se::assets {
 
 class UUID {
-   public:
+public:
     UUID() : m_uuid(dis(gen)) {}
     UUID(uint64_t uuid) : m_uuid(uuid) {}
 
@@ -14,7 +14,7 @@ class UUID {
     bool operator==(const UUID& other) const { return m_uuid == other.m_uuid; }
     bool operator!=(const UUID& other) const { return m_uuid != other.m_uuid; }
 
-   private:
+private:
     static inline std::random_device rd{};
     // Use thread_local to ensure different sequences in different threads.
     static inline thread_local std::mt19937_64 gen{rd()};

@@ -14,67 +14,44 @@
 
 namespace se::core {
 
-void windowGlDebugCallback(unsigned int source, unsigned int type,
-                           unsigned int id, unsigned int severity,
-                           int length, const char* message, const void* userParam);
+void windowGlDebugCallback(unsigned int source, unsigned int type, unsigned int id, unsigned int severity, int length,
+                           const char* message, const void* userParam);
 
 namespace {
 std::string glSeverityName(unsigned int severity) {
     switch (severity) {
-        case GL_DEBUG_SEVERITY_HIGH:
-            return "HIGH";
-        case GL_DEBUG_SEVERITY_MEDIUM:
-            return "MEDIUM";
-        case GL_DEBUG_SEVERITY_LOW:
-            return "LOW";
-        case GL_DEBUG_SEVERITY_NOTIFICATION:
-            return "NOTIFY";
-        default:
-            return "UNKNOWN";
+    case GL_DEBUG_SEVERITY_HIGH: return "HIGH";
+    case GL_DEBUG_SEVERITY_MEDIUM: return "MEDIUM";
+    case GL_DEBUG_SEVERITY_LOW: return "LOW";
+    case GL_DEBUG_SEVERITY_NOTIFICATION: return "NOTIFY";
+    default: return "UNKNOWN";
     }
 }
 
 std::string glSourceName(unsigned int source) {
     switch (source) {
-        case GL_DEBUG_SOURCE_API:
-            return "API";
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
-            return "WINDOW_SYSTEM";
-        case GL_DEBUG_SOURCE_SHADER_COMPILER:
-            return "SHADER_COMPILER";
-        case GL_DEBUG_SOURCE_THIRD_PARTY:
-            return "THIRD_PARTY";
-        case GL_DEBUG_SOURCE_APPLICATION:
-            return "APPLICATION";
-        case GL_DEBUG_SOURCE_OTHER:
-            return "OTHER";
-        default:
-            return "UNKNOWN";
+    case GL_DEBUG_SOURCE_API: return "API";
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM: return "WINDOW_SYSTEM";
+    case GL_DEBUG_SOURCE_SHADER_COMPILER: return "SHADER_COMPILER";
+    case GL_DEBUG_SOURCE_THIRD_PARTY: return "THIRD_PARTY";
+    case GL_DEBUG_SOURCE_APPLICATION: return "APPLICATION";
+    case GL_DEBUG_SOURCE_OTHER: return "OTHER";
+    default: return "UNKNOWN";
     }
 }
 
 std::string glTypeName(unsigned int type) {
     switch (type) {
-        case GL_DEBUG_TYPE_ERROR:
-            return "ERROR";
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-            return "DEPRECATED";
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-            return "UNDEFINED";
-        case GL_DEBUG_TYPE_PORTABILITY:
-            return "PORTABILITY";
-        case GL_DEBUG_TYPE_PERFORMANCE:
-            return "PERFORMANCE";
-        case GL_DEBUG_TYPE_MARKER:
-            return "MARKER";
-        case GL_DEBUG_TYPE_PUSH_GROUP:
-            return "PUSH_GROUP";
-        case GL_DEBUG_TYPE_POP_GROUP:
-            return "POP_GROUP";
-        case GL_DEBUG_TYPE_OTHER:
-            return "OTHER";
-        default:
-            return "UNKNOWN";
+    case GL_DEBUG_TYPE_ERROR: return "ERROR";
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: return "DEPRECATED";
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: return "UNDEFINED";
+    case GL_DEBUG_TYPE_PORTABILITY: return "PORTABILITY";
+    case GL_DEBUG_TYPE_PERFORMANCE: return "PERFORMANCE";
+    case GL_DEBUG_TYPE_MARKER: return "MARKER";
+    case GL_DEBUG_TYPE_PUSH_GROUP: return "PUSH_GROUP";
+    case GL_DEBUG_TYPE_POP_GROUP: return "POP_GROUP";
+    case GL_DEBUG_TYPE_OTHER: return "OTHER";
+    default: return "UNKNOWN";
     }
 }
 
@@ -189,10 +166,9 @@ Window::Window(const Config::Window& config, EventBus* eventBus)
 
 void Window::initGlfw() {
     if (!glfwInit()) {
-        const char* description;
+        const char* description = nullptr;
         glfwGetError(&description);
-        throw std::runtime_error(std::format(
-            "GLFW init failed: {}", description ? description : "Unknown error"));
+        throw std::runtime_error(std::format("GLFW init failed: {}", description ? description : "Unknown error"));
     }
 }
 
@@ -216,7 +192,7 @@ void Window::createWindow(int width, int height, std::string_view title) {
 void Window::initGlad() {
     glfwMakeContextCurrent(m_Window);
     glfwSwapInterval(1);
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
         throw std::runtime_error("Failed to initialize GLAD");
     }
 }
@@ -225,8 +201,7 @@ void Window::setupGlDebug() {
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(windowGlDebugCallback, this);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE,
-                          GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
 }
 
 void Window::setupCallbacks() {
@@ -258,13 +233,17 @@ void Window::setupInitialFramebuffer(int width, int height) {
     }
 }
 
-void Window::setupInputMode() {
-    glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-}
+void Window::setupInputMode() { glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); }
 
 void Window::setupMode(std::string_view mode) {
-    Mode newMode = mode == "fullscreen" ? Mode::Fullscreen : mode == "borderless" ? Mode::Borderless
-                                                                                  : Mode::Windowed;
+    Mode newMode = Mode::Windowed;
+    if (mode == "fullscreen") {
+        newMode = Mode::Fullscreen;
+    } else if (mode == "borderless") {
+        newMode = Mode::Borderless;
+    } else {
+        newMode = Mode::Windowed;
+    }
     setMode(newMode);
 }
 
@@ -273,8 +252,6 @@ Window::~Window() {
     glfwTerminate();
 }
 
-void Window::pollEvents() const { glfwPollEvents(); }
-void Window::waitEvents(double timeoutSeconds) const { glfwWaitEventsTimeout(timeoutSeconds); }
 void Window::swapBuffers() const { glfwSwapBuffers(m_Window); }
 bool Window::shouldClose() const { return glfwWindowShouldClose(m_Window); }
 void Window::onFramebufferResize(int width, int height) {
@@ -353,17 +330,21 @@ void Window::onSizeChange(int width, int height) {
     m_Height = height;
 }
 
-void Window::onIconifyChange(bool minimized) {
-    m_Minimized = minimized;
-}
+void Window::onIconifyChange(bool minimized) { m_Minimized = minimized; }
 
 void Window::setMode(Mode newMode) {
-    if (m_Mode == newMode) return;
+    if (m_Mode == newMode) {
+        return;
+    }
 
     m_LastMode = m_Mode;
     m_Mode = newMode;
     GLFWmonitor* monitor = nullptr;
-    int xpos, ypos, width, height, refresh = GLFW_DONT_CARE;
+    int xpos = 0;
+    int ypos = 0;
+    int width = 0;
+    int height = 0;
+    int refresh = GLFW_DONT_CARE;
 
     m_IgnoreSizeEvents = true;
     if (newMode == Mode::Windowed) {
@@ -376,19 +357,23 @@ void Window::setMode(Mode newMode) {
         refresh = GLFW_DONT_CARE;
         glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     } else {
-        int nmonitors;
+        int nmonitors = 0;
         GLFWmonitor** monitors = glfwGetMonitors(&nmonitors);
         monitor = glfwGetPrimaryMonitor();
         if (monitors && nmonitors > 0) {
-            int wx, wy, ww, wh;
+            int wx = 0;
+            int wy = 0;
+            int ww = 0;
+            int wh = 0;
             glfwGetWindowPos(m_Window, &wx, &wy);
             glfwGetWindowSize(m_Window, &ww, &wh);
             for (int i = 0; i < nmonitors; ++i) {
-                int mx, my;
+                int mx = 0;
+                int my = 0;
                 glfwGetMonitorPos(monitors[i], &mx, &my);
                 const GLFWvidmode* vm = glfwGetVideoMode(monitors[i]);
-                if (wx + ww / 2 >= mx && wx + ww / 2 < mx + vm->width &&
-                    wy + wh / 2 >= my && wy + wh / 2 < my + vm->height) {
+                if (wx + ww / 2 >= mx && wx + ww / 2 < mx + vm->width && wy + wh / 2 >= my &&
+                    wy + wh / 2 < my + vm->height) {
                     monitor = monitors[i];
                     break;
                 }
@@ -414,7 +399,8 @@ void Window::setMode(Mode newMode) {
     }
     m_IgnoreSizeEvents = false;
 
-    int fbWidth = 0, fbHeight = 0;
+    int fbWidth = 0;
+    int fbHeight = 0;
     glfwGetFramebufferSize(m_Window, &fbWidth, &fbHeight);
     if (fbWidth > 0 && fbHeight > 0) {
         if (fbWidth != m_LastFramebufferWidth || fbHeight != m_LastFramebufferHeight) {
@@ -439,22 +425,19 @@ void Window::setVsync(bool enabled) {
     glfwSwapInterval(enabled ? 1 : 0);
 }
 
-void windowGlDebugCallback(unsigned int source, unsigned int type,
-                           unsigned int id, unsigned int severity,
-                           int length, const char* message, const void* userParam) {
+void windowGlDebugCallback(unsigned int source, unsigned int type, unsigned int id, unsigned int severity, int length,
+                           const char* message, const void* userParam) {
     (void)source;
     (void)type;
     (void)length;
 
-    auto* window = static_cast<Window*>(const_cast<void*>(userParam));
+    const auto* window = static_cast<const Window*>(userParam);
     if (!window || !message) {
         return;
     }
 
-    std::string text = std::string("OpenGL ") + glSeverityName(severity) +
-                       " " + glTypeName(type) +
-                       " [" + glSourceName(source) + "]" +
-                       " (" + std::to_string(id) + "): " + message;
+    std::string text = std::string("OpenGL ") + glSeverityName(severity) + " " + glTypeName(type) + " [" +
+                       glSourceName(source) + "]" + " (" + std::to_string(id) + "): " + message;
 
     if (severity == GL_DEBUG_SEVERITY_HIGH) {
         throw std::runtime_error(text);

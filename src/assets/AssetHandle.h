@@ -14,24 +14,21 @@ class Material;
 
 template <typename T>
 class AssetHandle {
-   public:
+public:
     AssetHandle() : m_AssetManager(nullptr), m_Id(0) {}
-    AssetHandle(AssetManager* manager, UUID id)
-        : m_AssetManager(manager), m_Id(id) {}
+    AssetHandle(AssetManager* manager, UUID id) : m_AssetManager(manager), m_Id(id) {}
 
-    std::shared_ptr<T> get() const;
+    [[nodiscard]] std::shared_ptr<T> get() const;
 
-    bool isValid() const { return m_AssetManager != nullptr && m_Id != 0; }
-    UUID id() const { return m_Id; }
+    [[nodiscard]] bool isValid() const { return m_AssetManager != nullptr && m_Id != 0; }
+    [[nodiscard]] UUID id() const { return m_Id; }
 
     bool operator==(const AssetHandle<T>& other) const {
         return m_AssetManager == other.m_AssetManager && m_Id == other.m_Id;
     }
-    bool operator!=(const AssetHandle<T>& other) const {
-        return !(*this == other);
-    }
+    bool operator!=(const AssetHandle<T>& other) const { return !(*this == other); }
 
-   private:
+private:
     AssetManager* m_AssetManager;
     UUID m_Id;
 };

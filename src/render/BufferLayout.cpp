@@ -2,8 +2,7 @@
 
 namespace se::render {
 
-BufferLayout::BufferLayout(const std::vector<BufferElement>& elements)
-    : m_Elements(elements) {
+BufferLayout::BufferLayout(const std::vector<BufferElement>& elements) : m_Elements(elements) {
     calculateOffsetsAndStride();
 }
 

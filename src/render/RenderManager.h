@@ -1,5 +1,4 @@
 #pragma once
-#include <optional>
 
 #include "Frustum.h"
 #include "ModelRenderer.h"
@@ -7,14 +6,14 @@
 
 namespace se::scene {
 class Camera;
-class LightData;
-class Renderable;
+struct LightData;
+struct Renderable;
 }
 
 namespace se::render {
 
 class RenderManager {
-   public:
+public:
     RenderManager();
 
     void beginFrame(const se::scene::Camera& camera);
@@ -25,11 +24,11 @@ class RenderManager {
     void setBatchSize(size_t maxInstances);
     void reset();
 
-    const RenderStats& getStats() const noexcept;
+    [[nodiscard]] const RenderStats& getStats() const noexcept { return m_Stats; }
 
-   private:
-    void clear();
-    void setupGlState();
+private:
+    static void clear();
+    static void setupGlState();
 
     const se::scene::Camera* m_Camera = nullptr;
     Frustum m_Frustum{};

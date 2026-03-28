@@ -8,7 +8,7 @@
 namespace se::core {
 
 class Config {
-   public:
+public:
     struct Window {
         std::string title = "Simple Engine";
         int width = 1280;
@@ -30,7 +30,8 @@ class Config {
         float fov = 60.0f;
         float nearPlane = 0.1f;
         // For big models like Sponza, we need a far plane of at least 500 to avoid clipping geometry.
-        // We set it to 1000 by default to give some extra headroom, but it can be adjusted in the config if needed.
+        // We set it to 1000 by default to give some extra headroom, but it can be adjusted in the config if
+        // needed.
         float farPlane = 1000.0f;
         glm::vec3 position = glm::vec3(-5.0f, 5.0f, 5.0f);
         float aspectRatio = 16.0f / 9.0f;
@@ -46,16 +47,16 @@ class Config {
 
     static Config load(std::string_view path);
 
-    const Window& window() const { return m_Window; }
-    const Input& input() const { return m_Input; }
-    const Camera& camera() const { return m_Camera; }
-    const Stats& stats() const { return m_Stats; }
+    [[nodiscard]] const Window& window() const { return m_Window; }
+    [[nodiscard]] const Input& input() const { return m_Input; }
+    [[nodiscard]] const Camera& camera() const { return m_Camera; }
+    [[nodiscard]] const Stats& stats() const { return m_Stats; }
 
-   private:
-    static void readWindow(const CSimpleIniA&, Window&);
-    static void readInput(const CSimpleIniA&, Input&);
-    static void readCamera(const CSimpleIniA&, Camera&);
-    static void readStats(const CSimpleIniA&, Stats&);
+private:
+    static void readWindow(const CSimpleIniA& ini, Window& w);
+    static void readInput(const CSimpleIniA& ini, Input& i);
+    static void readCamera(const CSimpleIniA& ini, Camera& c);
+    static void readStats(const CSimpleIniA& ini, Stats& s);
 
     Window m_Window;
     Input m_Input;

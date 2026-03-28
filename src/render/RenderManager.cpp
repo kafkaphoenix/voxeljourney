@@ -6,29 +6,26 @@
 
 namespace se::render {
 
-RenderManager::RenderManager() {
-    setupGlState();
-}
+RenderManager::RenderManager() { setupGlState(); }
 
 void RenderManager::beginFrame(const se::scene::Camera& camera) {
-    if (!m_Camera && &camera == nullptr)
-        throw std::runtime_error("RenderManager: null camera passed to beginFrame!");
-
     m_Camera = &camera;
     m_Frustum = calculateFrustum(m_Camera->getViewProjection());
     clear();
 }
 
 void RenderManager::submit(const se::scene::Renderable& renderable) {
-    if (!m_Camera)
+    if (!m_Camera) {
         throw std::runtime_error("RenderManager: submit called before beginFrame!");
+    }
 
     m_ModelRenderer.submit(renderable, m_Frustum);
 }
 
 void RenderManager::endFrame(const se::scene::LightData& lights) {
-    if (!m_Camera)
+    if (!m_Camera) {
         throw std::runtime_error("RenderManager: endFrame called before beginFrame!");
+    }
 
     m_Stats.reset();
     m_ModelRenderer.flush(lights, *m_Camera, m_Stats);
@@ -41,17 +38,11 @@ void RenderManager::toggleWireframe() {
     m_ModelRenderer.setWireframe(m_Wireframe);
 }
 
-void RenderManager::setBatchSize(const size_t maxInstances) {
-    m_ModelRenderer.setBatchSize(maxInstances);
-}
+void RenderManager::setBatchSize(const size_t maxInstances) { m_ModelRenderer.setBatchSize(maxInstances); }
 
 void RenderManager::reset() {
     m_Stats.reset();
     m_Camera = nullptr;
-}
-
-const RenderStats& RenderManager::getStats() const noexcept {
-    return m_Stats;
 }
 
 void RenderManager::clear() {
