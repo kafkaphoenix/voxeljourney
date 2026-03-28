@@ -1,11 +1,6 @@
-.DEFAULT_GOAL := help
-
 BUILD_DIR := build
-.DEFAULT_GOAL := help
-
 VCPKG_DIR_LINUX := ~/vcpkg
 VCPKG_DIR_WINDOWS := C:/vcpkg
-
 RENDERDOC_CMD_LINUX := renderdoc
 RENDERDOC_CMD_WINDOWS := "C:/Program Files/RenderDoc/renderdoccmd.exe"
 
