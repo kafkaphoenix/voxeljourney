@@ -6,7 +6,6 @@
 #include <glm/glm.hpp>
 #include <stdexcept>
 
-#include "GlUtils.h"
 #include "RenderQueue.h"
 
 namespace se::render {
@@ -79,8 +78,8 @@ Mesh::Mesh(std::span<const std::byte> vertices, std::span<const unsigned int> in
         throw std::invalid_argument("Invalid mesh data provided!");
     }
 
-    m_Vbo.setData(vertices, GL_STATIC_DRAW);
-    m_Ebo.setData(std::as_bytes(indices), GL_STATIC_DRAW);
+    m_Vbo.setStorage(vertices);
+    m_Ebo.setStorage(std::as_bytes(indices));
     m_Vao.setVertexBuffer(0, m_Vbo.id(), 0, static_cast<GLsizei>(layout.getStride()));
     m_Vao.setElementBuffer(m_Ebo.id());
 
@@ -90,8 +89,6 @@ Mesh::Mesh(std::span<const std::byte> vertices, std::span<const unsigned int> in
         m_InstanceAttribBase = firstFreeSlot;
         setupInstanceAttributes(m_InstanceAttribBase);
     }
-
-    checkGlError("Mesh::Mesh");
 }
 
 void Mesh::draw() const {
@@ -101,8 +98,6 @@ void Mesh::draw() const {
 
     m_Vao.bind();
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m_IndexCount), GL_UNSIGNED_INT, nullptr);
-    checkGlError("Mesh::draw");
-    VertexArray::unbind();
 }
 
 void Mesh::drawInstanced(size_t count) const {
@@ -116,8 +111,6 @@ void Mesh::drawInstanced(size_t count) const {
     m_Vao.bind();
     glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLsizei>(m_IndexCount), GL_UNSIGNED_INT, nullptr,
                             static_cast<GLsizei>(count));
-    checkGlError("Mesh::drawInstanced");
-    VertexArray::unbind();
 }
 
 void Mesh::updateInstanceBuffer(std::span<const std::byte> data) {

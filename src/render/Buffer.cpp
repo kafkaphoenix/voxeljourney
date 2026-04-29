@@ -6,10 +6,8 @@ namespace se::render {
 
 Buffer::Buffer() {
     glCreateBuffers(1, &m_Id);
-    if (glad_glObjectLabel && m_Id) {
-        std::string bufLabel = std::format("Buffer [{}]", reinterpret_cast<uintptr_t>(this));
-        glad_glObjectLabel(GL_BUFFER, m_Id, static_cast<GLsizei>(bufLabel.size()), bufLabel.c_str());
-    }
+    std::string bufLabel = std::format("Buffer [{}]", reinterpret_cast<uintptr_t>(this));
+    glObjectLabel(GL_BUFFER, m_Id, static_cast<GLsizei>(bufLabel.size()), bufLabel.c_str());
 }
 
 void* Buffer::mapWrite(GLintptr offset, GLsizeiptr size) const {
@@ -39,6 +37,10 @@ void Buffer::setData(std::span<const std::byte> data, GLenum usage) const {
 }
 
 void Buffer::setData(GLsizeiptr size, GLenum usage) const { glNamedBufferData(m_Id, size, nullptr, usage); }
+
+void Buffer::setStorage(std::span<const std::byte> data) const {
+    glNamedBufferStorage(m_Id, static_cast<GLsizeiptr>(data.size_bytes()), data.data(), 0);
+}
 
 void Buffer::updateSubData(GLintptr offset, std::span<const std::byte> data) const {
     glNamedBufferSubData(m_Id, offset, static_cast<GLsizeiptr>(data.size_bytes()), data.data());

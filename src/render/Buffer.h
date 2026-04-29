@@ -16,7 +16,8 @@ public:
     Buffer& operator=(Buffer&& other) noexcept;
 
     void setData(std::span<const std::byte> data, GLenum usage) const;
-    void setData(GLsizeiptr size, GLenum usage) const;  // allocate only, no data
+    void setData(GLsizeiptr size, GLenum usage) const;       // allocate only, no data
+    void setStorage(std::span<const std::byte> data) const;  // immutable storage (cannot reallocate)
     void updateSubData(GLintptr offset, std::span<const std::byte> data) const;
     [[nodiscard]] void* mapWrite(GLintptr offset, GLsizeiptr size) const;
     void unmap() const;

@@ -6,10 +6,8 @@ namespace se::render {
 
 VertexArray::VertexArray() {
     glCreateVertexArrays(1, &m_Id);
-    if (glad_glObjectLabel && m_Id) {
-        std::string vaoLabel = std::format("VertexArray [{}]", reinterpret_cast<uintptr_t>(this));
-        glad_glObjectLabel(GL_VERTEX_ARRAY, m_Id, static_cast<GLsizei>(vaoLabel.size()), vaoLabel.c_str());
-    }
+    std::string vaoLabel = std::format("VertexArray [{}]", reinterpret_cast<uintptr_t>(this));
+    glObjectLabel(GL_VERTEX_ARRAY, m_Id, static_cast<GLsizei>(vaoLabel.size()), vaoLabel.c_str());
 }
 
 VertexArray::~VertexArray() { release(); }
@@ -26,8 +24,6 @@ VertexArray& VertexArray::operator=(VertexArray&& other) noexcept {
 }
 
 void VertexArray::bind() const { glBindVertexArray(m_Id); }
-
-void VertexArray::unbind() { glBindVertexArray(0); }
 
 void VertexArray::enableAttrib(GLuint index) const { glEnableVertexArrayAttrib(m_Id, index); }
 

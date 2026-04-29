@@ -1,4 +1,6 @@
 #pragma once
+#include <glad/glad.h>
+
 #include <glm/glm.hpp>
 #include <optional>
 #include <vector>
@@ -17,6 +19,7 @@ namespace se::render {
 class ModelRenderer {
 public:
     ModelRenderer();
+    ~ModelRenderer();
 
     void submit(const se::scene::Renderable& renderable, const Frustum& frustum);
     void flush(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats);
@@ -31,7 +34,8 @@ private:
     };
 
     void setupFrameUbo();
-    static void flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats);
+    void setupDefaultSampler();
+    void flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats) const;
     void updateFrameUbo(const se::scene::LightData& lights, const se::scene::Camera& camera);
 
     std::vector<TransparentDraw> getSortedTransparentDraws(const se::scene::Camera& camera);
@@ -39,6 +43,7 @@ private:
     RenderQueue m_Queue;
     size_t m_MaxBatchSize = 1000;
     std::optional<UniformBuffer> m_FrameUbo;
+    GLuint m_DefaultSampler = 0;
     bool m_Wireframe = false;
 };
 

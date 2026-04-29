@@ -147,27 +147,31 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
     std::vector<TextureHandle> gltfTextures;
     gltfTextures.reserve(gltfModel.textures.size());
 
-    for (const auto& texture : gltfModel.textures) {
-        if (texture.source < 0 || texture.source >= static_cast<int>(gltfModel.images.size())) {
-            throw std::runtime_error(std::format("Invalid texture source: {}", texture.source));
-        }
+    auto fallback = assetManager.getOrLoadTexture("assets/textures/default.png");
 
-        const auto& image = gltfModel.images[texture.source];
+    for (const auto& texture : gltfModel.textures) {
         TextureHandle handle;
 
-        if (!image.uri.empty()) {
-            handle = assetManager.getOrLoadTexture(std::string(gltfDir) + "/" + image.uri);
-        } else if (!image.image.empty()) {
-            auto imageBytes =
-                std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(image.image.data()), image.image.size());
-            handle = assetManager.getOrLoadTextureFromMemory(imageBytes, image.width, image.height, image.component);
-        } else {
-            throw std::runtime_error("Texture has no URI or embedded image");
-        }
+        try {
+            if (texture.source < 0 || texture.source >= static_cast<int>(gltfModel.images.size())) {
+                throw std::runtime_error(std::format("Invalid texture source: {}", texture.source));
+            }
 
-        if (!handle.isValid()) {
-            throw std::runtime_error(
-                std::format("Failed to load texture: {}", image.uri.empty() ? "embedded" : image.uri));
+            const auto& image = gltfModel.images[texture.source];
+
+            if (!image.uri.empty()) {
+                handle = assetManager.getOrLoadTexture(std::string(gltfDir) + "/" + image.uri);
+            } else if (!image.image.empty()) {
+                auto imageBytes =
+                    std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(image.image.data()), image.image.size());
+                handle =
+                    assetManager.getOrLoadTextureFromMemory(imageBytes, image.width, image.height, image.component);
+            } else {
+                throw std::runtime_error("Texture has no URI or embedded image");
+            }
+        } catch (const std::exception& e) {
+            std::println("Warning loading texture '{}': {}, using fallback", texture.name, e.what());
+            handle = fallback;
         }
 
         gltfTextures.push_back(handle);
@@ -176,7 +180,9 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
 }
 
 MaterialHandle createDefaultMaterial(std::string_view name, AssetManager& assetManager, const ShaderHandle& shader) {
-    return assetManager.getOrLoadMaterial(name, shader, MaterialTextures{}, MaterialParams{}, RenderState{});
+    MaterialTextures textures;
+    textures.baseColor = assetManager.getOrLoadTexture("assets/textures/default.png");
+    return assetManager.getOrLoadMaterial(name, shader, textures, MaterialParams{}, RenderState{});
 }
 
 std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, AssetManager& assetManager,

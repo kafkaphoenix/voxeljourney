@@ -72,10 +72,8 @@ Shader::Shader(std::string path) : Asset(std::move(path)), m_Id(glCreateProgram(
     glLinkProgram(m_Id);
     checkProgramLinking(m_Id);
 
-    if (glad_glObjectLabel != nullptr) {
-        std::string progLabel = std::format("Shader Program [{}]", m_Path);
-        glad_glObjectLabel(GL_PROGRAM, m_Id, static_cast<GLsizei>(progLabel.size()), progLabel.c_str());
-    }
+    std::string progLabel = std::format("Shader Program [{}]", m_Path);
+    glObjectLabel(GL_PROGRAM, m_Id, static_cast<GLsizei>(progLabel.size()), progLabel.c_str());
 
     glDeleteShader(vs);
     glDeleteShader(fs);
@@ -164,42 +162,42 @@ int Shader::getUniformLocation(std::string_view name) {
 void Shader::setMat4(std::string_view name, const float* value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
-        glUniformMatrix4fv(loc, 1, GL_FALSE, value);
+        glProgramUniformMatrix4fv(m_Id, loc, 1, GL_FALSE, value);
     }
 }
 
 void Shader::setVec4(std::string_view name, const float* value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
-        glUniform4fv(loc, 1, value);
+        glProgramUniform4fv(m_Id, loc, 1, value);
     }
 }
 
 void Shader::setVec3(std::string_view name, const float* value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
-        glUniform3fv(loc, 1, value);
+        glProgramUniform3fv(m_Id, loc, 1, value);
     }
 }
 
 void Shader::setInt(std::string_view name, int value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
-        glUniform1i(loc, value);
+        glProgramUniform1i(m_Id, loc, value);
     }
 }
 
 void Shader::setFloat(std::string_view name, float value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
-        glUniform1f(loc, value);
+        glProgramUniform1f(m_Id, loc, value);
     }
 }
 
 void Shader::setBool(std::string_view name, bool value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
-        glUniform1i(loc, value ? 1 : 0);
+        glProgramUniform1i(m_Id, loc, value ? 1 : 0);
     }
 }
 

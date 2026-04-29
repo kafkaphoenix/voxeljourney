@@ -34,7 +34,14 @@ struct FrameUbo {
 
 ModelRenderer::ModelRenderer() {
     setupFrameUbo();
+    setupDefaultSampler();
     Mesh::setDefaultInstanceCapacityBytes(m_MaxBatchSize * sizeof(InstanceData));
+}
+
+ModelRenderer::~ModelRenderer() {
+    if (m_DefaultSampler) {
+        glDeleteSamplers(1, &m_DefaultSampler);
+    }
 }
 
 void ModelRenderer::submit(const se::scene::Renderable& renderable, const Frustum& frustum) {
@@ -89,7 +96,26 @@ void ModelRenderer::setBatchSize(const size_t maxInstances) {
 
 void ModelRenderer::setupFrameUbo() { m_FrameUbo.emplace(sizeof(FrameUbo), 0); }
 
-void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats) {
+// Sets default sampler parameters for all materials that don't specify their own sampler.
+// This is separate from the Texture class because some materials might want different sampler settings (e.g. clamp vs
+// repeat).
+void ModelRenderer::setupDefaultSampler() {
+    glCreateSamplers(1, &m_DefaultSampler);
+    glSamplerParameteri(m_DefaultSampler, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glSamplerParameteri(m_DefaultSampler, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glSamplerParameteri(m_DefaultSampler, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glSamplerParameteri(m_DefaultSampler, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+#ifdef GL_EXT_texture_filter_anisotropic
+    float maxAniso = 0.0f;
+    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
+    if (maxAniso > 0.0f) {
+        glSamplerParameterf(m_DefaultSampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, (std::min)(4.0f, maxAniso));
+    }
+#endif
+    glObjectLabel(GL_SAMPLER, m_DefaultSampler, -1, "DefaultSampler");
+}
+
+void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats) const {
     if (batch.instances.empty()) {
         return;
     }
@@ -104,6 +130,7 @@ void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStat
     shader->bind();
 
     key.material->getBaseColorHandle().get()->bind(0);
+    glBindSampler(0, m_DefaultSampler);
 
     const auto& params = key.material->getParams();
     shader->setVec4("u_BaseColorFactor", &params.baseColorFactor[0]);
@@ -149,7 +176,10 @@ void ModelRenderer::updateFrameUbo(const se::scene::LightData& lights, const se:
 
     data.ambient = glm::vec4(lights.ambientColor, lights.ambientStrength);
 
-    const int pointCount = std::min(static_cast<int>(lights.pointLights.size()), 4);
+    // (std::min) is between parentheses to avoid macro expansion, as min from windows.h causes problems with std::min
+    // usage in this file We only support up to 4 point lights in the shader, so we need to clamp the count and ignore
+    // any extra lights
+    const int pointCount = (std::min)(static_cast<int>(lights.pointLights.size()), 4);
     data.lightCounts = glm::vec4(static_cast<float>(pointCount), 0, 0, 0);
 
     for (int i = 0; i < pointCount; ++i) {

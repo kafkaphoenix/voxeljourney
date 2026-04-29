@@ -14,7 +14,6 @@ public:
     VertexArray& operator=(VertexArray&& other) noexcept;
 
     void bind() const;
-    static void unbind();
     [[nodiscard]] unsigned int id() const { return m_Id; }
 
     void enableAttrib(GLuint index) const;

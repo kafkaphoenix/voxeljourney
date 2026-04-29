@@ -19,16 +19,6 @@ int calcMipLevels(int width, int height) {
     int size = std::max(width, height);
     return 1 + static_cast<int>(std::floor(std::log2(size)));
 }
-
-// Apply anisotropic filtering to keep oblique surfaces sharper (cap at 4x).
-void applyAnisotropy(GLuint textureId) {
-#ifdef GL_EXT_texture_filter_anisotropic
-    float maxAniso = 0.0f;
-    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
-    float target = std::min(4.0f, maxAniso > 0.0f ? maxAniso : 1.0f);
-    glTextureParameterf(textureId, GL_TEXTURE_MAX_ANISOTROPY_EXT, target);
-#endif
-}
 }
 
 Texture::Texture(std::string path, bool flipVertically) : Asset(std::move(path)) {
@@ -42,11 +32,6 @@ Texture::Texture(std::string path, bool flipVertically) : Asset(std::move(path))
     }
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_Id);
-    glTextureParameteri(m_Id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(m_Id, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTextureParameteri(m_Id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(m_Id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    applyAnisotropy(m_Id);
 
     GLenum internalFormat = 0;
     GLenum format = 0;
@@ -79,10 +64,8 @@ Texture::Texture(std::string path, bool flipVertically) : Asset(std::move(path))
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     stbi_image_free(data);
-    if (glad_glObjectLabel != nullptr) {
-        std::string texLabel = std::format("Texture [{}]", path);
-        glad_glObjectLabel(GL_TEXTURE, m_Id, static_cast<GLsizei>(texLabel.size()), texLabel.c_str());
-    }
+    std::string texLabel = std::format("Texture [{}]", path);
+    glObjectLabel(GL_TEXTURE, m_Id, static_cast<GLsizei>(texLabel.size()), texLabel.c_str());
 }
 
 Texture::Texture(std::span<const uint8_t> data, int width, int height, int channels) : Asset("<memory>") {
@@ -103,11 +86,6 @@ Texture::Texture(std::span<const uint8_t> data, int width, int height, int chann
     }
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_Id);
-    glTextureParameteri(m_Id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(m_Id, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTextureParameteri(m_Id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(m_Id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    applyAnisotropy(m_Id);
 
     GLenum internalFormat = 0;
     GLenum format = 0;
