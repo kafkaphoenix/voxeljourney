@@ -36,8 +36,22 @@ public:
     TextureHandle getOrLoadTexture(std::string_view path) {
         return getOrLoadAsset<Texture>(std::format("texture_{}", path), std::string(path));
     }
-    TextureHandle getOrLoadTextureFromMemory(std::span<const uint8_t> data, int width, int height, int channels) {
-        std::string key = std::format("texture_<memory>_{}:{}", reinterpret_cast<uintptr_t>(data.data()), data.size());
+    TextureHandle getOrLoadTextureFromBinary(std::span<const uint8_t> data, int width, int height, int channels) {
+        std::string key = std::format("texture_<binary>_{}:{}", reinterpret_cast<uintptr_t>(data.data()), data.size());
+        auto it = m_PathToId.find(key);
+        if (it != m_PathToId.end()) {
+            return {this, it->second};
+        }
+
+        UUID id = UUID();
+        auto tex = std::make_shared<Texture>(data, width, height, channels);
+        m_Assets[id] = tex;
+        m_PathToId[key] = id;
+        return {this, id};
+    }
+    TextureHandle getOrLoadGeneratedTexture(std::string_view name, std::span<const uint8_t> data, int width, int height,
+                                            int channels) {
+        std::string key = std::format("texture_{}", name);
         auto it = m_PathToId.find(key);
         if (it != m_PathToId.end()) {
             return {this, it->second};

@@ -3,6 +3,7 @@
 #define TINYGLTF_IMPLEMENTATION
 #include <tiny_gltf.h>
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <format>
@@ -77,21 +78,43 @@ void readStridedVec(const tinygltf::Model& gltfModel, const tinygltf::Accessor& 
 }
 
 void readPrimitiveAttributes(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
-                             std::vector<float>& positions, std::vector<float>& normals,
-                             std::vector<float>& texCoords) {
-    auto posIt = primitive.attributes.find("POSITION");
-    if (posIt != primitive.attributes.end()) {
+                             std::vector<float>& positions, std::vector<float>& normals, std::vector<float>& texCoords,
+                             std::vector<float>& tangents, std::vector<float>& colors) {
+    if (auto posIt = primitive.attributes.find("POSITION"); posIt != primitive.attributes.end()) {
         readStridedVec(gltfModel, gltfModel.accessors[posIt->second], 3, positions);
     }
 
-    auto normIt = primitive.attributes.find("NORMAL");
-    if (normIt != primitive.attributes.end()) {
+    if (auto normIt = primitive.attributes.find("NORMAL"); normIt != primitive.attributes.end()) {
         readStridedVec(gltfModel, gltfModel.accessors[normIt->second], 3, normals);
     }
 
-    auto texIt = primitive.attributes.find("TEXCOORD_0");
-    if (texIt != primitive.attributes.end()) {
+    if (auto texIt = primitive.attributes.find("TEXCOORD_0"); texIt != primitive.attributes.end()) {
         readStridedVec(gltfModel, gltfModel.accessors[texIt->second], 2, texCoords);
+    }
+
+    if (auto tanIt = primitive.attributes.find("TANGENT"); tanIt != primitive.attributes.end()) {
+        readStridedVec(gltfModel, gltfModel.accessors[tanIt->second], 4, tangents);
+    }
+
+    if (auto colorIt = primitive.attributes.find("COLOR_0"); colorIt != primitive.attributes.end()) {
+        const auto& accessor = gltfModel.accessors[colorIt->second];
+        int components = (accessor.type == TINYGLTF_TYPE_VEC4) ? 4 : 3;
+        // Only support float for now; unsupported types will be left as white (1.0) in the shader fallback logic
+        if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+            readStridedVec(gltfModel, accessor, components, colors);
+            // If VEC3, expand to VEC4 with alpha=1
+            if (components == 3) {
+                std::vector<float> expanded;
+                expanded.reserve((colors.size() / 3) * 4);
+                for (size_t i = 0; i < colors.size(); i += 3) {
+                    expanded.push_back(colors[i]);
+                    expanded.push_back(colors[i + 1]);
+                    expanded.push_back(colors[i + 2]);
+                    expanded.push_back(1.0f);
+                }
+                colors = std::move(expanded);
+            }
+        }
     }
 }
 
@@ -147,8 +170,6 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
     std::vector<TextureHandle> gltfTextures;
     gltfTextures.reserve(gltfModel.textures.size());
 
-    auto fallback = assetManager.getOrLoadTexture("assets/textures/default.png");
-
     for (const auto& texture : gltfModel.textures) {
         TextureHandle handle;
 
@@ -165,13 +186,13 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
                 auto imageBytes =
                     std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(image.image.data()), image.image.size());
                 handle =
-                    assetManager.getOrLoadTextureFromMemory(imageBytes, image.width, image.height, image.component);
+                    assetManager.getOrLoadTextureFromBinary(imageBytes, image.width, image.height, image.component);
             } else {
                 throw std::runtime_error("Texture has no URI or embedded image");
             }
-        } catch (const std::exception& e) {
-            std::println("Warning loading texture '{}': {}, using fallback", texture.name, e.what());
-            handle = fallback;
+        } catch (const std::exception&) {
+            // On failure, use an invalid handle and let the material creation logic assign a fallback texture and log a
+            // warning
         }
 
         gltfTextures.push_back(handle);
@@ -179,14 +200,34 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
     return gltfTextures;
 }
 
+TextureHandle createCheckerboardTexture(AssetManager& assetManager) {
+    static constexpr int size = 64;
+    static constexpr int tileSize = 8;
+    static constexpr auto pixels = [] {
+        std::array<uint8_t, size * size * 4> p{};
+        for (int y = 0; y < size; ++y) {
+            for (int x = 0; x < size; ++x) {
+                uint8_t* px = p.data() + (y * size + x) * 4;
+                bool on = (((x / tileSize) + (y / tileSize)) % 2 == 0);
+                px[0] = on ? 255 : 0;
+                px[1] = 0;
+                px[2] = on ? 255 : 0;
+                px[3] = 255;
+            }
+        }
+        return p;
+    }();
+    return assetManager.getOrLoadGeneratedTexture(
+        "<checkerboard>", std::span<const uint8_t>(pixels.data(), pixels.size()), size, size, 4);
+}
+
 MaterialHandle createDefaultMaterial(std::string_view name, AssetManager& assetManager, const ShaderHandle& shader) {
-    MaterialTextures textures;
-    textures.baseColor = assetManager.getOrLoadTexture("assets/textures/default.png");
-    return assetManager.getOrLoadMaterial(name, shader, textures, MaterialParams{}, RenderState{});
+    return assetManager.getOrLoadMaterial(name, shader, MaterialTextures{}, MaterialParams{}, RenderState{});
 }
 
 std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, AssetManager& assetManager,
-                                           const ShaderHandle& shader, const std::vector<TextureHandle>& textures) {
+                                           const ShaderHandle& shader, const std::vector<TextureHandle>& textures,
+                                           const TextureHandle& fallbackBaseColor) {
     std::vector<MaterialHandle> materials;
     materials.reserve(gltfModel.materials.size());
 
@@ -207,9 +248,31 @@ std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, Ass
         assignTexture(mat.emissiveTexture.index, matTextures.emissive);
         assignTexture(mat.occlusionTexture.index, matTextures.occlusion);
 
-        if (!matTextures.baseColor.isValid()) {
-            matTextures.baseColor = assetManager.getOrLoadTexture("assets/textures/default.png");
+        std::string matName = mat.name.empty() ? "material_" + std::to_string(i) : mat.name;
+
+        // Warn for each slot that the GLTF references a texture but failed to resolve
+        auto warnSlot = [&](int texIndex, const TextureHandle& handle, const char* slot) {
+            if (texIndex >= 0 && !handle.isValid()) {
+                std::string texPath = "unknown";
+                if (texIndex < static_cast<int>(gltfModel.textures.size())) {
+                    int src = gltfModel.textures[texIndex].source;
+                    if (src >= 0 && src < static_cast<int>(gltfModel.images.size())) {
+                        texPath =
+                            gltfModel.images[src].uri.empty() ? gltfModel.images[src].name : gltfModel.images[src].uri;
+                    }
+                }
+                std::println("Warning: material '{}' {} texture failed to load: '{}'", matName, slot, texPath);
+            }
+        };
+        warnSlot(mat.pbrMetallicRoughness.baseColorTexture.index, matTextures.baseColor, "base color");
+        if (mat.pbrMetallicRoughness.baseColorTexture.index >= 0 && !matTextures.baseColor.isValid()) {
+            matTextures.baseColor = fallbackBaseColor;
         }
+        warnSlot(mat.pbrMetallicRoughness.metallicRoughnessTexture.index, matTextures.metallicRoughness,
+                 "metallic-roughness");
+        warnSlot(mat.normalTexture.index, matTextures.normal, "normal");
+        warnSlot(mat.emissiveTexture.index, matTextures.emissive, "emissive");
+        warnSlot(mat.occlusionTexture.index, matTextures.occlusion, "occlusion");
 
         if (mat.pbrMetallicRoughness.baseColorFactor.size() == 4) {
             params.baseColorFactor = glm::vec4(static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[0]),
@@ -233,7 +296,6 @@ std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, Ass
         state.depthWrite = !state.blend;
         state.cull = !mat.doubleSided;
 
-        std::string matName = mat.name.empty() ? "material_" + std::to_string(i) : mat.name;
         materials.push_back(assetManager.getOrLoadMaterial(matName, shader, matTextures, params, state));
     }
     return materials;
@@ -271,6 +333,8 @@ se::render::BufferLayout buildStaticMeshLayout() {
         {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
         {"a_Normal", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
         {"a_TexCoord", GL_FLOAT, sizeof(float), 0, 2, GL_FALSE},
+        {"a_Tangent", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+        {"a_Color", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
     });
 }
 
@@ -293,9 +357,12 @@ std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& 
     std::vector<float> positions;
     std::vector<float> normals;
     std::vector<float> texCoords;
-    readPrimitiveAttributes(gltfModel, primitive, positions, normals, texCoords);
+    std::vector<float> tangents;
+    std::vector<float> colors;
+    readPrimitiveAttributes(gltfModel, primitive, positions, normals, texCoords, tangents, colors);
 
     // Fill defaults before building the source map so packVertexData stays generic.
+    // Default normal: up (0,1,0)
     if (normals.empty()) {
         normals.resize(vertexCount * 3, 0.0f);
         for (size_t i = 0; i < vertexCount; ++i) {
@@ -303,10 +370,26 @@ std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& 
         }
     }
 
+    // Default UV: (0,0)
     if (texCoords.empty()) {
         texCoords.resize(vertexCount * 2, 0.0f);
     }
 
+    // Default tangent: +X with w=1 (positive bitangent sign)
+    if (tangents.empty()) {
+        tangents.resize(vertexCount * 4, 0.0f);
+        for (size_t i = 0; i < vertexCount; ++i) {
+            tangents[i * 4] = 1.0f;
+            tangents[i * 4 + 3] = 1.0f;
+        }
+    }
+
+    // Default color: white
+    if (colors.empty()) {
+        colors.resize(vertexCount * 4, 1.0f);
+    }
+
+    // GLTF's V coordinate is typically flipped compared to OpenGL, so is flipped here.
     for (size_t i = 1; i < texCoords.size(); i += 2) { texCoords[i] = 1.0f - texCoords[i]; }
 
     // Compute AABB from positions while we have them as typed floats.
@@ -321,9 +404,8 @@ std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& 
         return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(float)};
     };
     const VertexSourceMap sources = {
-        {"a_Position", asBytes(positions)},
-        {"a_Normal", asBytes(normals)},
-        {"a_TexCoord", asBytes(texCoords)},
+        {"a_Position", asBytes(positions)}, {"a_Normal", asBytes(normals)}, {"a_TexCoord", asBytes(texCoords)},
+        {"a_Tangent", asBytes(tangents)},   {"a_Color", asBytes(colors)},
     };
 
     std::vector<uint8_t> vertices;
@@ -352,8 +434,9 @@ Model::Model(std::string gltfPath, std::string_view shaderPath, AssetManager& as
 
         auto gltfTextures = loadGltfTextures(gltfModel, gltfDir, assetManager);
         auto shader = assetManager.getOrLoadShader(shaderPath);
+        auto checkerboard = createCheckerboardTexture(assetManager);
         auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Path), assetManager, shader);
-        auto gltfMaterials = buildMaterials(gltfModel, assetManager, shader, gltfTextures);
+        auto gltfMaterials = buildMaterials(gltfModel, assetManager, shader, gltfTextures, checkerboard);
 
         auto meshLayout = buildStaticMeshLayout();
         // Instance attribute slots begin after the per-vertex attributes.

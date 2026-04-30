@@ -35,6 +35,7 @@ struct FrameUbo {
 ModelRenderer::ModelRenderer() {
     setupFrameUbo();
     setupDefaultSampler();
+    setupDefaultTextures();
     Mesh::setDefaultInstanceCapacityBytes(m_MaxBatchSize * sizeof(InstanceData));
 }
 
@@ -42,6 +43,7 @@ ModelRenderer::~ModelRenderer() {
     if (m_DefaultSampler) {
         glDeleteSamplers(1, &m_DefaultSampler);
     }
+    glDeleteTextures(static_cast<GLsizei>(m_DefaultTextures.size()), m_DefaultTextures.data());
 }
 
 void ModelRenderer::submit(const se::scene::Renderable& renderable, const Frustum& frustum) {
@@ -115,6 +117,47 @@ void ModelRenderer::setupDefaultSampler() {
     glObjectLabel(GL_SAMPLER, m_DefaultSampler, -1, "DefaultSampler");
 }
 
+void ModelRenderer::setupDefaultTextures() {
+    // Create 1x1 neutral textures: white, flat normal, black
+    glCreateTextures(GL_TEXTURE_2D, static_cast<GLsizei>(m_DefaultTextures.size()), m_DefaultTextures.data());
+
+    auto init1x1 = [](GLuint tex, const uint8_t* pixel, const char* label) {
+        glTextureStorage2D(tex, 1, GL_RGBA8, 1, 1);
+        glTextureSubImage2D(tex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+        glObjectLabel(GL_TEXTURE, tex, -1, label);
+    };
+
+    constexpr uint8_t white[] = {255, 255, 255, 255};
+    constexpr uint8_t flatNormal[] = {128, 128, 255, 255};
+    constexpr uint8_t black[] = {0, 0, 0, 255};
+
+    init1x1(m_DefaultTextures[0], white, "DefaultWhite1x1");
+    init1x1(m_DefaultTextures[1], flatNormal, "DefaultFlatNormal1x1");
+    init1x1(m_DefaultTextures[2], black, "DefaultBlack1x1");
+}
+
+void ModelRenderer::bindMaterialTextures(const se::assets::MaterialTextures& textures) const {
+    // Slot 0: base color (default: white or checkerboard if base color failed to load)
+    // Slot 1: normal map (default: flat normal)
+    // Slot 2: metallic-roughness (default: black = non-metallic, smooth)
+    // Slot 3: emissive (default: black = no emission)
+    // Slot 4: occlusion (default: white = fully lit)
+    auto bindSlot = [this](unsigned int slot, const se::assets::TextureHandle& handle, GLuint fallback) {
+        if (handle.isValid()) {
+            handle.get()->bind(slot);
+        } else {
+            glBindTextureUnit(slot, fallback);
+        }
+        glBindSampler(slot, m_DefaultSampler);
+    };
+
+    bindSlot(0, textures.baseColor, m_DefaultTextures[0]);          // white
+    bindSlot(1, textures.normal, m_DefaultTextures[1]);             // flat normal
+    bindSlot(2, textures.metallicRoughness, m_DefaultTextures[2]);  // black
+    bindSlot(3, textures.emissive, m_DefaultTextures[2]);           // black
+    bindSlot(4, textures.occlusion, m_DefaultTextures[0]);          // white
+}
+
 void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats) const {
     if (batch.instances.empty()) {
         return;
@@ -129,12 +172,14 @@ void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStat
     }
     shader->bind();
 
-    key.material->getBaseColorHandle().get()->bind(0);
-    glBindSampler(0, m_DefaultSampler);
+    bindMaterialTextures(key.material->getTextures());
 
     const auto& params = key.material->getParams();
     shader->setVec4("u_BaseColorFactor", &params.baseColorFactor[0]);
     shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
+    shader->setFloat("u_MetallicFactor", params.metallicFactor);
+    shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
+    shader->setVec3("u_EmissiveFactor", &params.emissiveFactor[0]);
 
     key.mesh->updateInstanceBuffer(batch.instances);
     key.mesh->drawInstanced(batch.instances.size());

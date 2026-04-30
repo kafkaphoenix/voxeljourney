@@ -4,10 +4,23 @@ out vec4 FragColor;
 in vec2 v_TexCoord;
 in vec3 v_Normal;
 in vec3 v_WorldPos;
+in vec3 v_Tangent;
+in float v_BitangentSign;
+in vec4 v_Color;
 
-layout(binding = 0) uniform sampler2D u_Texture;
+layout(binding = 0) uniform sampler2D u_BaseColor;
+layout(binding = 1) uniform sampler2D u_NormalMap;
+layout(binding = 2) uniform sampler2D u_MetallicRoughness;
+layout(binding = 3) uniform sampler2D u_Emissive;
+layout(binding = 4) uniform sampler2D u_Occlusion;
+
+// Material parameters
 uniform vec4 u_BaseColorFactor;
+uniform float u_MetallicFactor;
+uniform float u_RoughnessFactor;
+uniform vec3 u_EmissiveFactor;
 uniform float u_AlphaCutoff;
+
 struct PointLight {
     vec4 positionRange;
     vec4 colorIntensity;
@@ -23,8 +36,19 @@ layout(std140, binding = 0) uniform FrameData {
 };
 
 vec4 sampleBaseColor() {
-    vec4 baseColor = texture(u_Texture, v_TexCoord);
-    return baseColor * u_BaseColorFactor;
+    vec4 texColor = texture(u_BaseColor, v_TexCoord);
+    return texColor * u_BaseColorFactor * v_Color;
+}
+
+// Perturb the interpolated vertex normal using the tangent-space normal map.
+vec3 perturbNormal() {
+    vec3 N = normalize(v_Normal);
+    vec3 T = normalize(v_Tangent - dot(v_Tangent, N) * N);  // re-orthogonalize
+    vec3 B = cross(N, T) * v_BitangentSign;
+    mat3 TBN = mat3(T, B, N);
+
+    vec3 tangentNormal = texture(u_NormalMap, v_TexCoord).rgb * 2.0 - 1.0;
+    return normalize(TBN * tangentNormal);
 }
 
 void applyAlphaCutoff(float alpha) {
@@ -59,7 +83,8 @@ vec3 computePointLights(vec3 baseColor, vec3 normal) {
 }
 
 vec3 computeLighting(vec3 baseColor, vec3 normal) {
-    vec3 ambient = baseColor * u_Ambient.xyz * u_Ambient.w;
+    float occlusion = texture(u_Occlusion, v_TexCoord).r;
+    vec3 ambient = baseColor * u_Ambient.xyz * u_Ambient.w * occlusion;
     vec3 diffuse = computeSunDiffuse(baseColor, normal);
     vec3 points = computePointLights(baseColor, normal);
     return ambient + diffuse + points;
@@ -69,8 +94,12 @@ void main() {
     vec4 baseColor = sampleBaseColor();
     applyAlphaCutoff(baseColor.a);
 
-    vec3 normal = normalize(v_Normal);
+    vec3 normal = perturbNormal();
     vec3 color = computeLighting(baseColor.rgb, normal);
+
+    // Emissive is additive and unaffected by lighting
+    vec3 emissive = texture(u_Emissive, v_TexCoord).rgb * u_EmissiveFactor;
+    color += emissive;
 
     FragColor = vec4(color, baseColor.a);
 }
