@@ -24,9 +24,13 @@ public:
     Texture& operator=(Texture&&) = delete;
 
     [[nodiscard]] unsigned int id() const { return m_Id; }
+    [[nodiscard]] int width() const { return m_Width; }
+    [[nodiscard]] int height() const { return m_Height; }
 
 private:
     unsigned int m_Id = 0;
+    int m_Width = 0;
+    int m_Height = 0;
 };
 
 }  // namespace se::assets

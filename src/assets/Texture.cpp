@@ -55,6 +55,9 @@ Texture::Texture(std::string path, bool flipVertically) : Asset(std::move(path))
         throw std::runtime_error(std::format("Unsupported texture format: {} ({} channels)", m_Path, channels));
     }
 
+    m_Width = width;
+    m_Height = height;
+
     int mipLevels = calcMipLevels(width, height);
     glTextureStorage2D(m_Id, mipLevels, internalFormat, width, height);
     glTextureSubImage2D(m_Id, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
@@ -110,6 +113,9 @@ Texture::Texture(std::span<const uint8_t> data, int width, int height, int chann
     } else {
         throw std::runtime_error("Unsupported texture format from memory");
     }
+
+    m_Width = width;
+    m_Height = height;
 
     int mipLevels = calcMipLevels(width, height);
     glTextureStorage2D(m_Id, mipLevels, internalFormat, width, height);

@@ -40,7 +40,7 @@ private:
     int getUniformLocation(std::string_view name);
 
     unsigned int m_Id = 0;
-    std::unordered_map<std::string, int, TransparentStringHash, std::equal_to<>> m_UniformLocations;
+    std::unordered_map<std::string, int, StringHash, std::equal_to<>> m_UniformLocations;
 };
 
 }  // namespace se::assets

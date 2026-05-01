@@ -36,18 +36,19 @@ public:
     TextureHandle getOrLoadTexture(std::string_view path) {
         return getOrLoadAsset<Texture>(std::format("texture_{}", path), std::string(path));
     }
-    TextureHandle getOrLoadTextureFromBinary(std::span<const uint8_t> data, int width, int height, int channels) {
-        std::string key = std::format("texture_<binary>_{}:{}", reinterpret_cast<uintptr_t>(data.data()), data.size());
-        auto it = m_PathToId.find(key);
+    TextureHandle getOrLoadTextureFromBinary(std::string_view id, std::span<const uint8_t> data, int width, int height,
+                                             int channels) {
+        std::string path = std::format("texture_{}", id);
+        auto it = m_PathToId.find(path);
         if (it != m_PathToId.end()) {
             return {this, it->second};
         }
 
-        UUID id = UUID();
+        UUID uuid = UUID();
         auto tex = std::make_shared<Texture>(data, width, height, channels);
-        m_Assets[id] = tex;
-        m_PathToId[key] = id;
-        return {this, id};
+        m_Assets[uuid] = tex;
+        m_PathToId[path] = uuid;
+        return {this, uuid};
     }
     TextureHandle getOrLoadGeneratedTexture(std::string_view name, std::span<const uint8_t> data, int width, int height,
                                             int channels) {
@@ -119,7 +120,7 @@ private:
     std::shared_ptr<T> getAssetPtr(UUID id) const {
         auto it = m_Assets.find(id);
         if (it != m_Assets.end()) {
-            return std::dynamic_pointer_cast<T>(it->second);
+            return std::static_pointer_cast<T>(it->second);
         }
         return nullptr;
     }
@@ -127,7 +128,7 @@ private:
     // No multithreading support, so no need for mutexes. If you add multithreading, you'll need to add mutexes to
     // protect these maps.
     std::unordered_map<UUID, std::shared_ptr<Asset>> m_Assets;
-    std::unordered_map<std::string, UUID, TransparentStringHash, std::equal_to<>> m_PathToId;
+    std::unordered_map<std::string, UUID, StringHash, std::equal_to<>> m_PathToId;
 
     template <typename T>
     friend class AssetHandle;

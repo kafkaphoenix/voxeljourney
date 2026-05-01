@@ -166,7 +166,7 @@ tinygltf::Model loadGltfModel(std::string_view gltfPath) {
 }
 
 std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, std::string_view gltfDir,
-                                            AssetManager& assetManager) {
+                                            AssetManager& assetManager, std::string_view gltfPath) {
     std::vector<TextureHandle> gltfTextures;
     gltfTextures.reserve(gltfModel.textures.size());
 
@@ -181,12 +181,14 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
             const auto& image = gltfModel.images[texture.source];
 
             if (!image.uri.empty()) {
-                handle = assetManager.getOrLoadTexture(std::string(gltfDir) + "/" + image.uri);
+                std::filesystem::path path = (std::filesystem::path(gltfDir) / image.uri).lexically_normal();
+                handle = assetManager.getOrLoadTexture(path.string());
             } else if (!image.image.empty()) {
                 auto imageBytes =
                     std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(image.image.data()), image.image.size());
+                std::string id = std::format("gltf_embedded_{}_{}", gltfPath, texture.source);
                 handle =
-                    assetManager.getOrLoadTextureFromBinary(imageBytes, image.width, image.height, image.component);
+                    assetManager.getOrLoadTextureFromBinary(id, imageBytes, image.width, image.height, image.component);
             } else {
                 throw std::runtime_error("Texture has no URI or embedded image");
             }
@@ -432,7 +434,7 @@ Model::Model(std::string gltfPath, std::string_view shaderPath, AssetManager& as
         tinygltf::Model gltfModel = loadGltfModel(m_Path);
         std::string gltfDir = getDirectory(m_Path);
 
-        auto gltfTextures = loadGltfTextures(gltfModel, gltfDir, assetManager);
+        auto gltfTextures = loadGltfTextures(gltfModel, gltfDir, assetManager, m_Path);
         auto shader = assetManager.getOrLoadShader(shaderPath);
         auto checkerboard = createCheckerboardTexture(assetManager);
         auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Path), assetManager, shader);
