@@ -43,7 +43,17 @@ vec4 sampleBaseColor() {
 // Perturb the interpolated vertex normal using the tangent-space normal map.
 vec3 perturbNormal() {
     vec3 N = normalize(v_Normal);
-    vec3 T = normalize(v_Tangent - dot(v_Tangent, N) * N);  // re-orthogonalize
+    vec3 T = v_Tangent - dot(v_Tangent, N) * N;  // re-orthogonalize
+    float tLen = length(T);
+    // Degenerate tangent (parallel to normal or zero-length): skip perturbation
+    // It happens when the model doesn't have tangents and we generate them from UVs,
+    // which can produce bad tangents for faces that are very small in UV space. 
+    // In that case, we just use the interpolated normal without perturbation, which is
+    // better than the artifacts we'd get from a bad tangent.
+    if (tLen < 1e-6) {
+        return N;
+    }
+    T /= tLen;
     vec3 B = cross(N, T) * v_BitangentSign;
     mat3 TBN = mat3(T, B, N);
 
