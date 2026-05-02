@@ -142,7 +142,7 @@ void ModelRenderer::bindMaterialTextures(const se::assets::MaterialTextures& tex
     // Slot 2: metallic-roughness (default: black = non-metallic, smooth)
     // Slot 3: emissive (default: black = no emission)
     // Slot 4: occlusion (default: white = fully lit)
-    auto bindSlot = [this](unsigned int slot, const se::assets::TextureHandle& handle, GLuint fallback) {
+    auto bindTexture = [this](unsigned int slot, const se::assets::TextureHandle& handle, GLuint fallback) {
         if (handle.isValid()) {
             handle.get()->bind(slot);
         } else {
@@ -151,11 +151,11 @@ void ModelRenderer::bindMaterialTextures(const se::assets::MaterialTextures& tex
         glBindSampler(slot, m_DefaultSampler);
     };
 
-    bindSlot(0, textures.baseColor, m_DefaultTextures[0]);          // white
-    bindSlot(1, textures.normal, m_DefaultTextures[1]);             // flat normal
-    bindSlot(2, textures.metallicRoughness, m_DefaultTextures[2]);  // black
-    bindSlot(3, textures.emissive, m_DefaultTextures[2]);           // black
-    bindSlot(4, textures.occlusion, m_DefaultTextures[0]);          // white
+    bindTexture(0, textures.baseColor, m_DefaultTextures[0]);          // white
+    bindTexture(1, textures.normal, m_DefaultTextures[1]);             // flat normal
+    bindTexture(2, textures.metallicRoughness, m_DefaultTextures[2]);  // black
+    bindTexture(3, textures.emissive, m_DefaultTextures[2]);           // black
+    bindTexture(4, textures.occlusion, m_DefaultTextures[0]);          // white
 }
 
 void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats) const {

@@ -44,6 +44,7 @@ void Application::subscribeEvents() {
                                                                                      const FramebufferResizeEvent& e) {
         if (e.width > 0 && e.height > 0) {
             m_Level.getPlayer().getCamera().setAspectRatio(static_cast<float>(e.width) / static_cast<float>(e.height));
+            m_RenderManager.resizeFramebuffer(e.width, e.height);
         }
     }));
     m_Subscriptions.push_back(
@@ -71,6 +72,10 @@ void Application::handleShortcuts() {
 
     if (m_Input.isKeyPressed(GLFW_KEY_F3)) {
         m_RenderManager.toggleWireframe();
+    }
+
+    if (m_Input.isKeyPressed(GLFW_KEY_F4)) {
+        m_RenderManager.cyclePostEffect();
     }
 
     if (m_Input.isKeyPressed(GLFW_KEY_F12)) {

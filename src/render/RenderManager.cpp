@@ -11,7 +11,11 @@ RenderManager::RenderManager() { setupGlState(); }
 void RenderManager::beginFrame(const se::scene::Camera& camera) {
     m_Camera = &camera;
     m_Frustum = calculateFrustum(m_Camera->getViewProjection());
-    clear();
+
+    if (m_SceneFbo) {
+        m_SceneFbo->bind();
+        m_SceneFbo->clear(0.2f, 0.3f, 0.8f);
+    }
 }
 
 void RenderManager::submit(const se::scene::Renderable& renderable) {
@@ -39,7 +43,22 @@ void RenderManager::endFrame(const se::scene::LightData& lights) {
     m_TerrainRenderer.flush(lights, *m_Camera, m_Stats);
     m_ModelRenderer.flush(lights, *m_Camera, m_Stats);
 
-    m_Camera = nullptr;  // invalidate for next frame
+    if (m_SceneFbo) {
+        m_PostProcess.execute(*m_SceneFbo);
+    }
+
+    m_Camera = nullptr;
+}
+
+void RenderManager::resizeFramebuffer(int width, int height) {
+    if (width <= 0 || height <= 0)
+        return;
+
+    if (!m_SceneFbo) {
+        initFramebuffer(width, height);
+    } else {
+        m_SceneFbo->resize(width, height);
+    }
 }
 
 void RenderManager::toggleWireframe() {
@@ -47,6 +66,10 @@ void RenderManager::toggleWireframe() {
     m_TerrainRenderer.setWireframe(m_Wireframe);
     m_ModelRenderer.setWireframe(m_Wireframe);
 }
+
+void RenderManager::cyclePostEffect() { m_PostProcess.cycleEffect(); }
+
+void RenderManager::setPostEffect(PostEffect effect) { m_PostProcess.setEffect(effect); }
 
 void RenderManager::setBatchSize(const size_t maxInstances) { m_ModelRenderer.setBatchSize(maxInstances); }
 
@@ -57,9 +80,13 @@ void RenderManager::reset() {
     m_Camera = nullptr;
 }
 
-void RenderManager::clear() {
-    glClearColor(0.2f, 0.3f, 0.8f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+void RenderManager::initFramebuffer(int width, int height) {
+    m_SceneFbo.emplace(FramebufferSpec{
+        .width = width,
+        .height = height,
+        .colorAttachments = {GL_RGBA16F},
+        .depthStencil = true,
+    });
 }
 
 void RenderManager::setupGlState() {

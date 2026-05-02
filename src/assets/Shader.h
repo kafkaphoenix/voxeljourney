@@ -31,6 +31,7 @@ public:
     void setMat4(std::string_view name, const float* value);
     void setVec4(std::string_view name, const float* value);
     void setVec3(std::string_view name, const float* value);
+    void setVec2(std::string_view name, const float* value);
     void setInt(std::string_view name, int value);
     void setFloat(std::string_view name, float value);
     void setBool(std::string_view name, bool value);

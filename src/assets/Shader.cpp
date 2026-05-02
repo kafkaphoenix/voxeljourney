@@ -180,6 +180,13 @@ void Shader::setVec3(std::string_view name, const float* value) {
     }
 }
 
+void Shader::setVec2(std::string_view name, const float* value) {
+    int loc = getUniformLocation(name);
+    if (loc != -1) {
+        glProgramUniform2fv(m_Id, loc, 1, value);
+    }
+}
+
 void Shader::setInt(std::string_view name, int value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
