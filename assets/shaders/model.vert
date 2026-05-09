@@ -28,7 +28,7 @@ layout(std140, binding = 0) uniform FrameData {
     vec4 u_SunDir;
     vec4 u_SunColor;
     vec4 u_Ambient;
-    vec4 u_LightCounts;
+    ivec4 u_LightCounts;
     PointLight u_PointLights[4];
 };
 

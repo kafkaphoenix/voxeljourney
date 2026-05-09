@@ -10,39 +10,41 @@ namespace se::core {
 class Config {
 public:
     struct Window {
-        std::string title = "Simple Engine";
-        int width = 1280;
-        int height = 720;
-        int posX = 100;
-        int posY = 100;
-        bool vsync = true;
+        std::string title;
+        int width;
+        int height;
+        int posX;
+        int posY;
+        bool vsync;
         // "windowed", "borderless", or "fullscreen"
-        std::string mode = "windowed";
+        std::string mode;
     };
 
     struct Input {
-        float mouseSmoothAlpha = 0.5f;
-        float fixedStep = 1.0f / 120.0f;
+        float mouseSmoothAlpha;
+    };
+
+    struct Player {
+        float moveSpeed;
+        float sensitivity;
+        float fixedStep;
+        float cameraHeight;
+        float cameraDistance;
+        glm::vec3 startPosition;
     };
 
     struct Camera {
-        float moveSpeed = 15.0f;
-        float fov = 60.0f;
-        float nearPlane = 0.1f;
-        // For big models like Sponza, we need a far plane of at least 500 to avoid clipping geometry.
-        // We set it to 1000 by default to give some extra headroom, but it can be adjusted in the config if
-        // needed.
-        float farPlane = 1000.0f;
-        glm::vec3 position = glm::vec3(-5.0f, 5.0f, 5.0f);
-        float aspectRatio = 16.0f / 9.0f;
-        float sensitivity = 0.1f;
+        float fov;
+        float nearPlane;
+        float farPlane;
+        float aspectRatio;
     };
 
     struct Stats {
-        bool enabled = true;
+        bool enabled;
         // How often to update stats in seconds. A lower interval will update more frequently
         // but may cause more performance overhead.
-        float refreshInterval = 1.0f;
+        float refreshInterval;
     };
 
     struct World {
@@ -55,6 +57,7 @@ public:
 
     [[nodiscard]] const Window& window() const { return m_Window; }
     [[nodiscard]] const Input& input() const { return m_Input; }
+    [[nodiscard]] const Player& player() const { return m_Player; }
     [[nodiscard]] const Camera& camera() const { return m_Camera; }
     [[nodiscard]] const Stats& stats() const { return m_Stats; }
     [[nodiscard]] const World& world() const { return m_World; }
@@ -62,12 +65,14 @@ public:
 private:
     static void readWindow(const CSimpleIniA& ini, Window& w);
     static void readInput(const CSimpleIniA& ini, Input& i);
+    static void readPlayer(const CSimpleIniA& ini, Player& p);
     static void readCamera(const CSimpleIniA& ini, Camera& c);
     static void readStats(const CSimpleIniA& ini, Stats& s);
     static void readWorld(const CSimpleIniA& ini, World& w);
 
     Window m_Window;
     Input m_Input;
+    Player m_Player;
     Camera m_Camera;
     Stats m_Stats;
     World m_World;

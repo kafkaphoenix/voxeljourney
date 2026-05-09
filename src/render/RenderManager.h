@@ -1,6 +1,9 @@
 #pragma once
 
+#include <glm/mat4x4.hpp>
+#include <memory>
 #include <optional>
+#include <span>
 
 #include "Framebuffer.h"
 #include "Frustum.h"
@@ -25,6 +28,7 @@ public:
     void beginFrame(const se::scene::Camera& camera);
     void submit(const se::scene::Renderable& renderable);
     void submit(const se::scene::ChunkRenderable& chunkRenderable);
+    void submitAnimated(const se::scene::Renderable& renderable, std::span<const glm::mat4> boneMatrices);
     void endFrame(const se::scene::LightData& lights);
 
     void resizeFramebuffer(int width, int height);

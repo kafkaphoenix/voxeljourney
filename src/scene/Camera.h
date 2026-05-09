@@ -9,16 +9,17 @@ class Camera {
 public:
     Camera(const se::core::Config::Camera& config);
 
-    void processMouse(float xoffset, float yoffset);
-    void processKeyboard(bool forward, bool backward, bool left, bool right, bool up, bool down, float deltaTime);
-
     [[nodiscard]] glm::mat4 getViewProjection() const;
     [[nodiscard]] glm::vec3 getPosition() const { return m_Position; }
+    [[nodiscard]] float getYaw() const { return m_Yaw; }
 
     void setAspectRatio(float aspectRatio) { m_AspectRatio = aspectRatio; }
     void setPosition(const glm::vec3& position) { m_Position = position; }
-    void setMoveSpeed(float speed);
-    void setMouseSensitivity(float sensitivity);
+    void setYawPitch(float yaw, float pitch) {
+        m_Yaw = yaw;
+        m_Pitch = glm::clamp(pitch, -89.0f, 89.0f);
+        updateVectors();
+    }
     void setFov(float fov);
     void setClipPlanes(float nearPlane, float farPlane);
 
@@ -33,10 +34,8 @@ private:
     float m_Pitch = 0.0f;
 
     float m_AspectRatio = 16.0f / 9.0f;
-    glm::vec3 m_Position{-5.0f, 5.0f, 5.0f};
-    float m_Speed = 10.0f;
-    float m_Sensitivity = 0.1f;
-    float m_Fov = 60.0f;
+    glm::vec3 m_Position{-25.0f, 15.0f, 0.0f};
+    float m_Fov = 80.0f;
     float m_Near = 0.1f;
     float m_Far = 1000.0f;
 };

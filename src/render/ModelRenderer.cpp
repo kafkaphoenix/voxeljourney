@@ -9,6 +9,7 @@
 #include <glm/gtx/norm.hpp>
 #include <stdexcept>
 
+#include "UboBindings.h"
 #include "assets/Shader.h"
 #include "assets/Texture.h"
 
@@ -16,17 +17,17 @@ namespace se::render {
 
 namespace {
 
-struct PointLightGpuData {
+struct alignas(16) PointLightGpuData {
     glm::vec4 positionRange;
     glm::vec4 colorIntensity;
 };
 
-struct FrameUbo {
+struct alignas(16) FrameUbo {
     glm::mat4 viewProj;
     glm::vec4 sunDir;
     glm::vec4 sunColor;
     glm::vec4 ambient;
-    glm::vec4 lightCounts;
+    glm::ivec4 lightCounts;
     std::array<PointLightGpuData, 4> pointLights;
 };
 
@@ -34,6 +35,7 @@ struct FrameUbo {
 
 ModelRenderer::ModelRenderer() {
     setupFrameUbo();
+    setupBoneUbo();
     setupDefaultSampler();
     setupDefaultTextures();
     Mesh::setDefaultInstanceCapacityBytes(m_MaxBatchSize * sizeof(InstanceData));
@@ -50,8 +52,28 @@ void ModelRenderer::submit(const se::scene::Renderable& renderable, const Frustu
     m_Queue.submit(renderable, frustum);
 }
 
+void ModelRenderer::submitAnimated(const se::scene::Renderable& renderable, const Frustum& frustum,
+                                   std::span<const glm::mat4> boneMatrices) {
+    if (!renderable.mesh || !renderable.material.get()) {
+        return;
+    }
+
+    const glm::mat4 modelMatrix = renderable.transform.getMatrix();
+    if (!frustumIntersectsAABB(frustum, renderable.mesh->getAABB(), modelMatrix)) {
+        return;
+    }
+
+    m_AnimatedDraws.push_back(AnimatedDraw{
+        .mesh = renderable.mesh,
+        .material = renderable.material.get().get(),
+        .modelMatrix = modelMatrix,
+        .normalMatrix = glm::transpose(glm::inverse(glm::mat3(modelMatrix))),
+        .boneMatrices = {boneMatrices.begin(), boneMatrices.end()},
+    });
+}
+
 void ModelRenderer::flush(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats) {
-    if (m_Queue.getOpaqueBatches().empty() && m_Queue.getTransparentBatches().empty()) {
+    if (m_Queue.getOpaqueBatches().empty() && m_Queue.getTransparentBatches().empty() && m_AnimatedDraws.empty()) {
         return;
     }
 
@@ -71,6 +93,11 @@ void ModelRenderer::flush(const se::scene::LightData& lights, const se::scene::C
 
     for (auto& [key, batch] : m_Queue.getOpaqueBatches()) { flushBatch(key, batch, stats); }
 
+    // Animated draws (rendered individually, not instanced)
+    if (!m_AnimatedDraws.empty()) {
+        flushAnimatedDraws(stats);
+    }
+
     // transparent pass
     glEnable(GL_BLEND);
     glDepthMask(GL_FALSE);
@@ -85,6 +112,7 @@ void ModelRenderer::flush(const se::scene::LightData& lights, const se::scene::C
     glDisable(GL_LINE_SMOOTH);
 
     m_Queue.clear();
+    m_AnimatedDraws.clear();
 }
 
 void ModelRenderer::setWireframe(bool enabled) { m_Wireframe = enabled; }
@@ -96,7 +124,11 @@ void ModelRenderer::setBatchSize(const size_t maxInstances) {
     Mesh::setDefaultInstanceCapacityBytes(m_MaxBatchSize * sizeof(InstanceData));
 }
 
-void ModelRenderer::setupFrameUbo() { m_FrameUbo.emplace(sizeof(FrameUbo), 0); }
+void ModelRenderer::setupFrameUbo() { m_FrameUbo.emplace(sizeof(FrameUbo), UboBinding::Frame); }
+
+void ModelRenderer::setupBoneUbo() {
+    m_BoneUbo.emplace(static_cast<GLsizeiptr>(se::assets::MAX_BONES * sizeof(glm::mat4)), UboBinding::Bones);
+}
 
 // Sets default sampler parameters for all materials that don't specify their own sampler.
 // This is separate from the Texture class because some materials might want different sampler settings (e.g. clamp vs
@@ -188,6 +220,37 @@ void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStat
     stats.modelTriangles += static_cast<unsigned int>((key.mesh->getIndexCount() / 3) * batch.instances.size());
 }
 
+void ModelRenderer::flushAnimatedDraws(RenderStats& stats) const {
+    for (const auto& draw : m_AnimatedDraws) {
+        const auto& matState = draw.material->getState();
+        matState.cull ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
+
+        const auto shader = draw.material->getShaderHandle().get();
+        if (!shader)
+            continue;
+        shader->bind();
+
+        bindMaterialTextures(draw.material->getTextures());
+
+        const auto& params = draw.material->getParams();
+        shader->setVec4("u_BaseColorFactor", &params.baseColorFactor[0]);
+        shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
+        shader->setFloat("u_MetallicFactor", params.metallicFactor);
+        shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
+        shader->setVec3("u_EmissiveFactor", &params.emissiveFactor[0]);
+
+        shader->setMat4("u_Model", &draw.modelMatrix[0][0]);
+        shader->setMat3("u_NormalMatrix", &draw.normalMatrix[0][0]);
+
+        m_BoneUbo->updateSubData(0, std::as_bytes(std::span(draw.boneMatrices)));
+
+        draw.mesh->draw();
+
+        ++stats.animatedModelDrawCalls;
+        stats.animatedModelTriangles += static_cast<unsigned int>(draw.mesh->getIndexCount() / 3);
+    }
+}
+
 std::vector<ModelRenderer::TransparentDraw> ModelRenderer::getSortedTransparentDraws(const se::scene::Camera& camera) {
     std::vector<TransparentDraw> draws;
     draws.reserve(m_Queue.getTransparentBatches().size());
@@ -225,7 +288,7 @@ void ModelRenderer::updateFrameUbo(const se::scene::LightData& lights, const se:
     // usage in this file We only support up to 4 point lights in the shader, so we need to clamp the count and ignore
     // any extra lights
     const int pointCount = (std::min)(static_cast<int>(lights.pointLights.size()), 4);
-    data.lightCounts = glm::vec4(static_cast<float>(pointCount), 0, 0, 0);
+    data.lightCounts = glm::ivec4(pointCount, 0, 0, 0);
 
     for (int i = 0; i < pointCount; ++i) {
         const auto& l = lights.pointLights[i];

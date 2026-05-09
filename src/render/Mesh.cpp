@@ -35,7 +35,11 @@ GLuint Mesh::setupVertexAttributes(const BufferLayout& layout) {
     GLuint attribIndex = 0;
     for (const auto& element : layout.getElements()) {
         m_Vao.enableAttrib(attribIndex);
-        m_Vao.setAttribFormat(attribIndex, element.count, element.type, element.normalized, element.offset);
+        if (element.type == GL_INT || element.type == GL_UNSIGNED_INT) {
+            m_Vao.setAttribIFormat(attribIndex, element.count, element.type, element.offset);
+        } else {
+            m_Vao.setAttribFormat(attribIndex, element.count, element.type, element.normalized, element.offset);
+        }
         m_Vao.setAttribBinding(attribIndex, 0);
         ++attribIndex;
     }

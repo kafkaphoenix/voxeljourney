@@ -26,9 +26,9 @@ Texture::Texture(std::string path, bool flipVertically) : Asset(std::move(path))
     int height = 0;
     int channels = 0;
     stbi_set_flip_vertically_on_load(static_cast<int>(flipVertically));
-    unsigned char* data = stbi_load(m_Path.c_str(), &width, &height, &channels, 0);
+    unsigned char* data = stbi_load(m_Name.c_str(), &width, &height, &channels, 0);
     if (data == nullptr) {
-        throw std::runtime_error(std::format("Failed to load texture: {}", m_Path));
+        throw std::runtime_error(std::format("Failed to load texture: {}", m_Name));
     }
 
     glCreateTextures(GL_TEXTURE_2D, 1, &m_Id);
@@ -52,7 +52,7 @@ Texture::Texture(std::string path, bool flipVertically) : Asset(std::move(path))
         format = GL_RED;
     } else {
         stbi_image_free(data);
-        throw std::runtime_error(std::format("Unsupported texture format: {} ({} channels)", m_Path, channels));
+        throw std::runtime_error(std::format("Unsupported texture format: {} ({} channels)", m_Name, channels));
     }
 
     m_Width = width;
@@ -67,7 +67,7 @@ Texture::Texture(std::string path, bool flipVertically) : Asset(std::move(path))
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     stbi_image_free(data);
-    std::string texLabel = std::format("Texture [{}]", path);
+    std::string texLabel = std::format("Texture [{}]", m_Name);
     glObjectLabel(GL_TEXTURE, m_Id, static_cast<GLsizei>(texLabel.size()), texLabel.c_str());
 }
 

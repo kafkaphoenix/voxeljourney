@@ -8,6 +8,8 @@
 #include <cstring>
 #include <format>
 #include <glm/common.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <print>
@@ -330,6 +332,241 @@ std::vector<unsigned int> readIndices(const tinygltf::Model& gltfModel, const ti
     return indices;
 }
 
+struct NodeTRS {
+    glm::vec3 translation{0.0f};
+    glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
+    glm::vec3 scale{1.0f};
+};
+
+NodeTRS extractNodeTRS(const tinygltf::Node& node) {
+    NodeTRS trs;
+
+    if (node.matrix.size() == 16) {
+        // Decompose the matrix into TRS.
+        glm::mat4 m = glm::make_mat4(node.matrix.data());
+        trs.translation = glm::vec3(m[3]);
+        trs.scale = glm::vec3(glm::length(m[0]), glm::length(m[1]), glm::length(m[2]));
+        glm::mat3 rotMat(glm::vec3(m[0]) / trs.scale.x, glm::vec3(m[1]) / trs.scale.y, glm::vec3(m[2]) / trs.scale.z);
+        trs.rotation = glm::quat_cast(rotMat);
+        return trs;
+    }
+
+    if (node.translation.size() == 3) {
+        trs.translation = glm::vec3(static_cast<float>(node.translation[0]), static_cast<float>(node.translation[1]),
+                                    static_cast<float>(node.translation[2]));
+    }
+    if (node.rotation.size() == 4) {
+        // glTF quaternion order: [x, y, z, w]
+        trs.rotation = glm::quat(static_cast<float>(node.rotation[3]), static_cast<float>(node.rotation[0]),
+                                 static_cast<float>(node.rotation[1]), static_cast<float>(node.rotation[2]));
+    }
+    if (node.scale.size() == 3) {
+        trs.scale = glm::vec3(static_cast<float>(node.scale[0]), static_cast<float>(node.scale[1]),
+                              static_cast<float>(node.scale[2]));
+    }
+    return trs;
+}
+
+// Builds a skeleton from a glTF skin, extracting the bone hierarchy, inverse bind matrices, and rest pose TRS.
+Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& skin) {
+    Skeleton skeleton;
+
+    // Build node to joint mapping for quick lookup during animation loading. Nodes that aren't joints will have -1.
+    skeleton.nodeToJoint.resize(gltfModel.nodes.size(), -1);
+    for (size_t j = 0; j < skin.joints.size(); ++j) {
+        int nodeIdx = skin.joints[j];
+        if (nodeIdx >= 0 && nodeIdx < static_cast<int>(gltfModel.nodes.size())) {
+            skeleton.nodeToJoint[nodeIdx] = static_cast<int>(j);
+        }
+    }
+
+    // Read inverse bind matrices
+    std::vector<glm::mat4> inverseBindMatrices(skin.joints.size(), glm::mat4{1.0f});
+    if (skin.inverseBindMatrices >= 0) {
+        const auto& acc = gltfModel.accessors[skin.inverseBindMatrices];
+        const auto& bv = gltfModel.bufferViews[acc.bufferView];
+        const auto& buf = gltfModel.buffers[bv.buffer];
+        const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
+        size_t stride = bv.byteStride > 0 ? bv.byteStride : sizeof(glm::mat4);
+
+        for (size_t i = 0; i < acc.count && i < skin.joints.size(); ++i) {
+            std::memcpy(&inverseBindMatrices[i], base + i * stride, sizeof(glm::mat4));
+        }
+    }
+
+    // Build bone list (ordered so parents come before children)
+    skeleton.bones.resize(skin.joints.size());
+    for (size_t j = 0; j < skin.joints.size(); ++j) {
+        int nodeIdx = skin.joints[j];
+        const auto& node = gltfModel.nodes[nodeIdx];
+        auto& bone = skeleton.bones[j];
+
+        bone.name = node.name;
+        bone.inverseBindMatrix = inverseBindMatrices[j];
+
+        // Store decomposed rest pose TRS from glTF node
+        auto trs = extractNodeTRS(node);
+        bone.restPosition = trs.translation;
+        bone.restRotation = trs.rotation;
+        bone.restScale = trs.scale;
+
+        bone.parent = -1;
+
+        // Find parent: check which joint node lists this node as a child
+        for (size_t p = 0; p < skin.joints.size(); ++p) {
+            if (p == j)
+                continue;
+            const auto& parentNode = gltfModel.nodes[skin.joints[p]];
+            for (int child : parentNode.children) {
+                if (child == nodeIdx) {
+                    bone.parent = static_cast<int>(p);
+                    break;
+                }
+            }
+            if (bone.parent >= 0)
+                break;
+        }
+    }
+
+    return skeleton;
+}
+
+// Reads a float accessor into a vector (handles stride).
+void readFloatAccessor(const tinygltf::Model& gltfModel, int accessorIndex, int components, std::vector<float>& out) {
+    const auto& acc = gltfModel.accessors[accessorIndex];
+    const auto& bv = gltfModel.bufferViews[acc.bufferView];
+    const auto& buf = gltfModel.buffers[bv.buffer];
+    const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
+    size_t stride = bv.byteStride > 0 ? bv.byteStride : components * sizeof(float);
+
+    out.reserve(acc.count * components);
+    for (size_t i = 0; i < acc.count; ++i) {
+        const auto* elem = reinterpret_cast<const float*>(base + i * stride);
+        for (int c = 0; c < components; ++c) { out.push_back(elem[c]); }
+    }
+}
+
+// Loads animations from a glTF model and maps them to the given skeleton. Each glTF animation channel is matched to a
+// bone based on the target node index and the skeleton's node-to-joint mapping. The resulting AnimationClip contains
+// channels
+// for each animated bone, with keyframes for translation, rotation, and scale.
+std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, const Skeleton& skeleton) {
+    std::vector<AnimationClip> clips;
+    clips.reserve(gltfModel.animations.size());
+
+    for (size_t a = 0; a < gltfModel.animations.size(); ++a) {
+        const auto& gltfAnim = gltfModel.animations[a];
+        AnimationClip clip;
+        clip.name = gltfAnim.name.empty() ? std::format("animation_{}", a) : gltfAnim.name;
+        clip.duration = 0.0f;
+
+        // Group channels by bone index (a bone can have T, R, S channels).
+        std::unordered_map<int, AnimationChannel*> channelMap;
+
+        for (const auto& gltfChannel : gltfAnim.channels) {
+            int nodeIdx = gltfChannel.target_node;
+            if (nodeIdx < 0 || nodeIdx >= static_cast<int>(skeleton.nodeToJoint.size())) {
+                continue;
+            }
+            int boneIdx = skeleton.nodeToJoint[nodeIdx];
+            if (boneIdx < 0) {
+                continue;
+            }
+
+            // Get or create channel for this bone
+            AnimationChannel* chan = nullptr;
+            auto it = channelMap.find(boneIdx);
+            if (it != channelMap.end()) {
+                chan = it->second;
+            } else {
+                clip.channels.emplace_back();
+                chan = &clip.channels.back();
+                chan->boneIndex = boneIdx;
+                channelMap[boneIdx] = chan;
+            }
+
+            const auto& sampler = gltfAnim.samplers[gltfChannel.sampler];
+
+            // Store interpolation mode (STEP or LINEAR; CUBICSPLINE treated as LINEAR for now)
+            if (sampler.interpolation == "STEP") {
+                chan->interpolation = Interpolation::Step;
+            }
+
+            std::vector<float> timestamps;
+            readFloatAccessor(gltfModel, sampler.input, 1, timestamps);
+
+            std::vector<float> values;
+
+            if (gltfChannel.target_path == "translation") {
+                readFloatAccessor(gltfModel, sampler.output, 3, values);
+                chan->translations.reserve(timestamps.size());
+                for (size_t i = 0; i < timestamps.size(); ++i) {
+                    chan->translations.push_back(
+                        {timestamps[i], glm::vec3(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])});
+                    clip.duration = std::max(clip.duration, timestamps[i]);
+                }
+            } else if (gltfChannel.target_path == "rotation") {
+                readFloatAccessor(gltfModel, sampler.output, 4, values);
+                chan->rotations.reserve(timestamps.size());
+                for (size_t i = 0; i < timestamps.size(); ++i) {
+                    // glTF quaternion: [x, y, z, w] → glm::quat(w, x, y, z)
+                    chan->rotations.push_back({timestamps[i], glm::quat(values[i * 4 + 3], values[i * 4],
+                                                                        values[i * 4 + 1], values[i * 4 + 2])});
+                    clip.duration = std::max(clip.duration, timestamps[i]);
+                }
+            } else if (gltfChannel.target_path == "scale") {
+                readFloatAccessor(gltfModel, sampler.output, 3, values);
+                chan->scales.reserve(timestamps.size());
+                for (size_t i = 0; i < timestamps.size(); ++i) {
+                    chan->scales.push_back(
+                        {timestamps[i], glm::vec3(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])});
+                    clip.duration = std::max(clip.duration, timestamps[i]);
+                }
+            }
+        }
+
+        clips.push_back(std::move(clip));
+    }
+
+    return clips;
+}
+
+void readJointIndices(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
+                      std::vector<int32_t>& joints) {
+    auto it = primitive.attributes.find("JOINTS_0");
+    if (it == primitive.attributes.end())
+        return;
+
+    const auto& acc = gltfModel.accessors[it->second];
+    const auto& bv = gltfModel.bufferViews[acc.bufferView];
+    const auto& buf = gltfModel.buffers[bv.buffer];
+    const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
+
+    joints.resize(acc.count * 4);
+
+    if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+        size_t stride = bv.byteStride > 0 ? bv.byteStride : 4 * sizeof(uint8_t);
+        for (size_t i = 0; i < acc.count; ++i) {
+            const auto* elem = base + i * stride;
+            for (int c = 0; c < 4; ++c) { joints[i * 4 + c] = static_cast<int32_t>(elem[c]); }
+        }
+    } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+        size_t stride = bv.byteStride > 0 ? bv.byteStride : 4 * sizeof(uint16_t);
+        for (size_t i = 0; i < acc.count; ++i) {
+            const auto* elem = reinterpret_cast<const uint16_t*>(base + i * stride);
+            for (int c = 0; c < 4; ++c) { joints[i * 4 + c] = static_cast<int32_t>(elem[c]); }
+        }
+    }
+}
+
+void readJointWeights(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
+                      std::vector<float>& weights) {
+    auto it = primitive.attributes.find("WEIGHTS_0");
+    if (it == primitive.attributes.end())
+        return;
+    readStridedVec(gltfModel, gltfModel.accessors[it->second], 4, weights);
+}
+
 se::render::BufferLayout buildStaticMeshLayout() {
     return se::render::BufferLayout({
         {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
@@ -337,6 +574,18 @@ se::render::BufferLayout buildStaticMeshLayout() {
         {"a_TexCoord", GL_FLOAT, sizeof(float), 0, 2, GL_FALSE},
         {"a_Tangent", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
         {"a_Color", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+    });
+}
+
+se::render::BufferLayout buildSkinnedMeshLayout() {
+    return se::render::BufferLayout({
+        {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
+        {"a_Normal", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
+        {"a_TexCoord", GL_FLOAT, sizeof(float), 0, 2, GL_FALSE},
+        {"a_Tangent", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+        {"a_Color", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+        {"a_Joints", GL_INT, sizeof(int32_t), 0, 4, GL_FALSE},
+        {"a_Weights", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
     });
 }
 
@@ -401,14 +650,30 @@ std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& 
     }
 
     // Build source map keyed by layout attribute name.
-    // Adding a new attribute (e.g. bones) means adding one entry here and a layout element.
     auto asBytes = [](const std::vector<float>& v) -> std::span<const uint8_t> {
         return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(float)};
     };
-    const VertexSourceMap sources = {
+
+    // Read joint/weight data for skinned meshes.
+    std::vector<int32_t> joints;
+    std::vector<float> weights;
+    readJointIndices(gltfModel, primitive, joints);
+    readJointWeights(gltfModel, primitive, weights);
+
+    auto asBytesInt = [](const std::vector<int32_t>& v) -> std::span<const uint8_t> {
+        return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(int32_t)};
+    };
+
+    VertexSourceMap sources = {
         {"a_Position", asBytes(positions)}, {"a_Normal", asBytes(normals)}, {"a_TexCoord", asBytes(texCoords)},
         {"a_Tangent", asBytes(tangents)},   {"a_Color", asBytes(colors)},
     };
+    if (!joints.empty()) {
+        sources["a_Joints"] = asBytesInt(joints);
+    }
+    if (!weights.empty()) {
+        sources["a_Weights"] = asBytes(weights);
+    }
 
     std::vector<uint8_t> vertices;
     packVertexData(sources, vertexCount, layout, vertices);
@@ -428,20 +693,27 @@ MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive, const std::
 
 }  // namespace
 
-Model::Model(std::string gltfPath, std::string_view shaderPath, AssetManager& assetManager)
-    : Asset(std::move(gltfPath)) {
+Model::Model(std::string gltfPath, ShaderHandle shader, AssetManager& assetManager) : Asset(std::move(gltfPath)) {
     try {
-        tinygltf::Model gltfModel = loadGltfModel(m_Path);
-        std::string gltfDir = getDirectory(m_Path);
+        tinygltf::Model gltfModel = loadGltfModel(m_Name);
+        std::string gltfDir = getDirectory(m_Name);
 
-        auto gltfTextures = loadGltfTextures(gltfModel, gltfDir, assetManager, m_Path);
-        auto shader = assetManager.getOrLoadShader(shaderPath);
+        bool hasSkin = !gltfModel.skins.empty();
+        if (hasSkin) {
+            m_Skeleton = loadSkeleton(gltfModel, gltfModel.skins[0]);
+            m_Animations = loadAnimations(gltfModel, *m_Skeleton);
+            std::println("Loaded skeleton with {} bones, {} animations from '{}'", m_Skeleton->bones.size(),
+                         m_Animations.size(), m_Name);
+        }
+
+        auto gltfTextures = loadGltfTextures(gltfModel, gltfDir, assetManager, m_Name);
         auto checkerboard = createCheckerboardTexture(assetManager);
-        auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Path), assetManager, shader);
+        auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Name), assetManager, shader);
         auto gltfMaterials = buildMaterials(gltfModel, assetManager, shader, gltfTextures, checkerboard);
 
-        auto meshLayout = buildStaticMeshLayout();
-        // Instance attribute slots begin after the per-vertex attributes.
+        auto meshLayout = hasSkin ? buildSkinnedMeshLayout() : buildStaticMeshLayout();
+        // Animated models are not instanced
+        bool instanced = !hasSkin;
         auto instanceAttribBase = static_cast<GLuint>(meshLayout.getElements().size());
         shader.get()->validateLayout(meshLayout, instanceAttribBase);
 
@@ -451,7 +723,7 @@ Model::Model(std::string gltfPath, std::string_view shaderPath, AssetManager& as
 
         for (const auto& mesh : gltfModel.meshes) {
             for (const auto& primitive : mesh.primitives) {
-                auto meshPtr = buildMeshFromPrimitive(gltfModel, primitive, meshLayout, true);
+                auto meshPtr = buildMeshFromPrimitive(gltfModel, primitive, meshLayout, instanced);
                 if (!meshPtr) {
                     continue;
                 }
@@ -459,7 +731,7 @@ Model::Model(std::string gltfPath, std::string_view shaderPath, AssetManager& as
             }
         }
     } catch (const std::exception& e) {
-        throw std::runtime_error(std::format("Failed to load model '{}': {}", m_Path, e.what()));
+        throw std::runtime_error(std::format("Failed to load model '{}': {}", m_Name, e.what()));
     }
 }
 

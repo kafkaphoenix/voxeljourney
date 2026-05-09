@@ -31,7 +31,7 @@ layout(std140, binding = 0) uniform FrameData {
     vec4 u_SunDir;
     vec4 u_SunColor;
     vec4 u_Ambient;
-    vec4 u_LightCounts;
+    ivec4 u_LightCounts;
     PointLight u_PointLights[4];
 };
 
@@ -75,7 +75,7 @@ vec3 computeSunDiffuse(vec3 baseColor, vec3 normal) {
 
 vec3 computePointLights(vec3 baseColor, vec3 normal) {
     vec3 pointAccum = vec3(0.0);
-    int pointCount = int(u_LightCounts.x);
+    int pointCount = u_LightCounts.x;
     for (int i = 0; i < pointCount; ++i) {
         vec3 lightPos = u_PointLights[i].positionRange.xyz;
         float range = u_PointLights[i].positionRange.w;

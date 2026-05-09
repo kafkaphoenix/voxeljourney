@@ -29,9 +29,12 @@ public:
     ShaderHandle getOrLoadShader(std::string_view shaderPath) {
         return getOrLoadAsset<Shader>(std::format("shader_{}", shaderPath), std::string(shaderPath));
     }
-    ModelHandle getOrLoadModel(std::string_view gltfPath, std::string_view shaderPath) {
-        return getOrLoadAsset<Model>(std::format("model_{}", gltfPath), std::string(gltfPath), std::string(shaderPath),
-                                     *this);
+    ShaderHandle getOrLoadShader(std::string_view vertPath, std::string_view fragPath) {
+        return getOrLoadAsset<Shader>(std::format("shader_{}_{}", vertPath, fragPath), std::string(vertPath),
+                                      std::string(fragPath));
+    }
+    ModelHandle getOrLoadModel(std::string_view gltfPath, ShaderHandle shader) {
+        return getOrLoadAsset<Model>(std::format("model_{}", gltfPath), std::string(gltfPath), shader, *this);
     }
     TextureHandle getOrLoadTexture(std::string_view path) {
         return getOrLoadAsset<Texture>(std::format("texture_{}", path), std::string(path));

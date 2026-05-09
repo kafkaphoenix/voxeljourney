@@ -18,6 +18,7 @@ public:
 
     void enableAttrib(GLuint index) const;
     void setAttribFormat(GLuint index, GLint size, GLenum type, GLboolean normalized, GLuint relativeOffset) const;
+    void setAttribIFormat(GLuint index, GLint size, GLenum type, GLuint relativeOffset) const;
     void setAttribBinding(GLuint index, GLuint binding) const;
     void setVertexBuffer(GLuint binding, GLuint buffer, GLintptr offset, GLsizei stride) const;
     void setElementBuffer(GLuint buffer) const;

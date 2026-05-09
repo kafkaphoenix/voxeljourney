@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "assets/AssetManager.h"
+#include "render/UboBindings.h"
 #include "scene/Camera.h"
 #include "scene/ChunkRenderable.h"
 #include "scene/Light.h"
@@ -21,7 +22,7 @@ struct TerrainFrameUbo {
 };
 }  // namespace
 
-TerrainRenderer::TerrainRenderer() { m_Ubo.emplace(sizeof(TerrainFrameUbo), 1); }
+TerrainRenderer::TerrainRenderer() { m_Ubo.emplace(sizeof(TerrainFrameUbo), UboBinding::Terrain); }
 
 void TerrainRenderer::submit(const se::scene::ChunkRenderable& chunkRenderable, const Frustum& frustum) {
     if (!chunkRenderable.mesh) {

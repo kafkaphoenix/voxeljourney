@@ -129,28 +129,34 @@ void Config::readWindow(const CSimpleIniA& ini, Window& w) {
 
 void Config::readInput(const CSimpleIniA& ini, Input& i) {
     i.mouseSmoothAlpha = readNumber<float>(ini, "input", "mouseSmoothAlpha");
-    i.fixedStep = readNumber<float>(ini, "input", "fixedStep");
 
     requireRange("input", "mouseSmoothAlpha", i.mouseSmoothAlpha, 0.f, 1.f);
-    requireGreater("input", "fixedStep", i.fixedStep, 0.f);
+}
+
+void Config::readPlayer(const CSimpleIniA& ini, Player& p) {
+    p.moveSpeed = readNumber<float>(ini, "player", "moveSpeed");
+    p.sensitivity = readNumber<float>(ini, "player", "sensitivity");
+    p.fixedStep = readNumber<float>(ini, "player", "fixedStep");
+    p.cameraHeight = readNumber<float>(ini, "player", "cameraHeight");
+    p.cameraDistance = readNumber<float>(ini, "player", "cameraDistance");
+    p.startPosition.x = readNumber<float>(ini, "player", "startPosX");
+    p.startPosition.y = readNumber<float>(ini, "player", "startPosY");
+    p.startPosition.z = readNumber<float>(ini, "player", "startPosZ");
+
+    requireGreater("player", "moveSpeed", p.moveSpeed, 0.f);
+    requireGreater("player", "sensitivity", p.sensitivity, 0.f);
+    requireGreater("player", "fixedStep", p.fixedStep, 0.f);
 }
 
 void Config::readCamera(const CSimpleIniA& ini, Camera& c) {
-    c.moveSpeed = readNumber<float>(ini, "camera", "moveSpeed");
     c.fov = readNumber<float>(ini, "camera", "fov");
     c.nearPlane = readNumber<float>(ini, "camera", "nearPlane");
     c.farPlane = readNumber<float>(ini, "camera", "farPlane");
-    c.position.x = readNumber<float>(ini, "camera", "startPosX");
-    c.position.y = readNumber<float>(ini, "camera", "startPosY");
-    c.position.z = readNumber<float>(ini, "camera", "startPosZ");
     c.aspectRatio = readNumber<float>(ini, "camera", "aspectRatio");
-    c.sensitivity = readNumber<float>(ini, "camera", "sensitivity");
 
-    requireGreater("camera", "moveSpeed", c.moveSpeed, 0.f);
     requireRange("camera", "fov", c.fov, 1.f, 179.f);
     requireGreater("camera", "nearPlane", c.nearPlane, 0.f);
     requireGreater("camera", "aspectRatio", c.aspectRatio, 0.f);
-    requireGreater("camera", "sensitivity", c.sensitivity, 0.f);
 
     if (c.farPlane <= c.nearPlane) {
         throwConfigError("[camera] farPlane must be > nearPlane");
@@ -183,6 +189,7 @@ Config Config::load(std::string_view path) {
 
     readWindow(ini, cfg.m_Window);
     readInput(ini, cfg.m_Input);
+    readPlayer(ini, cfg.m_Player);
     readCamera(ini, cfg.m_Camera);
     readStats(ini, cfg.m_Stats);
     readWorld(ini, cfg.m_World);

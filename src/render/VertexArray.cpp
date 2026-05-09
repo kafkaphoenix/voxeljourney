@@ -32,6 +32,10 @@ void VertexArray::setAttribFormat(GLuint index, GLint size, GLenum type, GLboole
     glVertexArrayAttribFormat(m_Id, index, size, type, normalized, relativeOffset);
 }
 
+void VertexArray::setAttribIFormat(GLuint index, GLint size, GLenum type, GLuint relativeOffset) const {
+    glVertexArrayAttribIFormat(m_Id, index, size, type, relativeOffset);
+}
+
 void VertexArray::setAttribBinding(GLuint index, GLuint binding) const {
     glVertexArrayAttribBinding(m_Id, index, binding);
 }

@@ -2,6 +2,7 @@
 #include <span>
 #include <vector>
 
+#include "AnimatedActor.h"
 #include "ChunkRenderable.h"
 #include "Light.h"
 #include "LightData.h"
@@ -34,6 +35,23 @@ public:
     [[nodiscard]] Sky& getSky() { return m_Sky; }
     [[nodiscard]] const Sky& getSky() const { return m_Sky; }
 
+    AnimatedActor& addAnimatedActor(AnimatedActor actor) {
+        return *m_AnimatedActors.emplace_back(std::make_unique<AnimatedActor>(std::move(actor)));
+    }
+
+    [[nodiscard]] AnimatedActor* findActor(std::string_view tag) {
+        for (auto& a : m_AnimatedActors)
+            if (a->getTag() == tag)
+                return a.get();
+        return nullptr;
+    }
+
+    [[nodiscard]] const auto& getAnimatedActors() const { return m_AnimatedActors; }
+
+    void update(float deltaTime) {
+        for (auto& a : m_AnimatedActors) a->update(deltaTime);
+    }
+
     // LightData is a zero-copy view into Scene's light vectors.
     // Translation to GPU layout happens once in updateFrameUbo.
     [[nodiscard]] LightData prepareLightData() const {
@@ -53,6 +71,7 @@ private:
     std::vector<SpotLight> m_SpotLights;
     std::vector<Renderable> m_Renderables;
     std::unordered_map<glm::ivec3, ChunkRenderable, se::voxel::IVec3Hash> m_ChunkRenderables;
+    std::vector<std::unique_ptr<AnimatedActor>> m_AnimatedActors;
 };
 
 }  // namespace se::scene

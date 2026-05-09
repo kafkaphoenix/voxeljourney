@@ -14,6 +14,7 @@ namespace se::assets {
 class Shader : public Asset {
 public:
     explicit Shader(std::string path);
+    explicit Shader(std::string vertPath, std::string fragPath);
     ~Shader() override;
 
     Shader(const Shader&) = delete;
@@ -29,6 +30,7 @@ public:
     void validateLayout(const se::render::BufferLayout& layout, GLuint instanceAttribBase) const;
 
     void setMat4(std::string_view name, const float* value);
+    void setMat3(std::string_view name, const float* value);
     void setVec4(std::string_view name, const float* value);
     void setVec3(std::string_view name, const float* value);
     void setVec2(std::string_view name, const float* value);
@@ -41,6 +43,8 @@ private:
     int getUniformLocation(std::string_view name);
 
     unsigned int m_Id = 0;
+    std::string m_VertPath;
+    std::string m_FragPath;
     std::unordered_map<std::string, int, StringHash, std::equal_to<>> m_UniformLocations;
 };
 

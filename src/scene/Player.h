@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 
 #include "Camera.h"
+#include "Transform.h"
 
 namespace se::core {
 class Input;
@@ -11,29 +12,55 @@ class Config;
 
 namespace se::scene {
 
+class AnimatedActor;
+
 class Player {
 public:
+    struct BodyClips {
+        std::string idle = "Survey";
+        std::string walk = "Walk";
+        std::string run = "Run";
+    };
+
     Player(const se::core::Config& config);
     ~Player() = default;
 
     void update(float deltaTime, const se::core::Input& input);
-    void setMouseSmoothing(float alpha);
-    void setFixedStep(float stepSeconds);
+    void setBodyActor(AnimatedActor* actor);
+
     [[nodiscard]] Camera& getCamera() { return m_Camera; }
     [[nodiscard]] const Camera& getCamera() const { return m_Camera; }
-    [[nodiscard]] glm::vec3 getPosition() const { return m_Camera.getPosition(); }
+    [[nodiscard]] glm::vec3 getPosition() const { return m_Transform.position; }
 
 private:
-    void updateMouseLook(const se::core::Input& input);
-    void updateKeyboardMovement(float deltaTime, const se::core::Input& input);
-    void applyKeyboardStep(float stepSeconds, const se::core::Input& input);
+    enum class MoveState { Idle, Walking, Running };
 
+    void updateMouseLook(const se::core::Input& input);
+    void updateMovement(float deltaTime, const se::core::Input& input);
+    void applyMovementStep(float stepSeconds, const se::core::Input& input);
+    void updateMoveState(const se::core::Input& input);
+    void syncComponents();
+
+    Transform m_Transform;
     Camera m_Camera;
-    float m_MouseSmoothAlpha = 0.5f;
+    AnimatedActor* m_BodyActor = nullptr;
+    MoveState m_MoveState = MoveState::Idle;
+    BodyClips m_Clips;
+
+    float m_Yaw = 0.0f;
+    float m_Pitch = 0.0f;
+
+    float m_MoveSpeed = 20.0f;
+    float m_Sensitivity = 0.1f;
+    float m_CameraHeight = 1.0f;
+    float m_CameraDistance = 1.0f;
+    float m_MouseSmoothAlpha = 0.15f;
+    float m_FixedStep = 1.0f / 120.0f;
+
+    // Smoothing state
     float m_SmoothedDx = 0.0f;
     float m_SmoothedDy = 0.0f;
     float m_MoveAccumulator = 0.0f;
-    float m_FixedStep = 1.0f / 120.0f;
 };
 
 }  // namespace se::scene

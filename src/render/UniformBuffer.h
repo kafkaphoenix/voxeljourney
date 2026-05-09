@@ -3,11 +3,12 @@
 #include <span>
 
 #include "Buffer.h"
+#include "UboBindings.h"
 
 namespace se::render {
 class UniformBuffer {
 public:
-    UniformBuffer(GLsizeiptr size, GLuint binding);
+    UniformBuffer(GLsizeiptr size, UboBinding binding);
     ~UniformBuffer() = default;
 
     UniformBuffer(const UniformBuffer&) = delete;
@@ -16,7 +17,7 @@ public:
     UniformBuffer& operator=(UniformBuffer&& other) noexcept = default;
 
     [[nodiscard]] unsigned int id() const { return m_Buffer.id(); }
-    [[nodiscard]] unsigned int binding() const { return m_Binding; }
+    [[nodiscard]] UboBinding binding() const { return m_Binding; }
 
     void update(std::span<const std::byte> data) const;
     void updateSubData(GLintptr offset, std::span<const std::byte> data) const;
@@ -35,6 +36,6 @@ public:
 
 private:
     Buffer m_Buffer;
-    GLuint m_Binding = 0;
+    UboBinding m_Binding{};
 };
 }  // namespace se::render

@@ -6,13 +6,7 @@
 namespace se::scene {
 
 Camera::Camera(const se::core::Config::Camera& config)
-    : m_AspectRatio(config.aspectRatio),
-      m_Position(config.position),
-      m_Speed(config.moveSpeed),
-      m_Sensitivity(config.sensitivity),
-      m_Fov(config.fov),
-      m_Near(config.nearPlane),
-      m_Far(config.farPlane) {
+    : m_AspectRatio(config.aspectRatio), m_Fov(config.fov), m_Near(config.nearPlane), m_Far(config.farPlane) {
     updateVectors();
 }
 
@@ -24,51 +18,6 @@ void Camera::updateVectors() {
     m_Front = glm::normalize(front);
     m_Right = glm::normalize(glm::cross(m_Front, m_WorldUp));
     m_Up = glm::normalize(glm::cross(m_Right, m_Front));
-}
-
-void Camera::processMouse(float xoffset, float yoffset) {
-    m_Yaw += xoffset * m_Sensitivity;
-    m_Pitch += yoffset * m_Sensitivity;
-    m_Pitch = glm::clamp(m_Pitch, -89.0f, 89.0f);
-    updateVectors();
-}
-
-void Camera::processKeyboard(bool forward, bool backward, bool left, bool right, bool up, bool down, float deltaTime) {
-    const float velocity = m_Speed * deltaTime;
-
-    glm::vec3 flatFront = glm::normalize(glm::vec3(m_Front.x, 0.0f, m_Front.z));
-    glm::vec3 flatRight = glm::normalize(glm::vec3(m_Right.x, 0.0f, m_Right.z));
-
-    if (forward) {
-        m_Position += flatFront * velocity;
-    }
-    if (backward) {
-        m_Position -= flatFront * velocity;
-    }
-    if (left) {
-        m_Position -= flatRight * velocity;
-    }
-    if (right) {
-        m_Position += flatRight * velocity;
-    }
-    if (up) {
-        m_Position.y += velocity;
-    }
-    if (down) {
-        m_Position.y -= velocity;
-    }
-}
-
-void Camera::setMoveSpeed(float speed) {
-    if (speed > 0.0f) {
-        m_Speed = speed;
-    }
-}
-
-void Camera::setMouseSensitivity(float sensitivity) {
-    if (sensitivity > 0.0f) {
-        m_Sensitivity = sensitivity;
-    }
 }
 
 void Camera::setFov(float fov) {
