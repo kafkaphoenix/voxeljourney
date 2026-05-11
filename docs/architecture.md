@@ -1,9 +1,9 @@
 # Engine Architecture
 
 ## Project layout
-- assets: Shaders, textures, models, and materials.
+- assets: used for runtime assets like shaders, textures and models. These are loaded and copied to the build output by CMake.
 - build: CMake build output.
-- src: Engine code.
+- src: engine source code, organized into modules.
 - CMakeLists.txt: CMake configuration for the project, including dependencies and build targets.
 - .clang-format: ClangFormat configuration for code formatting.
 - .clang-tidy: ClangTidy configuration for static analysis.
@@ -14,12 +14,12 @@
 - .vscode/launch.json: VS Code launch configurations for debugging.
 
 ## Project dependencies
-- OpenGL + GLAD for rendering.
-- GLFW for windowing and input.
-- GLM for math.
-- stb_image for textures.
-- tinygltf for glTF models.
-- SimpleIni for config parsing.
+- [OpenGL](https://www.opengl.org/) + [GLAD](https://github.com/dav1dde/glad) for rendering.
+- [GLFW](https://www.glfw.org/) for creating windows and handling input.
+- [GLM](https://github.com/g-truc/glm) for math (vectors, matrices, etc).
+- [stb_image](https://github.com/nothings/stb/tree/master) for loading textures.
+- [tinygltf](https://github.com/syoyo/tinygltf) for loading glTF models.
+- [SimpleIni](https://github.com/brofield/simpleini) for configuration parsing.
 
 ## Modules
 The engine is organized into several modules, each responsible for a specific aspect of the engine's functionality. Below is an overview of the main modules and their responsibilities.
@@ -48,10 +48,13 @@ The engine is organized into several modules, each responsible for a specific as
 - Buffer: OpenGL buffer wrapper for vertex/index data.
 - Mesh: Vertex/index data loaded from models, with OpenGL buffers and VAO setup.
 - UniformBuffer: OpenGL UBO wrapper for per-frame data (camera, lights).
+- Framebuffer: Off-screen render target with color textures (HDR) and depth. Supports multiple render targets and depth-only FBOs.
 - Frustum: Simple CPU frustum culling for renderables outside the camera view.
-- RenderManager: Manages rendering each frame, including frustum culling and calling renderers.
+- RenderManager: Orchestrates render passes (geometry, skybox, post-process) and framebuffer management.
 - ModelRenderer: Handles submitting model renderables to the RenderQueue and grouping them for efficient rendering.
 - TerrainRenderer: Submits visible chunk renderables to a draw list.
+- PostProcessRenderer: Full-screen post-processing pass with selectable effects (tone map, inversion, grayscale, sharpen, blur, edge detect).
+- ScreenQuad: Attributeless full-screen triangle for post-processing.
 - RenderQueue: Collects renderables each frame to be processed by each renderer at the end of the frame.
 - RenderStats: Tracks draw calls, triangles for stats display.
 
@@ -75,11 +78,9 @@ The engine is organized into several modules, each responsible for a specific as
 - World: Owns the chunk manager and handles chunk streaming and rebuilding.
 
 ## Potential improvements
-- More complete glTF/glb support (animations, PBR materials, Draco compression, etc).
 - Better error handling and logging. Using a logging library like spdlog would be a good improvement.
 - More robust asset management with reference counting and unloading/reloading.
-- Improve renderer (forward+ or deferred) and add more features like shadows, reflections, and post-processing.
-- Adding more complex lighting models, shadows, and post-processing effects.
+- Improve renderer (forward+ or deferred) and add more features like shadows and reflections or more complex lighting logic.
 - More complete input handling with action mapping and support for gamepads.
 - More complete scene management with entities, components, and systems.
 - State management for different game states (main menu, gameplay, pause, etc).
@@ -90,7 +91,6 @@ The engine is organized into several modules, each responsible for a specific as
 - Serialization for saving/loading scenes and assets.
 - Editor mode with real-time scene editing and asset management.
 - Memory and Performance profiling to identify bottlenecks and optimize critical paths. Using a profiler like Tracy would be very helpful for this.
-- Cube map support for skyboxes and reflections.
 - Event system improvements:
     1. Add a handled flag or priority to stop propagation (useful for UI capturing input).
     2. Add event categories to subscribe to groups (e.g., an input layer only listens to keyboard/mouse, editor tools only listen to window events).
