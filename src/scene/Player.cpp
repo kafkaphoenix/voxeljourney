@@ -70,23 +70,25 @@ void Player::applyMovementStep(float stepSeconds, const se::core::Input& input) 
     glm::vec3 forward{std::cos(yawRad), 0.0f, std::sin(yawRad)};
     glm::vec3 right{-std::sin(yawRad), 0.0f, std::cos(yawRad)};
 
-    if (input.isKeyDown(GLFW_KEY_W))
+    if (input.isKeyDown(GLFW_KEY_W)) {
         m_Transform.position += forward * velocity;
-    if (input.isKeyDown(GLFW_KEY_S))
+    } else if (input.isKeyDown(GLFW_KEY_S)) {
         m_Transform.position -= forward * velocity;
-    if (input.isKeyDown(GLFW_KEY_A))
+    } else if (input.isKeyDown(GLFW_KEY_A)) {
         m_Transform.position -= right * velocity;
-    if (input.isKeyDown(GLFW_KEY_D))
+    } else if (input.isKeyDown(GLFW_KEY_D)) {
         m_Transform.position += right * velocity;
-    if (input.isKeyDown(GLFW_KEY_SPACE))
+    } else if (input.isKeyDown(GLFW_KEY_SPACE)) {
         m_Transform.position.y += velocity;
-    if (input.isKeyDown(GLFW_KEY_LEFT_CONTROL))
+    } else if (input.isKeyDown(GLFW_KEY_LEFT_CONTROL)) {
         m_Transform.position.y -= velocity;
+    }
 }
 
 void Player::updateMoveState(const se::core::Input& input) {
-    if (!m_BodyActor)
+    if (!m_BodyActor) {
         return;
+    }
 
     bool moving = input.isKeyDown(GLFW_KEY_W) || input.isKeyDown(GLFW_KEY_S) || input.isKeyDown(GLFW_KEY_A) ||
                   input.isKeyDown(GLFW_KEY_D);

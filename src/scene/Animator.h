@@ -1,4 +1,3 @@
-// Animator.h
 #pragma once
 
 #include <array>
@@ -48,19 +47,16 @@ private:
 
     void buildMatricesFromPose(const std::array<BonePose, se::assets::MAX_BONES>& pose);
 
-    [[nodiscard]] glm::vec3 interpolatePosition(const se::assets::AnimationChannel& channel, float time) const;
-
-    [[nodiscard]] glm::quat interpolateRotation(const se::assets::AnimationChannel& channel, float time) const;
-
-    [[nodiscard]] glm::vec3 interpolateScale(const se::assets::AnimationChannel& channel, float time) const;
+    static glm::vec3 interpolatePosition(const se::assets::AnimationChannel& channel, float time);
+    static glm::quat interpolateRotation(const se::assets::AnimationChannel& channel, float time);
+    static glm::vec3 interpolateScale(const se::assets::AnimationChannel& channel, float time);
 
     [[nodiscard]] const se::assets::Skeleton* skeleton() const;
     [[nodiscard]] const se::assets::AnimationClip* clip() const;
 
-private:
     se::assets::ModelHandle m_Model;
-    std::array<glm::mat4, se::assets::MAX_BONES> m_LocalMatrices;
-    std::array<glm::mat4, se::assets::MAX_BONES> m_GlobalMatrices;
+    std::array<glm::mat4, se::assets::MAX_BONES> m_LocalMatrices{};
+    std::array<glm::mat4, se::assets::MAX_BONES> m_GlobalMatrices{};
 
     int m_ClipIndex = 0;
 

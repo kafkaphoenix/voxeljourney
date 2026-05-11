@@ -33,7 +33,7 @@ public:
     [[nodiscard]] glm::vec3 getPosition() const { return m_Transform.position; }
 
 private:
-    enum class MoveState { Idle, Walking, Running };
+    enum class MoveState : uint8_t { Idle, Walking, Running };
 
     void updateMouseLook(const se::core::Input& input);
     void updateMovement(float deltaTime, const se::core::Input& input);

@@ -118,14 +118,14 @@ void Animator::update(float deltaTime) {
         const int n = boneCount();
 
         for (int i = 0; i < n && i < se::assets::MAX_BONES; ++i) {
-            const BonePose& from = m_BlendFromPose[i];
-            const BonePose& to = m_LocalPose[i];
+            const BonePose& from = m_BlendFromPose.at(i);
+            const BonePose& to = m_LocalPose.at(i);
 
-            blendedPose[i].translation = glm::mix(from.translation, to.translation, t);
+            blendedPose.at(i).translation = glm::mix(from.translation, to.translation, t);
 
-            blendedPose[i].rotation = glm::normalize(glm::slerp(from.rotation, to.rotation, t));
+            blendedPose.at(i).rotation = glm::normalize(glm::slerp(from.rotation, to.rotation, t));
 
-            blendedPose[i].scale = glm::mix(from.scale, to.scale, t);
+            blendedPose.at(i).scale = glm::mix(from.scale, to.scale, t);
         }
 
         buildMatricesFromPose(blendedPose);
@@ -202,13 +202,13 @@ void Animator::samplePose(std::array<BonePose, se::assets::MAX_BONES>& outPose, 
         return;
     }
 
-    const auto& clip = anims[clipIndex];
+    const auto& clip = anims.at(clipIndex);
 
     // Start from rest pose
     for (int i = 0; i < numBones && i < se::assets::MAX_BONES; ++i) {
-        outPose[i].translation = bones[i].restPosition;
-        outPose[i].rotation = bones[i].restRotation;
-        outPose[i].scale = bones[i].restScale;
+        outPose.at(i).translation = bones.at(i).restPosition;
+        outPose.at(i).rotation = bones.at(i).restRotation;
+        outPose.at(i).scale = bones.at(i).restScale;
     }
 
     // Override animated channels
@@ -218,15 +218,15 @@ void Animator::samplePose(std::array<BonePose, se::assets::MAX_BONES>& outPose, 
         }
 
         if (!channel.translations.empty()) {
-            outPose[channel.boneIndex].translation = interpolatePosition(channel, time);
+            outPose.at(channel.boneIndex).translation = interpolatePosition(channel, time);
         }
 
         if (!channel.rotations.empty()) {
-            outPose[channel.boneIndex].rotation = interpolateRotation(channel, time);
+            outPose.at(channel.boneIndex).rotation = interpolateRotation(channel, time);
         }
 
         if (!channel.scales.empty()) {
-            outPose[channel.boneIndex].scale = interpolateScale(channel, time);
+            outPose.at(channel.boneIndex).scale = interpolateScale(channel, time);
         }
     }
 }
@@ -243,7 +243,7 @@ void Animator::buildMatricesFromPose(const std::array<BonePose, se::assets::MAX_
     const int numBones = static_cast<int>(bones.size());
 
     for (int i = 0; i < numBones; ++i) {
-        const BonePose& p = pose[i];
+        const BonePose& p = pose.at(i);
 
         glm::mat4 t = glm::translate(glm::mat4{1.0f}, p.translation);
 
@@ -251,74 +251,74 @@ void Animator::buildMatricesFromPose(const std::array<BonePose, se::assets::MAX_
 
         glm::mat4 s = glm::scale(glm::mat4{1.0f}, p.scale);
 
-        m_LocalMatrices[i] = t * r * s;
+        m_LocalMatrices.at(i) = t * r * s;
     }
 
     for (int i = 0; i < numBones; ++i) {
-        if (bones[i].parent >= 0) {
-            m_GlobalMatrices[i] = m_GlobalMatrices[bones[i].parent] * m_LocalMatrices[i];
+        if (bones.at(i).parent >= 0) {
+            m_GlobalMatrices.at(i) = m_GlobalMatrices.at(bones.at(i).parent) * m_LocalMatrices.at(i);
         } else {
-            m_GlobalMatrices[i] = m_LocalMatrices[i];
+            m_GlobalMatrices.at(i) = m_LocalMatrices.at(i);
         }
     }
 
     for (int i = 0; i < numBones && i < se::assets::MAX_BONES; ++i) {
-        m_BoneMatrices[i] = m_GlobalMatrices[i] * bones[i].inverseBindMatrix;
+        m_BoneMatrices.at(i) = m_GlobalMatrices.at(i) * bones.at(i).inverseBindMatrix;
     }
 }
 
-glm::vec3 Animator::interpolatePosition(const se::assets::AnimationChannel& channel, float time) const {
+glm::vec3 Animator::interpolatePosition(const se::assets::AnimationChannel& channel, float time) {
     const auto& keys = channel.translations;
 
     if (keys.size() == 1) {
-        return keys[0].value;
+        return keys.at(0).value;
     }
 
     size_t i = findKeyframeIndex(keys, time);
 
     if (channel.interpolation == se::assets::Interpolation::Step) {
-        return keys[i].value;
+        return keys.at(i).value;
     }
 
     float f = scaleFactor(keys, i, time);
 
-    return glm::mix(keys[i].value, keys[i + 1].value, f);
+    return glm::mix(keys.at(i).value, keys.at(i + 1).value, f);
 }
 
-glm::quat Animator::interpolateRotation(const se::assets::AnimationChannel& channel, float time) const {
+glm::quat Animator::interpolateRotation(const se::assets::AnimationChannel& channel, float time) {
     const auto& keys = channel.rotations;
 
     if (keys.size() == 1) {
-        return keys[0].value;
+        return keys.at(0).value;
     }
 
     size_t i = findKeyframeIndex(keys, time);
 
     if (channel.interpolation == se::assets::Interpolation::Step) {
-        return keys[i].value;
+        return keys.at(i).value;
     }
 
     float f = scaleFactor(keys, i, time);
 
-    return glm::slerp(keys[i].value, keys[i + 1].value, f);
+    return glm::slerp(keys.at(i).value, keys.at(i + 1).value, f);
 }
 
-glm::vec3 Animator::interpolateScale(const se::assets::AnimationChannel& channel, float time) const {
+glm::vec3 Animator::interpolateScale(const se::assets::AnimationChannel& channel, float time) {
     const auto& keys = channel.scales;
 
     if (keys.size() == 1) {
-        return keys[0].value;
+        return keys.at(0).value;
     }
 
     size_t i = findKeyframeIndex(keys, time);
 
     if (channel.interpolation == se::assets::Interpolation::Step) {
-        return keys[i].value;
+        return keys.at(i).value;
     }
 
     float f = scaleFactor(keys, i, time);
 
-    return glm::mix(keys[i].value, keys[i + 1].value, f);
+    return glm::mix(keys.at(i).value, keys.at(i + 1).value, f);
 }
 
 }  // namespace se::scene

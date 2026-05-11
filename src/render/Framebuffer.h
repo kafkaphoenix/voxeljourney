@@ -1,6 +1,7 @@
 #pragma once
 #include <glad/glad.h>
 
+#include <array>
 #include <vector>
 
 namespace se::render {
@@ -27,7 +28,7 @@ public:
     static void bindDefault();
 
     void resize(int width, int height);
-    void clear(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f) const;
+    void clear(const std::array<float, 4>& color = {0.2f, 0.3f, 0.8f, 1.0f}) const;
 
     void bindColorTexture(unsigned int slot, size_t attachmentIndex = 0) const;
     void bindDepthTexture(unsigned int slot) const;

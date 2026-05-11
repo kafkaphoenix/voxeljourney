@@ -40,16 +40,18 @@ public:
     }
 
     [[nodiscard]] AnimatedActor* findActor(std::string_view tag) {
-        for (auto& a : m_AnimatedActors)
-            if (a->getTag() == tag)
+        for (auto& a : m_AnimatedActors) {
+            if (a->getTag() == tag) {
                 return a.get();
+            }
+        }
         return nullptr;
     }
 
     [[nodiscard]] const auto& getAnimatedActors() const { return m_AnimatedActors; }
 
     void update(float deltaTime) {
-        for (auto& a : m_AnimatedActors) a->update(deltaTime);
+        for (auto& a : m_AnimatedActors) { a->update(deltaTime); }
     }
 
     // LightData is a zero-copy view into Scene's light vectors.

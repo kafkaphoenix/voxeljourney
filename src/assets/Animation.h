@@ -6,7 +6,7 @@
 
 namespace se::assets {
 
-enum class Interpolation { Step, Linear };
+enum class Interpolation : uint8_t { Step, Linear };
 
 // Keyframe data for a single animated property (translation, rotation, or scale).
 template <typename T>

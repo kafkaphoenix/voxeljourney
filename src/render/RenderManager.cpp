@@ -14,7 +14,7 @@ void RenderManager::beginFrame(const se::scene::Camera& camera) {
 
     if (m_SceneFbo) {
         m_SceneFbo->bind();
-        m_SceneFbo->clear(0.2f, 0.3f, 0.8f);
+        m_SceneFbo->clear();
     }
 }
 
@@ -59,8 +59,9 @@ void RenderManager::endFrame(const se::scene::LightData& lights) {
 }
 
 void RenderManager::resizeFramebuffer(int width, int height) {
-    if (width <= 0 || height <= 0)
+    if (width <= 0 || height <= 0) {
         return;
+    }
 
     if (!m_SceneFbo) {
         initFramebuffer(width, height);

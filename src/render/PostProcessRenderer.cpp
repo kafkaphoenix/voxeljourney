@@ -18,7 +18,7 @@ void PostProcessRenderer::execute(const Framebuffer& source) {
 
     m_Shader.bind();
     m_Shader.setInt("u_Effect", static_cast<int>(m_Effect));
-    float texelSize[2] = {1.0f / static_cast<float>(source.width()), 1.0f / static_cast<float>(source.height())};
+    glm::vec2 texelSize = {1.0f / static_cast<float>(source.width()), 1.0f / static_cast<float>(source.height())};
     m_Shader.setVec2("u_TexelSize", texelSize);
 
     source.bindColorTexture(0);

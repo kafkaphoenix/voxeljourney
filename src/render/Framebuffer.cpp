@@ -44,18 +44,18 @@ void Framebuffer::bind() const {
 void Framebuffer::bindDefault() { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
 
 void Framebuffer::resize(int width, int height) {
-    if (width <= 0 || height <= 0)
+    if (width <= 0 || height <= 0) {
         return;
+    }
     m_Spec.width = width;
     m_Spec.height = height;
     release();
     create();
 }
 
-void Framebuffer::clear(float r, float g, float b, float a) const {
-    const GLfloat clearColor[] = {r, g, b, a};
+void Framebuffer::clear(const std::array<float, 4>& color) const {
     for (size_t i = 0; i < m_ColorAttachments.size(); ++i) {
-        glClearNamedFramebufferfv(m_Id, GL_COLOR, static_cast<GLint>(i), clearColor);
+        glClearNamedFramebufferfv(m_Id, GL_COLOR, static_cast<GLint>(i), color.data());
     }
     if (m_DepthStencilId != 0) {
         const GLfloat depthValue = 1.0f;

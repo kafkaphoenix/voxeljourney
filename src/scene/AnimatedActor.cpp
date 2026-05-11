@@ -12,12 +12,14 @@ AnimatedActor::AnimatedActor(se::assets::ModelHandle model, Transform transform,
 
 std::vector<AnimatedRenderable> AnimatedActor::collectRenderables() const {
     auto ptr = m_Model.get();
-    if (!ptr || !m_Animator)
+    if (!ptr || !m_Animator) {
         return {};
+    }
     std::vector<AnimatedRenderable> out;
     for (const auto& sub : ptr->getSubMeshes()) {
-        if (!sub.mesh)
+        if (!sub.mesh) {
             continue;
+        }
         out.push_back({.renderable = {.mesh = sub.mesh.get(), .material = sub.material, .transform = m_Transform},
                        .boneMatrices = m_Animator->boneMatrices()});
     }
@@ -26,8 +28,9 @@ std::vector<AnimatedRenderable> AnimatedActor::collectRenderables() const {
 
 void AnimatedActor::playClip(std::string_view clipName, float blendDuration) {
     auto ptr = m_Model.get();
-    if (!ptr || !m_Animator)
+    if (!ptr || !m_Animator) {
         return;
+    }
     const auto& anims = ptr->getAnimations();
     for (int i = 0; i < static_cast<int>(anims.size()); ++i) {
         if (anims[i].name == clipName) {
@@ -38,8 +41,9 @@ void AnimatedActor::playClip(std::string_view clipName, float blendDuration) {
 }
 
 void AnimatedActor::update(float deltaTime) {
-    if (m_Animator)
+    if (m_Animator) {
         m_Animator->update(deltaTime);
+    }
 }
 
 }  // namespace se::scene

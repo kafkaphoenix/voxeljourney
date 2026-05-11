@@ -11,7 +11,7 @@ public:
     explicit UUID(uint64_t uuid) : m_uuid(uuid) {}
 
     explicit operator uint64_t() const { return m_uuid; }
-    uint64_t value() const { return m_uuid; }
+    [[nodiscard]] uint64_t value() const { return m_uuid; }
 
     bool operator==(const UUID& other) const { return m_uuid == other.m_uuid; }
     bool operator!=(const UUID& other) const { return m_uuid != other.m_uuid; }

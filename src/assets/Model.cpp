@@ -194,9 +194,9 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
             } else {
                 throw std::runtime_error("Texture has no URI or embedded image");
             }
-        } catch (const std::exception&) {
-            // On failure, use an invalid handle and let the material creation logic assign a fallback texture and log a
-            // warning
+        } catch (const std::exception& e) {
+            std::println("Warning: failed to load texture (source={}) from '{}': {}", texture.source, gltfPath,
+                         e.what());
         }
 
         gltfTextures.push_back(handle);
@@ -205,14 +205,14 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
 }
 
 TextureHandle createCheckerboardTexture(AssetManager& assetManager) {
-    static constexpr int size = 64;
-    static constexpr int tileSize = 8;
-    static constexpr auto pixels = [] {
-        std::array<uint8_t, size * size * 4> p{};
-        for (int y = 0; y < size; ++y) {
-            for (int x = 0; x < size; ++x) {
-                uint8_t* px = p.data() + (y * size + x) * 4;
-                bool on = (((x / tileSize) + (y / tileSize)) % 2 == 0);
+    static constexpr int SIZE = 64;
+    static constexpr int TILE_SIZE = 8;
+    static constexpr auto PIXELS = [] {
+        std::array<uint8_t, static_cast<size_t>(SIZE * SIZE * 4)> p{};
+        for (int y = 0; y < SIZE; ++y) {
+            for (int x = 0; x < SIZE; ++x) {
+                uint8_t* px = p.data() + static_cast<ptrdiff_t>((static_cast<size_t>(y) * SIZE + x) * 4);
+                bool on = (((x / TILE_SIZE) + (y / TILE_SIZE)) % 2 == 0);
                 px[0] = on ? 255 : 0;
                 px[1] = 0;
                 px[2] = on ? 255 : 0;
@@ -222,11 +222,57 @@ TextureHandle createCheckerboardTexture(AssetManager& assetManager) {
         return p;
     }();
     return assetManager.getOrLoadGeneratedTexture(
-        "<checkerboard>", std::span<const uint8_t>(pixels.data(), pixels.size()), size, size, 4);
+        "<checkerboard>", std::span<const uint8_t>(PIXELS.data(), PIXELS.size()), SIZE, SIZE, 4);
 }
 
 MaterialHandle createDefaultMaterial(std::string_view name, AssetManager& assetManager, const ShaderHandle& shader) {
     return assetManager.getOrLoadMaterial(name, shader, MaterialTextures{}, MaterialParams{}, RenderState{});
+}
+
+// Returns the image path string for a texture index, or "unknown" if it can't be resolved.
+std::string resolveTexturePath(const tinygltf::Model& gltfModel, int texIndex) {
+    if (texIndex < 0 || texIndex >= static_cast<int>(gltfModel.textures.size())) {
+        return "unknown";
+    }
+    int src = gltfModel.textures[texIndex].source;
+    if (src < 0 || src >= static_cast<int>(gltfModel.images.size())) {
+        return "unknown";
+    }
+    const auto& img = gltfModel.images[src];
+    return img.uri.empty() ? img.name : img.uri;
+}
+
+// Warns if a texture slot was referenced in the GLTF but failed to resolve to a valid handle.
+void warnMissingTexture(const tinygltf::Model& gltfModel, const std::string& matName, int texIndex,
+                        const TextureHandle& handle, const char* slot) {
+    if (texIndex >= 0 && !handle.isValid()) {
+        std::println("Warning: material '{}' {} texture failed to load: '{}'", matName, slot,
+                     resolveTexturePath(gltfModel, texIndex));
+    }
+}
+
+// Extracts PBR material parameters from a glTF material.
+MaterialParams extractMaterialParams(const tinygltf::Material& mat) {
+    MaterialParams params;
+
+    if (mat.pbrMetallicRoughness.baseColorFactor.size() == 4) {
+        params.baseColorFactor = glm::vec4(static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[0]),
+                                           static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[1]),
+                                           static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[2]),
+                                           static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[3]));
+    }
+    params.metallicFactor = static_cast<float>(mat.pbrMetallicRoughness.metallicFactor);
+    params.roughnessFactor = static_cast<float>(mat.pbrMetallicRoughness.roughnessFactor);
+
+    if (mat.emissiveFactor.size() == 3) {
+        params.emissiveFactor =
+            glm::vec3(static_cast<float>(mat.emissiveFactor[0]), static_cast<float>(mat.emissiveFactor[1]),
+                      static_cast<float>(mat.emissiveFactor[2]));
+    }
+
+    params.alphaCutoff = (mat.alphaMode == "MASK") ? static_cast<float>(mat.alphaCutoff) : 0.0f;
+
+    return params;
 }
 
 std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, AssetManager& assetManager,
@@ -238,7 +284,6 @@ std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, Ass
     for (size_t i = 0; i < gltfModel.materials.size(); ++i) {
         const auto& mat = gltfModel.materials[i];
         MaterialTextures matTextures;
-        MaterialParams params;
 
         auto assignTexture = [&](int texIndex, TextureHandle& dst) {
             if (texIndex >= 0 && texIndex < static_cast<int>(textures.size())) {
@@ -254,46 +299,18 @@ std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, Ass
 
         std::string matName = mat.name.empty() ? "material_" + std::to_string(i) : mat.name;
 
-        // Warn for each slot that the GLTF references a texture but failed to resolve
-        auto warnSlot = [&](int texIndex, const TextureHandle& handle, const char* slot) {
-            if (texIndex >= 0 && !handle.isValid()) {
-                std::string texPath = "unknown";
-                if (texIndex < static_cast<int>(gltfModel.textures.size())) {
-                    int src = gltfModel.textures[texIndex].source;
-                    if (src >= 0 && src < static_cast<int>(gltfModel.images.size())) {
-                        texPath =
-                            gltfModel.images[src].uri.empty() ? gltfModel.images[src].name : gltfModel.images[src].uri;
-                    }
-                }
-                std::println("Warning: material '{}' {} texture failed to load: '{}'", matName, slot, texPath);
-            }
-        };
-        warnSlot(mat.pbrMetallicRoughness.baseColorTexture.index, matTextures.baseColor, "base color");
+        warnMissingTexture(gltfModel, matName, mat.pbrMetallicRoughness.baseColorTexture.index, matTextures.baseColor,
+                           "base color");
         if (mat.pbrMetallicRoughness.baseColorTexture.index >= 0 && !matTextures.baseColor.isValid()) {
             matTextures.baseColor = fallbackBaseColor;
         }
-        warnSlot(mat.pbrMetallicRoughness.metallicRoughnessTexture.index, matTextures.metallicRoughness,
-                 "metallic-roughness");
-        warnSlot(mat.normalTexture.index, matTextures.normal, "normal");
-        warnSlot(mat.emissiveTexture.index, matTextures.emissive, "emissive");
-        warnSlot(mat.occlusionTexture.index, matTextures.occlusion, "occlusion");
+        warnMissingTexture(gltfModel, matName, mat.pbrMetallicRoughness.metallicRoughnessTexture.index,
+                           matTextures.metallicRoughness, "metallic-roughness");
+        warnMissingTexture(gltfModel, matName, mat.normalTexture.index, matTextures.normal, "normal");
+        warnMissingTexture(gltfModel, matName, mat.emissiveTexture.index, matTextures.emissive, "emissive");
+        warnMissingTexture(gltfModel, matName, mat.occlusionTexture.index, matTextures.occlusion, "occlusion");
 
-        if (mat.pbrMetallicRoughness.baseColorFactor.size() == 4) {
-            params.baseColorFactor = glm::vec4(static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[0]),
-                                               static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[1]),
-                                               static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[2]),
-                                               static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[3]));
-        }
-        params.metallicFactor = static_cast<float>(mat.pbrMetallicRoughness.metallicFactor);
-        params.roughnessFactor = static_cast<float>(mat.pbrMetallicRoughness.roughnessFactor);
-
-        if (mat.emissiveFactor.size() == 3) {
-            params.emissiveFactor =
-                glm::vec3(static_cast<float>(mat.emissiveFactor[0]), static_cast<float>(mat.emissiveFactor[1]),
-                          static_cast<float>(mat.emissiveFactor[2]));
-        }
-
-        params.alphaCutoff = (mat.alphaMode == "MASK") ? static_cast<float>(mat.alphaCutoff) : 0.0f;
+        MaterialParams params = extractMaterialParams(mat);
 
         RenderState state;
         state.blend = (mat.alphaMode == "BLEND");
@@ -367,6 +384,22 @@ NodeTRS extractNodeTRS(const tinygltf::Node& node) {
     return trs;
 }
 
+// Finds the joint index of the parent of joint j, or -1 if it has no parent within the skin.
+int findParentJoint(const tinygltf::Skin& skin, const tinygltf::Model& gltfModel, size_t j, int nodeIdx) {
+    for (size_t p = 0; p < skin.joints.size(); ++p) {
+        if (p == j) {
+            continue;
+        }
+        const auto& parentNode = gltfModel.nodes[skin.joints[p]];
+        for (int child : parentNode.children) {
+            if (child == nodeIdx) {
+                return static_cast<int>(p);
+            }
+        }
+    }
+    return -1;
+}
+
 // Builds a skeleton from a glTF skin, extracting the bone hierarchy, inverse bind matrices, and rest pose TRS.
 Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& skin) {
     Skeleton skeleton;
@@ -410,22 +443,7 @@ Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& sk
         bone.restRotation = trs.rotation;
         bone.restScale = trs.scale;
 
-        bone.parent = -1;
-
-        // Find parent: check which joint node lists this node as a child
-        for (size_t p = 0; p < skin.joints.size(); ++p) {
-            if (p == j)
-                continue;
-            const auto& parentNode = gltfModel.nodes[skin.joints[p]];
-            for (int child : parentNode.children) {
-                if (child == nodeIdx) {
-                    bone.parent = static_cast<int>(p);
-                    break;
-                }
-            }
-            if (bone.parent >= 0)
-                break;
-        }
+        bone.parent = findParentJoint(skin, gltfModel, j, nodeIdx);
     }
 
     return skeleton;
@@ -446,10 +464,44 @@ void readFloatAccessor(const tinygltf::Model& gltfModel, int accessorIndex, int 
     }
 }
 
+void readTranslationKeys(AnimationChannel& chan, const std::vector<float>& timestamps, const tinygltf::Model& gltfModel,
+                         const tinygltf::AnimationSampler& sampler, float& duration) {
+    std::vector<float> values;
+    readFloatAccessor(gltfModel, sampler.output, 3, values);
+    chan.translations.reserve(timestamps.size());
+    for (size_t i = 0; i < timestamps.size(); ++i) {
+        chan.translations.push_back({timestamps[i], glm::vec3(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])});
+        duration = std::max(duration, timestamps[i]);
+    }
+}
+
+void readRotationKeys(AnimationChannel& chan, const std::vector<float>& timestamps, const tinygltf::Model& gltfModel,
+                      const tinygltf::AnimationSampler& sampler, float& duration) {
+    std::vector<float> values;
+    readFloatAccessor(gltfModel, sampler.output, 4, values);
+    chan.rotations.reserve(timestamps.size());
+    for (size_t i = 0; i < timestamps.size(); ++i) {
+        // glTF quaternion: [x, y, z, w] → glm::quat(w, x, y, z)
+        chan.rotations.push_back(
+            {timestamps[i], glm::quat(values[i * 4 + 3], values[i * 4], values[i * 4 + 1], values[i * 4 + 2])});
+        duration = std::max(duration, timestamps[i]);
+    }
+}
+
+void readScaleKeys(AnimationChannel& chan, const std::vector<float>& timestamps, const tinygltf::Model& gltfModel,
+                   const tinygltf::AnimationSampler& sampler, float& duration) {
+    std::vector<float> values;
+    readFloatAccessor(gltfModel, sampler.output, 3, values);
+    chan.scales.reserve(timestamps.size());
+    for (size_t i = 0; i < timestamps.size(); ++i) {
+        chan.scales.push_back({timestamps[i], glm::vec3(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])});
+        duration = std::max(duration, timestamps[i]);
+    }
+}
+
 // Loads animations from a glTF model and maps them to the given skeleton. Each glTF animation channel is matched to a
 // bone based on the target node index and the skeleton's node-to-joint mapping. The resulting AnimationClip contains
-// channels
-// for each animated bone, with keyframes for translation, rotation, and scale.
+// channels for each animated bone, with keyframes for translation, rotation, and scale.
 std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, const Skeleton& skeleton) {
     std::vector<AnimationClip> clips;
     clips.reserve(gltfModel.animations.size());
@@ -495,33 +547,12 @@ std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, cons
             std::vector<float> timestamps;
             readFloatAccessor(gltfModel, sampler.input, 1, timestamps);
 
-            std::vector<float> values;
-
             if (gltfChannel.target_path == "translation") {
-                readFloatAccessor(gltfModel, sampler.output, 3, values);
-                chan->translations.reserve(timestamps.size());
-                for (size_t i = 0; i < timestamps.size(); ++i) {
-                    chan->translations.push_back(
-                        {timestamps[i], glm::vec3(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])});
-                    clip.duration = std::max(clip.duration, timestamps[i]);
-                }
+                readTranslationKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
             } else if (gltfChannel.target_path == "rotation") {
-                readFloatAccessor(gltfModel, sampler.output, 4, values);
-                chan->rotations.reserve(timestamps.size());
-                for (size_t i = 0; i < timestamps.size(); ++i) {
-                    // glTF quaternion: [x, y, z, w] → glm::quat(w, x, y, z)
-                    chan->rotations.push_back({timestamps[i], glm::quat(values[i * 4 + 3], values[i * 4],
-                                                                        values[i * 4 + 1], values[i * 4 + 2])});
-                    clip.duration = std::max(clip.duration, timestamps[i]);
-                }
+                readRotationKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
             } else if (gltfChannel.target_path == "scale") {
-                readFloatAccessor(gltfModel, sampler.output, 3, values);
-                chan->scales.reserve(timestamps.size());
-                for (size_t i = 0; i < timestamps.size(); ++i) {
-                    chan->scales.push_back(
-                        {timestamps[i], glm::vec3(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])});
-                    clip.duration = std::max(clip.duration, timestamps[i]);
-                }
+                readScaleKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
             }
         }
 
@@ -534,8 +565,9 @@ std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, cons
 void readJointIndices(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
                       std::vector<int32_t>& joints) {
     auto it = primitive.attributes.find("JOINTS_0");
-    if (it == primitive.attributes.end())
+    if (it == primitive.attributes.end()) {
         return;
+    }
 
     const auto& acc = gltfModel.accessors[it->second];
     const auto& bv = gltfModel.bufferViews[acc.bufferView];
@@ -562,8 +594,9 @@ void readJointIndices(const tinygltf::Model& gltfModel, const tinygltf::Primitiv
 void readJointWeights(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
                       std::vector<float>& weights) {
     auto it = primitive.attributes.find("WEIGHTS_0");
-    if (it == primitive.attributes.end())
+    if (it == primitive.attributes.end()) {
         return;
+    }
     readStridedVec(gltfModel, gltfModel.accessors[it->second], 4, weights);
 }
 

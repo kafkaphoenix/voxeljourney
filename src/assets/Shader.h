@@ -1,6 +1,8 @@
 #pragma once
+
 #include <glad/glad.h>
 
+#include <glm/glm.hpp>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -13,8 +15,8 @@ namespace se::assets {
 
 class Shader : public Asset {
 public:
-    explicit Shader(std::string path);
-    explicit Shader(std::string vertPath, std::string fragPath);
+    explicit Shader(std::string_view directory);
+    explicit Shader(std::string_view vertPath, std::string_view fragPath);
     ~Shader() override;
 
     Shader(const Shader&) = delete;
@@ -29,14 +31,14 @@ public:
 
     void validateLayout(const se::render::BufferLayout& layout, GLuint instanceAttribBase) const;
 
-    void setMat4(std::string_view name, const float* value);
-    void setMat3(std::string_view name, const float* value);
-    void setVec4(std::string_view name, const float* value);
-    void setVec3(std::string_view name, const float* value);
-    void setVec2(std::string_view name, const float* value);
     void setInt(std::string_view name, int value);
     void setFloat(std::string_view name, float value);
     void setBool(std::string_view name, bool value);
+    void setVec2(std::string_view name, glm::vec2 value);
+    void setVec3(std::string_view name, glm::vec3 value);
+    void setVec4(std::string_view name, glm::vec4 value);
+    void setMat3(std::string_view name, glm::mat3 value);
+    void setMat4(std::string_view name, glm::mat4 value);
 
 private:
     // Returns cached location, or queries and caches it on first call.

@@ -6,6 +6,7 @@
 #include <array>
 #include <cassert>
 #include <glm/gtc/matrix_inverse.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/norm.hpp>
 #include <stdexcept>
 
@@ -149,23 +150,23 @@ void ModelRenderer::setupDefaultSampler() {
     glObjectLabel(GL_SAMPLER, m_DefaultSampler, -1, "DefaultSampler");
 }
 
+void init1x1(GLuint tex, std::span<const uint8_t, 4> pixel, const char* label) {
+    glTextureStorage2D(tex, 1, GL_RGBA8, 1, 1);
+    glTextureSubImage2D(tex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel.data());
+    glObjectLabel(GL_TEXTURE, tex, -1, label);
+}
+
 void ModelRenderer::setupDefaultTextures() {
     // Create 1x1 neutral textures: white, flat normal, black
     glCreateTextures(GL_TEXTURE_2D, static_cast<GLsizei>(m_DefaultTextures.size()), m_DefaultTextures.data());
 
-    auto init1x1 = [](GLuint tex, const uint8_t* pixel, const char* label) {
-        glTextureStorage2D(tex, 1, GL_RGBA8, 1, 1);
-        glTextureSubImage2D(tex, 0, 0, 0, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
-        glObjectLabel(GL_TEXTURE, tex, -1, label);
-    };
+    constexpr std::array<uint8_t, 4> WHITE = {255, 255, 255, 255};
+    constexpr std::array<uint8_t, 4> FLATNORMAL = {128, 128, 255, 255};  // (0,0,1) normal encoded in [0,255]
+    constexpr std::array<uint8_t, 4> BLACK = {0, 0, 0, 255};
 
-    constexpr uint8_t white[] = {255, 255, 255, 255};
-    constexpr uint8_t flatNormal[] = {128, 128, 255, 255};
-    constexpr uint8_t black[] = {0, 0, 0, 255};
-
-    init1x1(m_DefaultTextures[0], white, "DefaultWhite1x1");
-    init1x1(m_DefaultTextures[1], flatNormal, "DefaultFlatNormal1x1");
-    init1x1(m_DefaultTextures[2], black, "DefaultBlack1x1");
+    init1x1(m_DefaultTextures[0], WHITE, "DefaultWhite1x1");
+    init1x1(m_DefaultTextures[1], FLATNORMAL, "DefaultFlatNormal1x1");
+    init1x1(m_DefaultTextures[2], BLACK, "DefaultBlack1x1");
 }
 
 void ModelRenderer::bindMaterialTextures(const se::assets::MaterialTextures& textures) const {
@@ -207,11 +208,11 @@ void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStat
     bindMaterialTextures(key.material->getTextures());
 
     const auto& params = key.material->getParams();
-    shader->setVec4("u_BaseColorFactor", &params.baseColorFactor[0]);
+    shader->setVec4("u_BaseColorFactor", params.baseColorFactor);
     shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
     shader->setFloat("u_MetallicFactor", params.metallicFactor);
     shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
-    shader->setVec3("u_EmissiveFactor", &params.emissiveFactor[0]);
+    shader->setVec3("u_EmissiveFactor", params.emissiveFactor);
 
     key.mesh->updateInstanceBuffer(batch.instances);
     key.mesh->drawInstanced(batch.instances.size());
@@ -226,21 +227,22 @@ void ModelRenderer::flushAnimatedDraws(RenderStats& stats) const {
         matState.cull ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
 
         const auto shader = draw.material->getShaderHandle().get();
-        if (!shader)
+        if (!shader) {
             continue;
+        }
         shader->bind();
 
         bindMaterialTextures(draw.material->getTextures());
 
         const auto& params = draw.material->getParams();
-        shader->setVec4("u_BaseColorFactor", &params.baseColorFactor[0]);
+        shader->setVec4("u_BaseColorFactor", params.baseColorFactor);
         shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
         shader->setFloat("u_MetallicFactor", params.metallicFactor);
         shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
-        shader->setVec3("u_EmissiveFactor", &params.emissiveFactor[0]);
+        shader->setVec3("u_EmissiveFactor", params.emissiveFactor);
 
-        shader->setMat4("u_Model", &draw.modelMatrix[0][0]);
-        shader->setMat3("u_NormalMatrix", &draw.normalMatrix[0][0]);
+        shader->setMat4("u_Model", draw.modelMatrix);
+        shader->setMat3("u_NormalMatrix", draw.normalMatrix);
 
         m_BoneUbo->updateSubData(0, std::as_bytes(std::span(draw.boneMatrices)));
 

@@ -5,6 +5,7 @@
 #include <array>
 #include <format>
 #include <fstream>
+#include <glm/gtc/type_ptr.hpp>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
@@ -53,10 +54,13 @@ static void checkProgramLinking(unsigned int program) {
     }
 }
 
-Shader::Shader(std::string path) : Shader(path, path) {}
+Shader::Shader(std::string_view directory) : Shader(directory, directory) {}
 
-Shader::Shader(std::string vertPath, std::string fragPath)
-    : Asset(vertPath), m_VertPath(std::move(vertPath)), m_FragPath(std::move(fragPath)), m_Id(glCreateProgram()) {
+Shader::Shader(std::string_view vertPath, std::string_view fragPath)
+    : Asset(std::format("{}|{}", vertPath, fragPath)),
+      m_VertPath(vertPath),
+      m_FragPath(fragPath),
+      m_Id(glCreateProgram()) {
     std::string vSrc = loadFile(std::format("{}.vert", m_VertPath));
     std::string fSrc = loadFile(std::format("{}.frag", m_FragPath));
 
@@ -168,41 +172,6 @@ int Shader::getUniformLocation(std::string_view name) {
     return loc;
 }
 
-void Shader::setMat4(std::string_view name, const float* value) {
-    int loc = getUniformLocation(name);
-    if (loc != -1) {
-        glProgramUniformMatrix4fv(m_Id, loc, 1, GL_FALSE, value);
-    }
-}
-
-void Shader::setMat3(std::string_view name, const float* value) {
-    int loc = getUniformLocation(name);
-    if (loc != -1) {
-        glProgramUniformMatrix3fv(m_Id, loc, 1, GL_FALSE, value);
-    }
-}
-
-void Shader::setVec4(std::string_view name, const float* value) {
-    int loc = getUniformLocation(name);
-    if (loc != -1) {
-        glProgramUniform4fv(m_Id, loc, 1, value);
-    }
-}
-
-void Shader::setVec3(std::string_view name, const float* value) {
-    int loc = getUniformLocation(name);
-    if (loc != -1) {
-        glProgramUniform3fv(m_Id, loc, 1, value);
-    }
-}
-
-void Shader::setVec2(std::string_view name, const float* value) {
-    int loc = getUniformLocation(name);
-    if (loc != -1) {
-        glProgramUniform2fv(m_Id, loc, 1, value);
-    }
-}
-
 void Shader::setInt(std::string_view name, int value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
@@ -221,6 +190,41 @@ void Shader::setBool(std::string_view name, bool value) {
     int loc = getUniformLocation(name);
     if (loc != -1) {
         glProgramUniform1i(m_Id, loc, value ? 1 : 0);
+    }
+}
+
+void Shader::setVec2(std::string_view name, glm::vec2 value) {
+    int loc = getUniformLocation(name);
+    if (loc != -1) {
+        glProgramUniform2fv(m_Id, loc, 1, glm::value_ptr(value));
+    }
+}
+
+void Shader::setVec3(std::string_view name, glm::vec3 value) {
+    int loc = getUniformLocation(name);
+    if (loc != -1) {
+        glProgramUniform3fv(m_Id, loc, 1, glm::value_ptr(value));
+    }
+}
+
+void Shader::setVec4(std::string_view name, glm::vec4 value) {
+    int loc = getUniformLocation(name);
+    if (loc != -1) {
+        glProgramUniform4fv(m_Id, loc, 1, glm::value_ptr(value));
+    }
+}
+
+void Shader::setMat3(std::string_view name, glm::mat3 value) {
+    int loc = getUniformLocation(name);
+    if (loc != -1) {
+        glProgramUniformMatrix3fv(m_Id, loc, 1, GL_FALSE, glm::value_ptr(value));
+    }
+}
+
+void Shader::setMat4(std::string_view name, glm::mat4 value) {
+    int loc = getUniformLocation(name);
+    if (loc != -1) {
+        glProgramUniformMatrix4fv(m_Id, loc, 1, GL_FALSE, glm::value_ptr(value));
     }
 }
 
