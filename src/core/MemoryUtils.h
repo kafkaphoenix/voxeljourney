@@ -2,9 +2,10 @@
 #include <string>
 
 #if defined(_WIN32)
-
-#include <psapi.h>
+// clang-format off
 #include <windows.h>
+#include <psapi.h>
+// clang-format on
 
 #else
 

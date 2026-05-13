@@ -159,8 +159,8 @@ Window::Window(const Config::Window& config, EventBus* eventBus)
     setupGlDebug();
     setupCallbacks();
     setupInitialFramebuffer(config.width, config.height);
-    setupInputMode();
-    setupMode(config.mode);
+    glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    setMode(config.mode);
     setVsync(m_Vsync);
 }
 
@@ -233,20 +233,6 @@ void Window::setupInitialFramebuffer(int width, int height) {
     }
 }
 
-void Window::setupInputMode() { glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); }
-
-void Window::setupMode(std::string_view mode) {
-    Mode newMode = Mode::Windowed;
-    if (mode == "fullscreen") {
-        newMode = Mode::Fullscreen;
-    } else if (mode == "borderless") {
-        newMode = Mode::Borderless;
-    } else {
-        newMode = Mode::Windowed;
-    }
-    setMode(newMode);
-}
-
 Window::~Window() {
     glfwDestroyWindow(m_Window);
     glfwTerminate();
@@ -312,7 +298,7 @@ void Window::onFocusChange(bool focused) {
 }
 
 void Window::onPositionChange(int xpos, int ypos) {
-    if (m_Mode != Mode::Windowed || m_IgnoreSizeEvents || m_LastMode != Mode::Windowed) {
+    if (m_Mode != WindowMode::Windowed || m_IgnoreSizeEvents || m_LastMode != WindowMode::Windowed) {
         return;
     }
     m_PosX = xpos;
@@ -320,7 +306,7 @@ void Window::onPositionChange(int xpos, int ypos) {
 }
 
 void Window::onSizeChange(int width, int height) {
-    if (m_Mode != Mode::Windowed || m_IgnoreSizeEvents || m_LastMode != Mode::Windowed) {
+    if (m_Mode != WindowMode::Windowed || m_IgnoreSizeEvents || m_LastMode != WindowMode::Windowed) {
         return;
     }
     if (width <= 0 || height <= 0) {
@@ -332,7 +318,7 @@ void Window::onSizeChange(int width, int height) {
 
 void Window::onIconifyChange(bool minimized) { m_Minimized = minimized; }
 
-void Window::setMode(Mode newMode) {
+void Window::setMode(WindowMode newMode) {
     if (m_Mode == newMode) {
         return;
     }
@@ -347,7 +333,7 @@ void Window::setMode(Mode newMode) {
     int refresh = GLFW_DONT_CARE;
 
     m_IgnoreSizeEvents = true;
-    if (newMode == Mode::Windowed) {
+    if (newMode == WindowMode::Windowed) {
         xpos = m_PosX;
         ypos = m_PosY;
         width = m_Width;
@@ -385,7 +371,7 @@ void Window::setMode(Mode newMode) {
         width = mode->width;
         height = mode->height;
         refresh = mode->refreshRate;
-        if (newMode == Mode::Borderless) {
+        if (newMode == WindowMode::Borderless) {
             glfwSetWindowAttrib(m_Window, GLFW_DECORATED, GLFW_FALSE);
         } else {
             glfwSetWindowAttrib(m_Window, GLFW_DECORATED, GLFW_TRUE);
@@ -394,7 +380,7 @@ void Window::setMode(Mode newMode) {
     }
 
     glfwSetWindowMonitor(m_Window, monitor, xpos, ypos, width, height, refresh);
-    if (newMode == Mode::Windowed) {
+    if (newMode == WindowMode::Windowed) {
         glfwSetWindowPos(m_Window, xpos, ypos);
     }
     m_IgnoreSizeEvents = false;

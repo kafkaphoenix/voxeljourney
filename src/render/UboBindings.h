@@ -1,8 +1,8 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string_view>
-#include <array>
 
 // Central registry of UBO binding points.
 // Must stay in sync with `layout(std140, binding = N)` in GLSL shaders.
@@ -15,9 +15,9 @@ enum class UboBinding : uint8_t {
 };
 
 inline constexpr std::array<std::pair<std::string_view, UboBinding>, 3> k_UboBindings = {{
-    { "FrameData",   UboBinding::Frame   },
-    { "BoneData",    UboBinding::Bones   },
-    { "TerrainFrame", UboBinding::Terrain },
+    {"FrameData", UboBinding::Frame},
+    {"BoneData", UboBinding::Bones},
+    {"TerrainFrame", UboBinding::Terrain},
 }};
 
 }  // namespace se::render

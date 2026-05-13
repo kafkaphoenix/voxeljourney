@@ -15,12 +15,10 @@ public:
     Window(const Config::Window& config, EventBus* eventBus);
     ~Window();
 
-    enum class Mode : uint8_t { Windowed, Fullscreen, Borderless };
-
     static void pollEvents() { glfwPollEvents(); }
     static void waitEvents(double timeoutSeconds) { glfwWaitEventsTimeout(timeoutSeconds); }
     void swapBuffers() const;
-    void setMode(Mode mode);
+    void setMode(WindowMode mode);
     void onFramebufferResize(int width, int height);
     void onKeyEvent(int key, int scancode, int action, int mods);
     void onMouseButtonEvent(int button, int action, int mods);
@@ -36,7 +34,7 @@ public:
     [[nodiscard]] bool shouldClose() const;
     [[nodiscard]] bool isMinimized() const { return m_Minimized; }
     [[nodiscard]] bool isFocused() const { return m_Focused; }
-    [[nodiscard]] Window::Mode mode() const { return m_Mode; }
+    [[nodiscard]] WindowMode mode() const { return m_Mode; }
     [[nodiscard]] bool isVsync() const { return m_Vsync; }
     [[nodiscard]] std::string_view getBaseTitle() const { return m_BaseTitle; }
     [[nodiscard]] GLFWwindow* native() const { return m_Window; }
@@ -51,8 +49,6 @@ private:
     void setupGlDebug();
     void setupCallbacks();
     void setupInitialFramebuffer(int width, int height);
-    void setupInputMode();
-    void setupMode(std::string_view newMode);
 
     GLFWwindow* m_Window = nullptr;
     EventBus* m_EventBus = nullptr;
@@ -63,11 +59,11 @@ private:
     bool m_Minimized = false;
     bool m_Focused = true;
     bool m_IgnoreSizeEvents = false;
-    Mode m_LastMode = Mode::Windowed;
+    WindowMode m_LastMode = WindowMode::Windowed;
     std::string m_Title;
     std::string m_BaseTitle;
     bool m_Vsync;
-    Mode m_Mode = Mode::Windowed;
+    WindowMode m_Mode = WindowMode::Windowed;
     int m_LastFramebufferWidth = 0;
     int m_LastFramebufferHeight = 0;
 };

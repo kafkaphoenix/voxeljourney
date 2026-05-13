@@ -5,7 +5,7 @@
 namespace se::core {
 
 Application::Application()
-    : m_Config(Config::load("config.ini")),
+    : m_Config(Config::load("config.toml")),
       m_StatsTracker(m_Config.stats()),
       m_Window(m_Config.window(), &m_EventBus),
       m_Level(m_Config, m_RenderManager, m_AssetManager) {
@@ -80,8 +80,8 @@ void Application::handleShortcuts() {
 
     if (m_Input.isKeyPressed(GLFW_KEY_F12)) {
         switch (m_Window.mode()) {
-        case Window::Mode::Windowed: m_Window.setMode(Window::Mode::Fullscreen); break;
-        case Window::Mode::Fullscreen: m_Window.setMode(Window::Mode::Windowed); break;
+        case WindowMode::Windowed: m_Window.setMode(WindowMode::Fullscreen); break;
+        case WindowMode::Fullscreen: m_Window.setMode(WindowMode::Windowed); break;
         }
     }
 }

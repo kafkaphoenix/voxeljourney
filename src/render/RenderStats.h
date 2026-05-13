@@ -11,7 +11,10 @@ struct RenderStats {
     unsigned int animatedModelDrawCalls = 0;
     unsigned int animatedModelTriangles = 0;
 
-    void reset() noexcept { modelDrawCalls = modelTriangles = animatedModelDrawCalls = animatedModelTriangles = chunkDrawCalls = chunksVisible = chunkTriangles = 0; }
+    void reset() noexcept {
+        modelDrawCalls = modelTriangles = animatedModelDrawCalls = animatedModelTriangles = chunkDrawCalls =
+            chunksVisible = chunkTriangles = 0;
+    }
 };
 
 }  // namespace se::render

@@ -62,11 +62,11 @@ target_link_libraries(${PROJECT_NAME}
 # Include the src directory for header files, so we avoid having to use relative paths in the code
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# Copy config.ini and assets next to the executable after building
+# Copy config.toml and assets next to the executable after building
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_CURRENT_SOURCE_DIR}/config.ini
-    $<TARGET_FILE_DIR:${PROJECT_NAME}>/config.ini
+    ${CMAKE_CURRENT_SOURCE_DIR}/config.toml
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/config.toml
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/assets
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/assets

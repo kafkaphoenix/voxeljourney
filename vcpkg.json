@@ -15,7 +15,7 @@
     "glm",
     "stb",
     "tinygltf",
-    "simpleini"
+    "tomlplusplus"
   ],
   "overrides": [
     {
@@ -39,8 +39,8 @@
       "version": "2.9.7#0"
     },
     {
-      "name": "simpleini",
-      "version": "4.25#0"
+      "name": "tomlplusplus",
+      "version": "3.4.0#1"
     }
   ]
 }

@@ -17,7 +17,7 @@ class Camera;
 struct LightData;
 struct Renderable;
 struct ChunkRenderable;
-} // namespace se::scene
+}  // namespace se::scene
 
 namespace se::render {
 
