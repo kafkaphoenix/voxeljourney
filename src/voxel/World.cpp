@@ -1,6 +1,8 @@
 #include "World.h"
 
+#include "ChunkCoords.h"
 #include "ChunkMesher.h"
+#include "core/Timer.h"
 #include "render/Mesh.h"
 #include "scene/ChunkRenderable.h"
 #include "scene/Scene.h"
@@ -8,61 +10,111 @@
 namespace se::voxel {
 
 World::World(const se::core::Config::World& config) : m_RenderDistance(config.renderDistance) {
-    m_ChunkManager.createChunk({0, 0, 0});
-    for (int x = 0; x < se::voxel::Chunk::SIZE; x++) {
-        for (int z = 0; z < se::voxel::Chunk::SIZE; z++) {
-            m_ChunkManager.setVoxel({x, 0, z}, se::voxel::VoxelType::Grass);
-        }
+    // to remove
+    auto& chunk = m_ChunkMap.createChunk(glm::ivec3(0));
+    // replace with actual terrain generation later.
+    for (int x = 0; x < Chunk::SIZE; x++) {
+        for (int z = 0; z < Chunk::SIZE; z++) { chunk.set(x, 0, z, VoxelType::Grass); }
+    }
+    m_DirtyChunks.insert(glm::ivec3(0));
+}
+
+void World::spawnChunk(const glm::ivec3& chunkCoord) {
+    auto& chunk = m_ChunkMap.createChunk(chunkCoord);
+
+    // terrain generation here
+
+    if (chunk.hasGeometry()) {
+        m_DirtyChunks.insert(chunkCoord);
     }
 }
 
-void World::updateChunks(se::scene::Scene& scene, const glm::vec3& playerPos) {
-    const glm::ivec3 playerChunk = glm::ivec3(glm::floor(playerPos)) / Chunk::SIZE;
-    unloadFarChunks(scene, playerChunk);
-    loadChunks(playerChunk);
+void World::setVoxel(const glm::ivec3& worldCoord, VoxelType type) {
+    const glm::ivec3 chunkCoord = ChunkCoords::worldToChunk(worldCoord);
+    const glm::ivec3 voxelCoord = ChunkCoords::worldToVoxel(worldCoord);
+
+    auto* chunk = m_ChunkMap.getChunk(chunkCoord);
+    if (!chunk) {
+        return;  // can't set voxel in a chunk that doesn't exist
+    }
+    if (chunk->set(voxelCoord.x, voxelCoord.y, voxelCoord.z, type)) {
+        m_DirtyChunks.insert(chunkCoord);
+    }
+}
+
+void World::updateChunks(se::scene::Scene& scene, const glm::vec3& playerWorldPos) {
+    const glm::ivec3 playerChunkCoord = ChunkCoords::worldToChunk(playerWorldPos);
+
+    if (playerChunkCoord != m_LastPlayerChunkCoord) {
+        m_LastPlayerChunkCoord = playerChunkCoord;
+        updateChunkStreaming(scene, playerChunkCoord);
+    }
+
     rebuildDirtyChunks(scene);
 }
 
-void World::unloadFarChunks(se::scene::Scene& scene, const glm::ivec3& playerChunk) {
-    std::vector<glm::ivec3> toRemove;
-    for (const auto& [pos, chunk] : m_ChunkManager.getChunks()) {
-        const glm::ivec3 delta = pos - playerChunk;
-        if (std::abs(delta.x) > m_RenderDistance || std::abs(delta.y) > m_RenderDistance ||
-            std::abs(delta.z) > m_RenderDistance) {
-            toRemove.push_back(pos);
-        }
-    }
+void World::updateChunkStreaming(se::scene::Scene& scene, const glm::ivec3& playerChunkCoord) {
+    std::unordered_set<glm::ivec3> wanted;
+    wanted.reserve((m_RenderDistance * 2 + 1) * (m_RenderDistance * 2 + 1) * (m_RenderDistance * 2 + 1));
 
-    for (const auto& pos : toRemove) {
-        scene.removeChunkRenderable(pos);
-        m_ChunkManager.removeChunk(pos);
-    }
-}
-
-void World::loadChunks(const glm::ivec3& playerChunk) {
+    // determine chunks that should exist
     for (int x = -m_RenderDistance; x <= m_RenderDistance; ++x) {
         for (int y = -m_RenderDistance; y <= m_RenderDistance; ++y) {
             for (int z = -m_RenderDistance; z <= m_RenderDistance; ++z) {
-                const glm::ivec3 chunkPos = playerChunk + glm::ivec3(x, y, z);
-                if (!m_ChunkManager.hasChunk(chunkPos)) {
-                    m_ChunkManager.createChunk(chunkPos);
+                const glm::ivec3 chunkCoord = playerChunkCoord + glm::ivec3(x, y, z);
+
+                wanted.insert(chunkCoord);
+
+                if (!m_ChunkMap.hasChunk(chunkCoord)) {
+                    spawnChunk(chunkCoord);
                 }
             }
         }
     }
+
+    // unload chunks no longer wanted
+    std::vector<glm::ivec3> toRemove;
+
+    for (const auto& [chunkCoord, _] : m_ChunkMap.getChunks()) {
+        if (!wanted.contains(chunkCoord)) {
+            toRemove.push_back(chunkCoord);
+        }
+    }
+
+    for (const auto& chunkCoord : toRemove) {
+        scene.removeChunkRenderable(chunkCoord);
+        m_ChunkMap.removeChunk(chunkCoord);
+        m_DirtyChunks.erase(chunkCoord);
+    }
 }
 
 void World::rebuildDirtyChunks(se::scene::Scene& scene) {
-    for (const auto& [pos, chunk] : m_ChunkManager.getChunks()) {
-        if (!chunk->dirty) {
+    if (m_DirtyChunks.empty()) {
+        return;
+    }
+
+    constexpr float BUDGET_MS = 4.0f;
+    se::core::Timer timer;
+
+    auto it = m_DirtyChunks.begin();
+    while (it != m_DirtyChunks.end()) {
+        const glm::ivec3 chunkCoord = *it;
+
+        auto* chunk = m_ChunkMap.getChunk(chunkCoord);
+        if (!chunk || !chunk->hasGeometry()) {
+            it = m_DirtyChunks.erase(it);
             continue;
         }
-        chunk->mesh = ChunkMesher::buildMesh(*chunk, m_ChunkManager);
-        chunk->dirty = false;
-        if (!chunk->mesh) {
-            continue;
+
+        auto mesh = ChunkMesher::buildMesh(*chunk, chunkCoord, m_ChunkMap);
+        if (mesh) {
+            scene.updateChunkRenderable({.mesh = std::move(mesh), .position = chunkCoord});
         }
-        scene.updateChunkRenderable({.mesh = chunk->mesh.get(), .position = pos});
+        it = m_DirtyChunks.erase(it);
+
+        if (timer.millis() >= BUDGET_MS) {
+            break;
+        }
     }
 }
 

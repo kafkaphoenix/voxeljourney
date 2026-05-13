@@ -31,7 +31,7 @@ void TerrainRenderer::submit(const se::scene::ChunkRenderable& chunkRenderable, 
     if (!frustumIntersectsAABB(frustum, chunkRenderable.mesh->getAABB())) {
         return;
     }
-    m_DrawList.push_back(ChunkDraw{.mesh = chunkRenderable.mesh});
+    m_DrawList.push_back(ChunkDraw{.mesh = chunkRenderable.mesh.get()});
 }
 
 void TerrainRenderer::flush(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats) {
@@ -49,9 +49,8 @@ void TerrainRenderer::flush(const se::scene::LightData& lights, const se::scene:
 
     for (const auto& draw : m_DrawList) {
         draw.mesh->draw();
-        stats.chunkDrawCalls++;
-        stats.chunksVisible++;
-        stats.chunkTriangles += static_cast<unsigned int>(draw.mesh->getIndexCount() / 3);
+        stats.chunksDrawCalls++;
+        stats.chunksTriangles += static_cast<unsigned int>(draw.mesh->getIndexCount() / 3);
     }
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

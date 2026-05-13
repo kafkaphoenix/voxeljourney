@@ -1,5 +1,6 @@
 #pragma once
 
+#include <glm/vec3.hpp>
 #include <memory>
 
 namespace se::render {
@@ -7,13 +8,12 @@ class Mesh;
 }
 
 namespace se::voxel {
-
 class Chunk;
-class ChunkManager;
+class ChunkMap;
+}
 
-class ChunkMesher {
-public:
-    static std::unique_ptr<se::render::Mesh> buildMesh(const Chunk& chunk, const ChunkManager& chunkManager);
-};
+namespace se::voxel::ChunkMesher {
 
-}  // namespace se::voxel
+std::unique_ptr<se::render::Mesh> buildMesh(const Chunk& chunk, const glm::ivec3& chunkCoord, const ChunkMap& chunkMap);
+
+}  // namespace se::voxel::ChunkMesher

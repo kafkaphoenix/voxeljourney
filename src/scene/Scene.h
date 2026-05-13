@@ -1,4 +1,5 @@
 #pragma once
+
 #include <span>
 #include <vector>
 
@@ -8,7 +9,7 @@
 #include "LightData.h"
 #include "Renderable.h"
 #include "Sky.h"
-#include "voxel/VoxelHash.h"
+#include "voxel/IVec3Hash.h"
 
 namespace se::scene {
 
@@ -18,10 +19,9 @@ public:
 
     void addRenderable(Renderable r) { m_Renderables.push_back(r); }
     [[nodiscard]] const std::vector<Renderable>& getRenderables() const { return m_Renderables; }
-    void updateChunkRenderable(ChunkRenderable r) { m_ChunkRenderables[r.position] = r; }
+    void updateChunkRenderable(ChunkRenderable r) { m_ChunkRenderables[r.position] = std::move(r); }
     void removeChunkRenderable(const glm::ivec3& pos) { m_ChunkRenderables.erase(pos); }
-    [[nodiscard]] const std::unordered_map<glm::ivec3, ChunkRenderable, se::voxel::IVec3Hash>& getChunkRenderables()
-        const {
+    [[nodiscard]] const std::unordered_map<glm::ivec3, ChunkRenderable>& getChunkRenderables() const {
         return m_ChunkRenderables;
     }
 
@@ -72,7 +72,7 @@ private:
     std::vector<PointLight> m_PointLights;
     std::vector<SpotLight> m_SpotLights;
     std::vector<Renderable> m_Renderables;
-    std::unordered_map<glm::ivec3, ChunkRenderable, se::voxel::IVec3Hash> m_ChunkRenderables;
+    std::unordered_map<glm::ivec3, ChunkRenderable> m_ChunkRenderables;
     std::vector<std::unique_ptr<AnimatedActor>> m_AnimatedActors;
 };
 

@@ -13,13 +13,27 @@ VoxelType Chunk::get(int x, int y, int z) const {
     return m_Voxels.at(idx(x, y, z));
 }
 
-void Chunk::set(int x, int y, int z, VoxelType type) {
+bool Chunk::set(int x, int y, int z, VoxelType type) {
     assert(inBounds(x, y, z));
-    if (m_Voxels.at(idx(x, y, z)) == type) {
-        return;  // no change, no need to remesh
+
+    auto& voxel = m_Voxels.at(idx(x, y, z));
+    const VoxelType oldType = voxel;
+
+    if (oldType == type) {
+        return false;
     }
-    m_Voxels.at(idx(x, y, z)) = type;
-    dirty = true;
+
+    voxel = type;
+
+    if (oldType == VoxelType::Air && type != VoxelType::Air) {
+        ++m_SolidCount;
+    } else if (oldType != VoxelType::Air && type == VoxelType::Air) {
+        --m_SolidCount;
+    }
+    m_SolidCount = std::max(0, m_SolidCount);  // just in case
+
+    m_HasGeometry = (m_SolidCount > 0);
+    return true;
 }
 
 }  // namespace se::voxel

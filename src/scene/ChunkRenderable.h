@@ -1,4 +1,5 @@
 #pragma once
+
 #include <glm/vec3.hpp>
 #include <memory>
 
@@ -7,7 +8,7 @@ class Mesh;
 }
 namespace se::scene {
 struct ChunkRenderable {
-    const render::Mesh* mesh = nullptr;
+    std::unique_ptr<se::render::Mesh> mesh;
     glm::ivec3 position{0};
 };
 

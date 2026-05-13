@@ -1,31 +1,35 @@
 #pragma once
-#include <glm/glm.hpp>
-#include <memory>
 
-#include "ChunkManager.h"
+#include <glm/vec3.hpp>
+#include <memory>
+#include <unordered_set>
+
+#include "ChunkMap.h"
+#include "IVec3Hash.h"
 #include "core/Config.h"
 
 namespace se::scene {
 class Scene;
-}
-namespace se::render {
-class Mesh;
 }
 
 namespace se::voxel {
 
 class World {
 public:
-    World(const se::core::Config::World& config);
+    explicit World(const se::core::Config::World& config);
 
-    void updateChunks(se::scene::Scene& scene, const glm::vec3& playerPos);
+    void setVoxel(const glm::ivec3& worldCoord, VoxelType type);
+    void updateChunks(se::scene::Scene& scene, const glm::vec3& playerWorldPos);
+    const ChunkMap& getChunkMap() const { return m_ChunkMap; }
 
 private:
+    glm::ivec3 m_LastPlayerChunkCoord{INT_MIN};
     int m_RenderDistance;
-    ChunkManager m_ChunkManager;
+    ChunkMap m_ChunkMap;
+    std::unordered_set<glm::ivec3> m_DirtyChunks;
 
-    void unloadFarChunks(se::scene::Scene& scene, const glm::ivec3& playerChunk);
-    void loadChunks(const glm::ivec3& playerChunk);
+    void spawnChunk(const glm::ivec3& chunkCoord);
+    void updateChunkStreaming(se::scene::Scene& scene, const glm::ivec3& playerChunkCoord);
     void rebuildDirtyChunks(se::scene::Scene& scene);
 };
 

@@ -7,11 +7,12 @@
 #include <vector>
 
 #include "Chunk.h"
-#include "ChunkManager.h"
+#include "ChunkCoords.h"
+#include "ChunkMap.h"
 #include "Voxel.h"
 #include "render/Mesh.h"
 
-namespace se::voxel {
+namespace se::voxel::ChunkMesher {
 
 namespace {
 #pragma pack(push, 1)  // to ensure no padding is added to ChunkVertex, since we use sizeof(ChunkVertex) for buffer
@@ -25,13 +26,13 @@ struct ChunkVertex {
 static_assert(sizeof(ChunkVertex) == 20);
 static_assert(offsetof(ChunkVertex, uv) == 12);
 
-struct FaceDef {
+struct VoxelFace {
     glm::ivec3 normal;
     std::array<glm::vec3, 4> corners;
 };
 
 // counter-clockwise winding
-const std::array<FaceDef, 6> FACES = {{
+const std::array<VoxelFace, 6> FACES = {{
     // +X
     {{1, 0, 0}, {glm::vec3(1, 0, 0), glm::vec3(1, 0, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 0)}},
     // -X
@@ -65,14 +66,15 @@ static constexpr int MAX_FACES = Chunk::VOLUME * FACES.size();
 static constexpr int MAX_VERTICES = MAX_FACES * FACE_VERTEX_COUNT;
 static constexpr int MAX_INDICES = MAX_FACES * FACE_INDEX_COUNT;
 
-std::unique_ptr<se::render::Mesh> ChunkMesher::buildMesh(const Chunk& chunk, const ChunkManager& chunkManager) {
+std::unique_ptr<se::render::Mesh> buildMesh(const Chunk& chunk, const glm::ivec3& chunkCoord,
+                                            const ChunkMap& chunkMap) {
     std::vector<ChunkVertex> vertices;
     std::vector<unsigned int> indices;
 
     vertices.reserve(MAX_VERTICES);
     indices.reserve(MAX_INDICES);
 
-    const glm::vec3 origin = chunk.worldOrigin();
+    const glm::ivec3 chunkWorldOrigin = ChunkCoords::chunkToWorld(chunkCoord);
 
     for (int z = 0; z < Chunk::SIZE; z++) {
         for (int y = 0; y < Chunk::SIZE; y++) {
@@ -82,23 +84,30 @@ std::unique_ptr<se::render::Mesh> ChunkMesher::buildMesh(const Chunk& chunk, con
                     continue;
                 }
 
-                glm::ivec3 worldPos = glm::ivec3(origin) + glm::ivec3(x, y, z);
+                const glm::ivec3 voxelWorldCoord = chunkWorldOrigin + glm::ivec3(x, y, z);
 
-                for (const FaceDef& fd : FACES) {
-                    if (isSolid(chunkManager.getVoxel(worldPos + fd.normal))) {
+                // check each face of the voxel. If the adjacent voxel in that direction is solid, skip it (don't
+                // generate a face there)
+                for (const VoxelFace& vf : FACES) {
+                    if (isSolid(chunkMap.getVoxelType(voxelWorldCoord + vf.normal))) {
                         continue;
                     }
 
                     const auto base = static_cast<unsigned int>(vertices.size());
-                    for (auto [corner, uv] : std::views::zip(fd.corners, FACE_UVS)) {
-                        vertices.push_back(ChunkVertex{
-                            .position = origin + glm::vec3(x, y, z) + corner,
+                    for (auto [corner, uv] : std::views::zip(vf.corners, FACE_UVS)) {
+                        vertices.push_back({
+                            .position = glm::vec3(voxelWorldCoord) + corner,
                             .uv = uv,
                         });
                     }
-                    // first triangle: 0, 2, 1
-                    // second triangle: 0, 3, 2
-                    indices.insert(indices.end(), {base + 0, base + 2, base + 1, base + 0, base + 3, base + 2});
+                    // first triangle
+                    indices.push_back(base + 0);
+                    indices.push_back(base + 2);
+                    indices.push_back(base + 1);
+                    // second triangle
+                    indices.push_back(base + 0);
+                    indices.push_back(base + 3);
+                    indices.push_back(base + 2);
                 }
             }
         }
@@ -109,8 +118,8 @@ std::unique_ptr<se::render::Mesh> ChunkMesher::buildMesh(const Chunk& chunk, con
     }
 
     se::render::AABB aabb{};
-    aabb.min = origin;
-    aabb.max = origin + glm::vec3(Chunk::SIZE);
+    aabb.min = glm::vec3(chunkWorldOrigin);
+    aabb.max = glm::vec3(chunkWorldOrigin) + glm::vec3(Chunk::SIZE);
 
     se::render::BufferLayout layout({
         {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},

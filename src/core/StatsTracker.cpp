@@ -30,10 +30,10 @@ std::optional<std::string> StatsTracker::update(float deltaTime, const se::rende
     ProcessMemoryUsage mem = getProcessMemoryUsageKB();
     std::string stats = std::format(
         "{} FPS: {} RAM: {}/{}MB | Model: Draws {} Triangles {} | Animated Models: Draws {} Triangles {} | Chunks: "
-        "Draws {} Visible {} Triangles {}",
+        "Draws {} Triangles {}",
         title, static_cast<int>(fps), mem.usedKB / 1024, mem.committedKB / 1024, renderStats.modelDrawCalls,
         renderStats.modelTriangles, renderStats.animatedModelDrawCalls, renderStats.animatedModelTriangles,
-        renderStats.chunkDrawCalls, renderStats.chunksVisible, renderStats.chunkTriangles);
+        renderStats.chunksDrawCalls, renderStats.chunksTriangles);
 
     reset();
     return stats;
