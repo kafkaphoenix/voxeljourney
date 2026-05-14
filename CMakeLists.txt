@@ -46,8 +46,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE "GLM_ENABLE_EXPERIMENTAL") # 
 find_package(Stb REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Stb_INCLUDE_DIR})
 target_compile_definitions(${PROJECT_NAME} PRIVATE "STBI_FAILURE_USERMSG")
-find_path(SIMPLEINI_INCLUDE_DIRS "SimpleIni.h")
-target_include_directories(${PROJECT_NAME} PRIVATE ${SIMPLEINI_INCLUDE_DIRS})
+find_package(tomlplusplus CONFIG REQUIRED)
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 target_include_directories(${PROJECT_NAME} PRIVATE ${TINYGLTF_INCLUDE_DIRS})
 
@@ -57,6 +56,7 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
     glad::glad
     glfw
+    tomlplusplus::tomlplusplus
 )
 
 # Include the src directory for header files, so we avoid having to use relative paths in the code
