@@ -14,7 +14,7 @@ enum class UboBinding : uint8_t {
     Terrain = 2,
 };
 
-inline constexpr std::array<std::pair<std::string_view, UboBinding>, 3> k_UboBindings = {{
+inline constexpr std::array<std::pair<std::string_view, UboBinding>, 3> UBO_BINDINGS = {{
     {"FrameData", UboBinding::Frame},
     {"BoneData", UboBinding::Bones},
     {"TerrainFrame", UboBinding::Terrain},

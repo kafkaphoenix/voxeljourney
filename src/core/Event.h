@@ -12,22 +12,22 @@ struct Event {
 };
 
 struct FramebufferResizeEvent final : Event {
-    static constexpr EventType K_TYPE = EventType::FramebufferResize;
-    FramebufferResizeEvent(int width, int height) : Event(K_TYPE), width(width), height(height) {}
+    static constexpr EventType EVENT_TYPE = EventType::FramebufferResize;
+    FramebufferResizeEvent(int width, int height) : Event(EVENT_TYPE), width(width), height(height) {}
     int width;
     int height;
 };
 
 struct WindowFocusEvent final : Event {
-    static constexpr EventType K_TYPE = EventType::WindowFocus;
-    explicit WindowFocusEvent(bool focused) : Event(K_TYPE), focused(focused) {}
+    static constexpr EventType EVENT_TYPE = EventType::WindowFocus;
+    explicit WindowFocusEvent(bool focused) : Event(EVENT_TYPE), focused(focused) {}
     bool focused;
 };
 
 struct KeyEvent final : Event {
-    static constexpr EventType K_TYPE = EventType::Key;
+    static constexpr EventType EVENT_TYPE = EventType::Key;
     KeyEvent(int key, int scancode, int action, int mods)
-        : Event(K_TYPE), key(key), scancode(scancode), action(action), mods(mods) {}
+        : Event(EVENT_TYPE), key(key), scancode(scancode), action(action), mods(mods) {}
     int key;
     int scancode;
     int action;
@@ -35,23 +35,24 @@ struct KeyEvent final : Event {
 };
 
 struct MouseButtonEvent final : Event {
-    static constexpr EventType K_TYPE = EventType::MouseButton;
-    MouseButtonEvent(int button, int action, int mods) : Event(K_TYPE), button(button), action(action), mods(mods) {}
+    static constexpr EventType EVENT_TYPE = EventType::MouseButton;
+    MouseButtonEvent(int button, int action, int mods)
+        : Event(EVENT_TYPE), button(button), action(action), mods(mods) {}
     int button;
     int action;
     int mods;
 };
 
 struct MouseMoveEvent final : Event {
-    static constexpr EventType K_TYPE = EventType::MouseMove;
-    MouseMoveEvent(double x, double y) : Event(K_TYPE), x(x), y(y) {}
+    static constexpr EventType EVENT_TYPE = EventType::MouseMove;
+    MouseMoveEvent(double x, double y) : Event(EVENT_TYPE), x(x), y(y) {}
     double x;
     double y;
 };
 
 struct ScrollEvent final : Event {
-    static constexpr EventType K_TYPE = EventType::Scroll;
-    ScrollEvent(double xoffset, double yoffset) : Event(K_TYPE), xoffset(xoffset), yoffset(yoffset) {}
+    static constexpr EventType EVENT_TYPE = EventType::Scroll;
+    ScrollEvent(double xoffset, double yoffset) : Event(EVENT_TYPE), xoffset(xoffset), yoffset(yoffset) {}
     double xoffset;
     double yoffset;
 };

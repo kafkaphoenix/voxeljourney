@@ -2,7 +2,7 @@
 
 #include "Chunk.h"
 
-namespace se::voxel::ChunkCoords {
+namespace se::voxel::chunkcoords {
 glm::ivec3 chunkToWorld(glm::ivec3 chunkCoord) { return chunkCoord * Chunk::SIZE; }
 
 glm::ivec3 worldToChunk(glm::ivec3 worldCoord) {
@@ -13,4 +13,4 @@ glm::ivec3 worldToChunk(glm::ivec3 worldCoord) {
 glm::ivec3 worldToChunk(glm::vec3 worldPos) { return worldToChunk(glm::ivec3(glm::floor(worldPos))); }
 
 glm::ivec3 worldToVoxel(glm::ivec3 worldCoord) { return worldCoord - worldToChunk(worldCoord) * Chunk::SIZE; }
-}  // namespace se::voxel::ChunkCoords
+}  // namespace se::voxel::chunkcoords

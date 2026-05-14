@@ -60,14 +60,14 @@ public:
     HandlerId subscribe(Handler<T> handler) {
         HandlerId id = m_NextId.fetch_add(1);
         auto wrapper = [handler](const Event& e) { handler(static_cast<const T&>(e)); };
-        m_Handlers[T::K_TYPE].push_back({id, std::move(wrapper)});
+        m_Handlers[T::EVENT_TYPE].push_back({id, std::move(wrapper)});
         return id;
     }
 
     template <typename T>
     Subscription subscribeScoped(Handler<T> handler) {
         HandlerId id = subscribe<T>(std::move(handler));
-        return Subscription(this, T::K_TYPE, id);
+        return Subscription(this, T::EVENT_TYPE, id);
     }
 
     void unsubscribe(const Subscription& subscription) {

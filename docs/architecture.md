@@ -71,11 +71,12 @@ The engine is organized into several modules, each responsible for a specific as
 - Player: Camera controller with WASD movement and mouse look, no physics, collisions or model.
 
 ### Voxel
-- Voxel: Enum of block types (air, grass, dirt, stone, etc).
-- Chunk: Represents a chunk of voxels, with a flat array of block types and a mesh for rendering.
-- ChunkManager: Manages loaded chunks, provides access and modification methods.
-- ChunkMesher: Static class that generates a mesh for a chunk based on its block data and neighboring chunks.
-- World: Owns the chunk manager and handles chunk streaming and rebuilding.
+- Voxel: Defines a voxel with a type (e.g., air, dirt, stone).
+- Chunk: 16x16x16 voxels, stores voxel data and provides accessors.
+- ChunkMap: Manages loaded chunks in a hashmap, provides access to voxel data and handles chunk loading/unloading.
+- ChunkMesher: Generates a mesh for a chunk by checking visible faces and creating vertices accordingly.
+- ChunkCoords: Utility functions for converting between world, chunk, and voxel coordinates.
+- World: Owns the ChunkMap and handles chunk streaming based on the player's position. It also coordinates with the Scene to update chunk renderables when chunks are loaded or modified.
 
 ## Potential improvements
 - Better error handling and logging. Using a logging library like spdlog would be a good improvement.

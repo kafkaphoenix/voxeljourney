@@ -12,8 +12,8 @@ class Chunk;
 class ChunkMap;
 }
 
-namespace se::voxel::ChunkMesher {
+namespace se::voxel::chunkmesher {
 
 std::unique_ptr<se::render::Mesh> buildMesh(const Chunk& chunk, const glm::ivec3& chunkCoord, const ChunkMap& chunkMap);
 
-}  // namespace se::voxel::ChunkMesher
+}  // namespace se::voxel::chunkmesher

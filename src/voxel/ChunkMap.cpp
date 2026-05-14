@@ -7,11 +7,11 @@
 namespace se::voxel {
 
 VoxelType ChunkMap::getVoxelType(glm::ivec3 worldCoord) const {
-    const Chunk* chunk = getChunk(ChunkCoords::worldToChunk(worldCoord));
+    const Chunk* chunk = getChunk(chunkcoords::worldToChunk(worldCoord));
     if (!chunk) {
         return VoxelType::Air;  // return Air instead of throwing — mesher samples OOB neighbours
     }
-    const glm::ivec3 voxelCoord = ChunkCoords::worldToVoxel(worldCoord);
+    const glm::ivec3 voxelCoord = chunkcoords::worldToVoxel(worldCoord);
     return chunk->get(voxelCoord.x, voxelCoord.y, voxelCoord.z);
 }
 

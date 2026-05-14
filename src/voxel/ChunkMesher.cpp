@@ -12,7 +12,7 @@
 #include "Voxel.h"
 #include "render/Mesh.h"
 
-namespace se::voxel::ChunkMesher {
+namespace se::voxel::chunkmesher {
 
 namespace {
 #pragma pack(push, 1)  // to ensure no padding is added to ChunkVertex, since we use sizeof(ChunkVertex) for buffer
@@ -74,7 +74,7 @@ std::unique_ptr<se::render::Mesh> buildMesh(const Chunk& chunk, const glm::ivec3
     vertices.reserve(MAX_VERTICES);
     indices.reserve(MAX_INDICES);
 
-    const glm::ivec3 chunkWorldOrigin = ChunkCoords::chunkToWorld(chunkCoord);
+    const glm::ivec3 chunkWorldOrigin = chunkcoords::chunkToWorld(chunkCoord);
 
     for (int z = 0; z < Chunk::SIZE; z++) {
         for (int y = 0; y < Chunk::SIZE; y++) {

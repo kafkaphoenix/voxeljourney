@@ -38,7 +38,7 @@ T optional(const toml::table& t, std::string_view key, T fallback) {
 }
 
 template <typename T>
-requires std::is_arithmetic_v<T>
+    requires std::is_arithmetic_v<T>
 void requireRange(std::string_view key, T v, T min, T max) {
     if (v < min || v > max) {
         throwConfigError(std::format("'{}' out of range", key));
@@ -46,7 +46,7 @@ void requireRange(std::string_view key, T v, T min, T max) {
 }
 
 template <typename T>
-requires std::is_arithmetic_v<T>
+    requires std::is_arithmetic_v<T>
 void requireGreater(std::string_view key, T v, T min) {
     if (v <= min) {
         throwConfigError(std::format("'{}' must be > {}", key, min));

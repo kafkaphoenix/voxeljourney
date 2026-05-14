@@ -30,8 +30,8 @@ void World::spawnChunk(const glm::ivec3& chunkCoord) {
 }
 
 void World::setVoxel(const glm::ivec3& worldCoord, VoxelType type) {
-    const glm::ivec3 chunkCoord = ChunkCoords::worldToChunk(worldCoord);
-    const glm::ivec3 voxelCoord = ChunkCoords::worldToVoxel(worldCoord);
+    const glm::ivec3 chunkCoord = chunkcoords::worldToChunk(worldCoord);
+    const glm::ivec3 voxelCoord = chunkcoords::worldToVoxel(worldCoord);
 
     auto* chunk = m_ChunkMap.getChunk(chunkCoord);
     if (!chunk) {
@@ -43,7 +43,7 @@ void World::setVoxel(const glm::ivec3& worldCoord, VoxelType type) {
 }
 
 void World::updateChunks(se::scene::Scene& scene, const glm::vec3& playerWorldPos) {
-    const glm::ivec3 playerChunkCoord = ChunkCoords::worldToChunk(playerWorldPos);
+    const glm::ivec3 playerChunkCoord = chunkcoords::worldToChunk(playerWorldPos);
 
     if (playerChunkCoord != m_LastPlayerChunkCoord) {
         m_LastPlayerChunkCoord = playerChunkCoord;
@@ -55,7 +55,8 @@ void World::updateChunks(se::scene::Scene& scene, const glm::vec3& playerWorldPo
 
 void World::updateChunkStreaming(se::scene::Scene& scene, const glm::ivec3& playerChunkCoord) {
     std::unordered_set<glm::ivec3> wanted;
-    wanted.reserve((m_RenderDistance * 2 + 1) * (m_RenderDistance * 2 + 1) * (m_RenderDistance * 2 + 1));
+    size_t d = static_cast<size_t>(m_RenderDistance) * 2 + 1;
+    wanted.reserve(d * d * d);
 
     // determine chunks that should exist
     for (int x = -m_RenderDistance; x <= m_RenderDistance; ++x) {
@@ -106,7 +107,7 @@ void World::rebuildDirtyChunks(se::scene::Scene& scene) {
             continue;
         }
 
-        auto mesh = ChunkMesher::buildMesh(*chunk, chunkCoord, m_ChunkMap);
+        auto mesh = chunkmesher::buildMesh(*chunk, chunkCoord, m_ChunkMap);
         if (mesh) {
             scene.updateChunkRenderable({.mesh = std::move(mesh), .position = chunkCoord});
         }

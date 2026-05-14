@@ -88,7 +88,7 @@ Shader::Shader(std::string_view vertPath, std::string_view fragPath)
     glDeleteShader(vs);
     glDeleteShader(fs);
 
-    for (const auto& [name, binding] : se::render::k_UboBindings) {
+    for (const auto& [name, binding] : se::render::UBO_BINDINGS) {
         unsigned int index = glGetUniformBlockIndex(m_Id, name.data());
         if (index != GL_INVALID_INDEX) {  // if the shader doesn't have this block, we just skip it instead of treating
                                           // it as an error
