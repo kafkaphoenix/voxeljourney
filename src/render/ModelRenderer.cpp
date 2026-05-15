@@ -10,31 +10,53 @@
 #include <glm/gtx/norm.hpp>
 #include <stdexcept>
 
-#include "UboBindings.h"
+#include "UboDefinitions.h"
 #include "assets/Shader.h"
 #include "assets/Texture.h"
+#include "scene/Animator.h"
 
 namespace se::render {
 
-namespace {
+void ModelRenderer::resetStateCache() {
+    m_CachedBlendEnabled.reset();
+    m_CachedDepthMaskWritable.reset();
+    m_CachedCullEnabled.reset();
+    m_CachedPolygonMode.reset();
+}
 
-struct alignas(16) PointLightGpuData {
-    glm::vec4 positionRange;
-    glm::vec4 colorIntensity;
-};
+void ModelRenderer::setBlendEnabled(const bool enabled) const {
+    if (m_CachedBlendEnabled.has_value() && *m_CachedBlendEnabled == enabled) {
+        return;
+    }
+    enabled ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
+    m_CachedBlendEnabled = enabled;
+}
 
-struct alignas(16) FrameUbo {
-    glm::mat4 viewProj;
-    glm::vec4 sunDir;
-    glm::vec4 sunColor;
-    glm::vec4 ambient;
-    glm::ivec4 lightCounts;
-    std::array<PointLightGpuData, 4> pointLights;
-};
+void ModelRenderer::setDepthMask(const bool writable) const {
+    if (m_CachedDepthMaskWritable.has_value() && *m_CachedDepthMaskWritable == writable) {
+        return;
+    }
+    glDepthMask(writable ? GL_TRUE : GL_FALSE);
+    m_CachedDepthMaskWritable = writable;
+}
 
-}  // namespace
+void ModelRenderer::setCullEnabled(const bool enabled) const {
+    if (m_CachedCullEnabled.has_value() && *m_CachedCullEnabled == enabled) {
+        return;
+    }
+    enabled ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
+    m_CachedCullEnabled = enabled;
+}
 
-ModelRenderer::ModelRenderer() {
+void ModelRenderer::setPolygonMode(const GLenum mode) const {
+    if (m_CachedPolygonMode.has_value() && *m_CachedPolygonMode == mode) {
+        return;
+    }
+    glPolygonMode(GL_FRONT_AND_BACK, mode);
+    m_CachedPolygonMode = mode;
+}
+
+ModelRenderer::ModelRenderer(const float anisotropy) : m_Anisotropy((std::max)(1.0f, anisotropy)) {
     setupFrameUbo();
     setupBoneUbo();
     setupDefaultSampler();
@@ -49,42 +71,45 @@ ModelRenderer::~ModelRenderer() {
     glDeleteTextures(static_cast<GLsizei>(m_DefaultTextures.size()), m_DefaultTextures.data());
 }
 
-void ModelRenderer::submit(const se::scene::Renderable& renderable, const Frustum& frustum) {
-    m_Queue.submit(renderable, frustum);
-}
-
-void ModelRenderer::submitAnimated(const se::scene::Renderable& renderable, const Frustum& frustum,
-                                   std::span<const glm::mat4> boneMatrices) {
-    if (!renderable.mesh || !renderable.material.get()) {
-        return;
-    }
-
-    const glm::mat4 modelMatrix = renderable.transform.getMatrix();
+void ModelRenderer::submit(const se::scene::Renderable& renderable, const Frustum& frustum,
+                           const glm::mat4& viewMatrix) {
+    const glm::mat4 modelMatrix = renderable.resolvedTransform().getMatrix();
     if (!frustumIntersectsAABB(frustum, renderable.mesh->getAABB(), modelMatrix)) {
         return;
     }
-
-    m_AnimatedDraws.push_back(AnimatedDraw{
-        .mesh = renderable.mesh,
-        .material = renderable.material.get().get(),
-        .modelMatrix = modelMatrix,
-        .normalMatrix = glm::transpose(glm::inverse(glm::mat3(modelMatrix))),
-        .boneMatrices = {boneMatrices.begin(), boneMatrices.end()},
-    });
+    m_Queue.submit(renderable, modelMatrix, viewMatrix);
 }
 
 void ModelRenderer::flush(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats) {
-    if (m_Queue.getOpaqueBatches().empty() && m_Queue.getTransparentBatches().empty() && m_AnimatedDraws.empty()) {
+    if (m_Queue.isEmpty()) {
         return;
     }
 
     updateFrameUbo(lights, camera);
+    resetStateCache();
 
-    // opaque pass
-    glDisable(GL_BLEND);
-    glDepthMask(GL_TRUE);
-    glEnable(GL_CULL_FACE);
-    glPolygonMode(GL_FRONT_AND_BACK, m_Wireframe ? GL_LINE : GL_FILL);
+    drawOpaquePass(stats);
+    drawTransparentPass(stats);
+
+    restoreRenderState();
+
+    m_Queue.clear();
+}
+
+void ModelRenderer::restoreRenderState() const {
+    setBlendEnabled(true);
+    setDepthMask(true);
+    setCullEnabled(true);
+    setPolygonMode(GL_FILL);
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glDisable(GL_LINE_SMOOTH);
+}
+
+void ModelRenderer::drawOpaquePass(RenderStats& stats) const {
+    setBlendEnabled(false);
+    setDepthMask(true);
+    setCullEnabled(true);
+    setPolygonMode(m_Wireframe ? GL_LINE : GL_FILL);
     if (m_Wireframe) {
         glEnable(GL_LINE_SMOOTH);
         glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
@@ -92,44 +117,61 @@ void ModelRenderer::flush(const se::scene::LightData& lights, const se::scene::C
         glPolygonOffset(0.5f, 1.0f);
     }
 
-    for (auto& [key, batch] : m_Queue.getOpaqueBatches()) { flushBatch(key, batch, stats); }
-
-    // Animated draws (rendered individually, not instanced)
-    if (!m_AnimatedDraws.empty()) {
-        flushAnimatedDraws(stats);
+    // static opaque pass (instanced where possible, sorted by material then mesh to minimize state changes)
+    for (const auto& batchView : m_Queue.getOrderedStaticOpaqueBatches()) {
+        flushBatch(batchView.key, batchView.batch, stats);
     }
 
-    // transparent pass
-    glEnable(GL_BLEND);
-    glDepthMask(GL_FALSE);
-    for (auto& draw : getSortedTransparentDraws(camera)) { flushBatch(draw.key, *draw.batch, stats); }
+    // opaque animated pass (non-instanced) rendered after static to leverage early-z for occlusion of expensive
+    // animated models
+    for (const auto& d : m_Queue.getOpaqueAnimatedDrawItems()) { drawAnimatedDrawItem(d, stats); }
+}
 
-    // restore known good state
-    glEnable(GL_BLEND);
-    glDepthMask(GL_TRUE);
-    glEnable(GL_CULL_FACE);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glDisable(GL_POLYGON_OFFSET_FILL);
-    glDisable(GL_LINE_SMOOTH);
+void ModelRenderer::drawTransparentPass(RenderStats& stats) {
+    setBlendEnabled(true);
+    setDepthMask(false);
 
-    m_Queue.clear();
-    m_AnimatedDraws.clear();
+    // transparent objects need to be depth sorted back-to-front for correct blending.
+    const auto& sorted = m_Queue.getDepthSortedTransparentDrawItems();
+    BatchKey lastKey = {};
+    std::vector<InstanceData> batch;
+    for (const auto& d : sorted) {
+        if (d.animator != nullptr) {  // animated transparent
+            // flush any pending transparent static batch
+            if (!batch.empty()) {
+                flushBatch(lastKey, batch, stats);
+                batch.clear();
+            }
+            drawAnimatedDrawItem(d, stats);
+        } else {  // static transparent
+            BatchKey key{d.mesh, d.material};
+            if (key != lastKey) {
+                if (!batch.empty()) {
+                    flushBatch(lastKey, batch, stats);
+                    batch.clear();
+                }
+                lastKey = key;
+            }
+            batch.push_back({d.modelMatrix, d.normalMatrix});
+        }
+    }
+    // flush any remaining transparent static batch
+    if (!batch.empty()) {
+        flushBatch(lastKey, batch, stats);
+    }
 }
 
 void ModelRenderer::setWireframe(bool enabled) { m_Wireframe = enabled; }
 
 void ModelRenderer::setBatchSize(const size_t maxInstances) {
-    assert(m_Queue.getOpaqueBatches().empty() && m_Queue.getTransparentBatches().empty() &&
-           "setBatchSize called mid-frame with live batches");
+    assert(m_Queue.isEmpty() && "setBatchSize called mid-frame with live batches");
     m_MaxBatchSize = maxInstances;
     Mesh::setDefaultInstanceCapacityBytes(m_MaxBatchSize * sizeof(InstanceData));
 }
 
 void ModelRenderer::setupFrameUbo() { m_FrameUbo.emplace(sizeof(FrameUbo), UboBinding::Frame); }
 
-void ModelRenderer::setupBoneUbo() {
-    m_BoneUbo.emplace(static_cast<GLsizeiptr>(se::assets::MAX_BONES * sizeof(glm::mat4)), UboBinding::Bones);
-}
+void ModelRenderer::setupBoneUbo() { m_BoneUbo.emplace(sizeof(BoneUbo), UboBinding::Bones); }
 
 // Sets default sampler parameters for all materials that don't specify their own sampler.
 // This is separate from the Texture class because some materials might want different sampler settings (e.g. clamp vs
@@ -144,7 +186,7 @@ void ModelRenderer::setupDefaultSampler() {
     float maxAniso = 0.0f;
     glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAniso);
     if (maxAniso > 0.0f) {
-        glSamplerParameterf(m_DefaultSampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, (std::min)(4.0f, maxAniso));
+        glSamplerParameterf(m_DefaultSampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, (std::min)(m_Anisotropy, maxAniso));
     }
 #endif
     glObjectLabel(GL_SAMPLER, m_DefaultSampler, -1, "DefaultSampler");
@@ -191,15 +233,16 @@ void ModelRenderer::bindMaterialTextures(const se::assets::MaterialTextures& tex
     bindTexture(4, textures.occlusion, m_DefaultTextures[0]);          // white
 }
 
-void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStats& stats) const {
-    if (batch.instances.empty()) {
+void ModelRenderer::flushBatch(const BatchKey& key, const std::span<const InstanceData> batch,
+                               RenderStats& stats) const {
+    if (batch.empty()) {
         return;
     }
 
     const auto& state = key.material->getState();
-    state.cull ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
+    setCullEnabled(state.cull);
 
-    const auto shader = key.material->getShaderHandle().get();
+    auto shader = key.material->getShaderHandle().get();
     if (!shader) {
         throw std::runtime_error("Material missing shader");
     }
@@ -214,69 +257,50 @@ void ModelRenderer::flushBatch(const BatchKey& key, BatchData& batch, RenderStat
     shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
     shader->setVec3("u_EmissiveFactor", params.emissiveFactor);
 
-    key.mesh->updateInstanceBuffer(batch.instances);
-    key.mesh->drawInstanced(batch.instances.size());
+    key.mesh->updateInstanceBuffer(std::as_bytes(batch));
+    key.mesh->drawInstanced(batch.size());
 
-    ++stats.modelDrawCalls;
-    stats.modelTriangles += static_cast<unsigned int>((key.mesh->getIndexCount() / 3) * batch.instances.size());
+    ++stats.modelsDrawCalls;
+    stats.modelsTriangles += static_cast<unsigned int>((key.mesh->getIndexCount() / 3) * batch.size());
 }
 
-void ModelRenderer::flushAnimatedDraws(RenderStats& stats) const {
-    for (const auto& draw : m_AnimatedDraws) {
-        const auto& matState = draw.material->getState();
-        matState.cull ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
-
-        const auto shader = draw.material->getShaderHandle().get();
-        if (!shader) {
-            continue;
-        }
-        shader->bind();
-
-        bindMaterialTextures(draw.material->getTextures());
-
-        const auto& params = draw.material->getParams();
-        shader->setVec4("u_BaseColorFactor", params.baseColorFactor);
-        shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
-        shader->setFloat("u_MetallicFactor", params.metallicFactor);
-        shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
-        shader->setVec3("u_EmissiveFactor", params.emissiveFactor);
-
-        shader->setMat4("u_Model", draw.modelMatrix);
-        shader->setMat3("u_NormalMatrix", draw.normalMatrix);
-
-        m_BoneUbo->updateSubData(0, std::as_bytes(std::span(draw.boneMatrices)));
-
-        draw.mesh->draw();
-
-        ++stats.animatedModelDrawCalls;
-        stats.animatedModelTriangles += static_cast<unsigned int>(draw.mesh->getIndexCount() / 3);
-    }
-}
-
-std::vector<ModelRenderer::TransparentDraw> ModelRenderer::getSortedTransparentDraws(const se::scene::Camera& camera) {
-    std::vector<TransparentDraw> draws;
-    draws.reserve(m_Queue.getTransparentBatches().size());
-
-    const glm::vec3 camPos = camera.getPosition();
-    for (auto& [key, batch] : m_Queue.getTransparentBatches()) {
-        if (batch.instances.empty()) {
-            continue;
-        }
-
-        const glm::vec3 center = batch.centerSum / static_cast<float>(batch.instances.size());
-        draws.push_back(TransparentDraw{
-            .distance = glm::length2(camPos - center),
-            .key = key,
-            .batch = &batch,
-        });
+void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, RenderStats& stats) const {
+    if (!drawItem.mesh || !drawItem.material || drawItem.animator == nullptr) {
+        throw std::runtime_error("Invalid animated draw call");
     }
 
-    std::ranges::sort(draws, std::greater{}, &TransparentDraw::distance);
-    return draws;
+    const auto& state = drawItem.material->getState();
+    setCullEnabled(state.cull);
+
+    auto shader = drawItem.material->getShaderHandle().get();
+    if (!shader) {
+        throw std::runtime_error("Animated material missing shader");
+    }
+
+    shader->bind();
+    bindMaterialTextures(drawItem.material->getTextures());
+
+    const auto& params = drawItem.material->getParams();
+    shader->setVec4("u_BaseColorFactor", params.baseColorFactor);
+    shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
+    shader->setFloat("u_MetallicFactor", params.metallicFactor);
+    shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
+    shader->setVec3("u_EmissiveFactor", params.emissiveFactor);
+
+    shader->setMat4("u_Model", drawItem.modelMatrix);
+    shader->setMat3("u_Normal", drawItem.normalMatrix);
+
+    const auto boneMatrices = drawItem.animator->bones();
+    m_BoneUbo->updateSubData(0, std::as_bytes(std::span<const glm::mat4>(boneMatrices)));
+
+    drawItem.mesh->draw();
+
+    ++stats.animatedModelsDrawCalls;
+    stats.animatedModelsTriangles += static_cast<unsigned int>(drawItem.mesh->getIndexCount() / 3);
 }
 
 void ModelRenderer::updateFrameUbo(const se::scene::LightData& lights, const se::scene::Camera& camera) {
-    FrameUbo data{.viewProj = camera.getViewProjection()};
+    FrameUbo data{};
 
     if (!lights.directionalLights.empty()) {
         const auto& sun = lights.directionalLights[0];

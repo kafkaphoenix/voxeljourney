@@ -12,11 +12,11 @@
 #include <unordered_map>
 #include <utility>
 
-#include "render/UboBindings.h"
+#include "render/UboDefinitions.h"
 
 namespace se::assets {
 
-static std::string loadFile(std::string_view path) {
+std::string Shader::loadFile(std::string_view path) {
     // open file in binary mode and move the file pointer to the end of the file to get the file size
     std::ifstream file(path.data(), std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
@@ -34,23 +34,24 @@ static std::string loadFile(std::string_view path) {
     return buffer;
 }
 
-static void checkShaderCompilation(unsigned int shader, std::string_view type) {
+void Shader::checkShaderCompilation(unsigned int shader, std::string_view type) const {
     int success = 0;
     std::array<char, 1024> infoLog{};
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(shader, 1024, nullptr, infoLog.data());
-        throw std::runtime_error(std::format("{} shader compilation failed for: {}", type, infoLog.data()));
+        std::string name = type == "VERTEX" ? m_VertPath : m_FragPath;
+        throw std::runtime_error(std::format("{} shader {} compilation failed: {}", type, name, infoLog.data()));
     }
 }
 
-static void checkProgramLinking(unsigned int program) {
+void Shader::checkProgramLinking() const {
     int success = 0;
     std::array<char, 1024> infoLog{};
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    glGetProgramiv(m_Id, GL_LINK_STATUS, &success);
     if (!success) {
-        glGetProgramInfoLog(program, 1024, nullptr, infoLog.data());
-        throw std::runtime_error(std::format("Shader program linking failed: {}", infoLog.data()));
+        glGetProgramInfoLog(m_Id, 1024, nullptr, infoLog.data());
+        throw std::runtime_error(std::format("Shader {} program linking failed: {}", m_Name, infoLog.data()));
     }
 }
 
@@ -80,7 +81,7 @@ Shader::Shader(std::string_view vertPath, std::string_view fragPath)
     glAttachShader(m_Id, vs);
     glAttachShader(m_Id, fs);
     glLinkProgram(m_Id);
-    checkProgramLinking(m_Id);
+    checkProgramLinking();
 
     std::string progLabel = std::format("Shader Program [{}]", m_Name);
     glObjectLabel(GL_PROGRAM, m_Id, static_cast<GLsizei>(progLabel.size()), progLabel.c_str());
@@ -99,7 +100,7 @@ Shader::Shader(std::string_view vertPath, std::string_view fragPath)
 
 Shader::~Shader() { glDeleteProgram(m_Id); }
 
-void Shader::validateLayout(const se::render::BufferLayout& layout, GLuint instanceAttribBase) const {
+void Shader::validateLayout(const se::render::BufferLayout& layout) const {
 #ifndef NDEBUG
     GLint activeAttribs = 0;
     glGetProgramInterfaceiv(m_Id, GL_PROGRAM_INPUT, GL_ACTIVE_RESOURCES, &activeAttribs);
@@ -127,6 +128,7 @@ void Shader::validateLayout(const se::render::BufferLayout& layout, GLuint insta
         }
 
         // Skip instance attribs, they're owned by Mesh::setupInstanceAttributes
+        auto instanceAttribBase = static_cast<GLuint>(layout.getElements().size());
         if (instanceAttribBase > 0 && location >= static_cast<GLint>(instanceAttribBase)) {
             continue;
         }

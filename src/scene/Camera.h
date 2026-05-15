@@ -33,7 +33,7 @@ private:
     float m_Yaw = 0.0f;
     float m_Pitch = 0.0f;
 
-    float m_AspectRatio = 16.0f / 9.0f;
+    float m_AspectRatio = 16.0f / 9.0f;  // updated by resize events
     glm::vec3 m_Position{-25.0f, 15.0f, 0.0f};
     float m_Fov = 80.0f;
     float m_Near = 0.1f;

@@ -32,7 +32,7 @@ struct MaterialParams {
 
 class Material : public Asset {
 public:
-    explicit Material(std::string name, ShaderHandle shader, const MaterialTextures& textures,
+    explicit Material(std::string name, ShaderHandle handle, const MaterialTextures& textures,
                       const MaterialParams& params, const RenderState& state);
     ~Material() override = default;
 

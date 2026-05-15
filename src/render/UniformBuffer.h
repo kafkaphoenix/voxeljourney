@@ -3,7 +3,7 @@
 #include <span>
 
 #include "Buffer.h"
-#include "UboBindings.h"
+#include "UboDefinitions.h"
 
 namespace se::render {
 class UniformBuffer {

@@ -2,50 +2,26 @@
 
 #include <algorithm>
 #include <cmath>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <vector>
+#include <stdexcept>
+#include <string>
 
 namespace se::scene {
 
-namespace {
+Animator::Animator(se::assets::ModelHandle handle, int clipIndex) : m_Model(handle), m_ClipIndex(clipIndex) {
+    m_Bones.fill(glm::mat4{1.0f});
 
-template <typename T>
-size_t findKeyframeIndex(const std::vector<se::assets::Keyframe<T>>& keys, float time) {
-    if (keys.size() <= 1) {
-        return 0;
-    }
-
-    for (size_t i = 0; i < keys.size() - 1; ++i) {
-        if (time < keys[i + 1].time) {
-            return i;
+    auto model = m_Model.get();
+    if (model) {
+        const auto& animations = model->getAnimations();
+        if (animations.empty()) {
+            m_ClipIndex = -1;
+        } else {
+            m_ClipIndex = std::clamp(m_ClipIndex, 0, static_cast<int>(animations.size()) - 1);
         }
     }
 
-    return keys.size() - 2;
-}
-
-template <typename T>
-float scaleFactor(const std::vector<se::assets::Keyframe<T>>& keys, size_t index, float time) {
-    float t0 = keys[index].time;
-    float t1 = keys[index + 1].time;
-
-    float dt = t1 - t0;
-
-    if (dt <= 0.0f) {
-        return 0.0f;
-    }
-
-    return std::clamp((time - t0) / dt, 0.0f, 1.0f);
-}
-
-}  // namespace
-
-Animator::Animator(se::assets::ModelHandle model, int clipIndex) : m_Model(model), m_ClipIndex(clipIndex) {
-    m_BoneMatrices.fill(glm::mat4{1.0f});
-
     if (clip()) {
-        calculateBoneTransforms();
+        evaluateCurrentPose();
     }
 }
 
@@ -54,7 +30,7 @@ float Animator::duration() const {
     return c ? c->duration : 0.0f;
 }
 
-void Animator::setClip(int clipIndex) {
+void Animator::play(int clipIndex) {
     if (m_ClipIndex == clipIndex) {
         return;
     }
@@ -62,13 +38,30 @@ void Animator::setClip(int clipIndex) {
     m_ClipIndex = clipIndex;
     m_CurrentTime = 0.0f;
     m_Playing = true;
+    m_BlendTimer = 0.0f;
+    m_BlendDuration = 0.0f;
 
-    calculateBoneTransforms();
+    evaluateCurrentPose();
 }
 
-void Animator::setClipFade(int clipIndex, float blendDuration) {
+void Animator::play(std::string_view clipName) {
+    auto model = m_Model.get();
+    if (!model) {
+        throw std::runtime_error("Model handle is invalid");
+    }
+
+    const auto clipIndex = model->findAnimationClipIndex(clipName);
+    if (!clipIndex.has_value()) {
+        throw std::runtime_error("Animator: clip '" + std::string(clipName) + "' not found in model '" +
+                                 std::string(model->getName()) + "'");
+    }
+
+    play(*clipIndex);
+}
+
+void Animator::blendTo(int clipIndex, float blendDuration) {
     if (blendDuration <= 0.0f) {
-        setClip(clipIndex);
+        play(clipIndex);
         return;
     }
 
@@ -76,7 +69,11 @@ void Animator::setClipFade(int clipIndex, float blendDuration) {
         return;
     }
 
-    samplePose(m_BlendFromPose, m_ClipIndex, m_CurrentTime);
+    if (const auto* currentClip = clip(); currentClip != nullptr) {
+        if (const auto* s = skeleton(); s != nullptr) {
+            currentClip->sample(m_CurrentTime, *s, m_BlendFromPose);
+        }
+    }
 
     m_BlendTimer = blendDuration;
     m_BlendDuration = blendDuration;
@@ -86,10 +83,32 @@ void Animator::setClipFade(int clipIndex, float blendDuration) {
     m_Playing = true;
 }
 
+void Animator::blendTo(std::string_view clipName, float blendDuration) {
+    auto model = m_Model.get();
+    if (!model) {
+        throw std::runtime_error("Model handle is invalid");
+    }
+
+    const auto clipIndex = model->findAnimationClipIndex(clipName);
+    if (!clipIndex.has_value()) {
+        throw std::runtime_error("Animator: clip '" + std::string(clipName) + "' not found in model '" +
+                                 std::string(model->getName()) + "'");
+    }
+
+    blendTo(*clipIndex, blendDuration);
+}
+
 void Animator::update(float deltaTime) {
     const auto* c = clip();
 
     if (!c || !m_Playing) {
+        return;
+    }
+
+    if (c->duration <= 0.0f) {
+        m_CurrentTime = 0.0f;
+        evaluateCurrentPose();
+        m_Playing = false;
         return;
     }
 
@@ -104,8 +123,12 @@ void Animator::update(float deltaTime) {
         }
     }
 
-    // Sample the current pose for blending and/or building final matrices
-    samplePose(m_LocalPose, m_ClipIndex, m_CurrentTime);
+    const auto* s = skeleton();
+    if (s == nullptr) {
+        return;
+    }
+
+    c->sample(m_CurrentTime, *s, m_LocalPose);
 
     if (m_BlendTimer > 0.0f) {
         m_BlendTimer = std::max(m_BlendTimer - deltaTime, 0.0f);
@@ -113,13 +136,13 @@ void Animator::update(float deltaTime) {
         const float t = 1.0f - std::clamp(m_BlendTimer / m_BlendDuration, 0.0f, 1.0f);
 
         // Blend between the previous pose and the current pose based on t, and build matrices from the blended pose
-        std::array<BonePose, se::assets::MAX_BONES> blendedPose{};
+        se::assets::Pose blendedPose{};
 
         const int n = boneCount();
 
         for (int i = 0; i < n && i < se::assets::MAX_BONES; ++i) {
-            const BonePose& from = m_BlendFromPose.at(i);
-            const BonePose& to = m_LocalPose.at(i);
+            const se::assets::BonePose& from = m_BlendFromPose.at(i);
+            const se::assets::BonePose& to = m_LocalPose.at(i);
 
             blendedPose.at(i).translation = glm::mix(from.translation, to.translation, t);
 
@@ -128,9 +151,9 @@ void Animator::update(float deltaTime) {
             blendedPose.at(i).scale = glm::mix(from.scale, to.scale, t);
         }
 
-        buildMatricesFromPose(blendedPose);
+        s->buildPalette(blendedPose, m_Bones);
     } else {  // No blending, just use the current pose
-        buildMatricesFromPose(m_LocalPose);
+        s->buildPalette(m_LocalPose, m_Bones);
     }
 }
 
@@ -142,23 +165,23 @@ void Animator::stop() {
     m_Playing = false;
     m_CurrentTime = 0.0f;
 
-    calculateBoneTransforms();
+    evaluateCurrentPose();
 }
 
 const se::assets::Skeleton* Animator::skeleton() const {
-    auto ptr = m_Model.get();
-
-    return (ptr && ptr->isAnimated()) ? &ptr->getSkeleton() : nullptr;
+    auto model = m_Model.get();
+    if (!model) {
+        throw std::runtime_error("Model handle is invalid");
+    }
+    return &model->getSkeleton();
 }
 
 const se::assets::AnimationClip* Animator::clip() const {
-    auto ptr = m_Model.get();
-
-    if (!ptr) {
-        return nullptr;
+    auto model = m_Model.get();
+    if (!model) {
+        throw std::runtime_error("Model handle is invalid");
     }
-
-    const auto& anims = ptr->getAnimations();
+    const auto& anims = model->getAnimations();
 
     if (m_ClipIndex < 0 || m_ClipIndex >= static_cast<int>(anims.size())) {
         return nullptr;
@@ -172,153 +195,15 @@ int Animator::boneCount() const {
     return s ? static_cast<int>(s->bones.size()) : 0;
 }
 
-// Calculate final bone matrices from the current local pose and the skeleton's inverse bind matrices, and store them in
-// m_BoneMatrices.
-void Animator::calculateBoneTransforms() {
-    samplePose(m_LocalPose, m_ClipIndex, m_CurrentTime);
-    buildMatricesFromPose(m_LocalPose);
-}
-
-void Animator::samplePose(std::array<BonePose, se::assets::MAX_BONES>& outPose, int clipIndex, float time) const {
+void Animator::evaluateCurrentPose() {
+    const auto* c = clip();
     const auto* s = skeleton();
-
-    if (!s) {
+    if (!c || !s) {
         return;
     }
 
-    const auto& bones = s->bones;
-
-    const int numBones = static_cast<int>(bones.size());
-
-    auto ptr = m_Model.get();
-
-    if (!ptr) {
-        return;
-    }
-
-    const auto& anims = ptr->getAnimations();
-
-    if (clipIndex < 0 || clipIndex >= static_cast<int>(anims.size())) {
-        return;
-    }
-
-    const auto& clip = anims.at(clipIndex);
-
-    // Start from rest pose
-    for (int i = 0; i < numBones && i < se::assets::MAX_BONES; ++i) {
-        outPose.at(i).translation = bones.at(i).restPosition;
-        outPose.at(i).rotation = bones.at(i).restRotation;
-        outPose.at(i).scale = bones.at(i).restScale;
-    }
-
-    // Override animated channels
-    for (const auto& channel : clip.channels) {
-        if (channel.boneIndex < 0 || channel.boneIndex >= numBones) {
-            continue;
-        }
-
-        if (!channel.translations.empty()) {
-            outPose.at(channel.boneIndex).translation = interpolatePosition(channel, time);
-        }
-
-        if (!channel.rotations.empty()) {
-            outPose.at(channel.boneIndex).rotation = interpolateRotation(channel, time);
-        }
-
-        if (!channel.scales.empty()) {
-            outPose.at(channel.boneIndex).scale = interpolateScale(channel, time);
-        }
-    }
-}
-
-void Animator::buildMatricesFromPose(const std::array<BonePose, se::assets::MAX_BONES>& pose) {
-    const auto* s = skeleton();
-
-    if (!s) {
-        return;
-    }
-
-    const auto& bones = s->bones;
-
-    const int numBones = static_cast<int>(bones.size());
-
-    for (int i = 0; i < numBones; ++i) {
-        const BonePose& p = pose.at(i);
-
-        glm::mat4 t = glm::translate(glm::mat4{1.0f}, p.translation);
-
-        glm::mat4 r = glm::toMat4(p.rotation);
-
-        glm::mat4 s = glm::scale(glm::mat4{1.0f}, p.scale);
-
-        m_LocalMatrices.at(i) = t * r * s;
-    }
-
-    for (int i = 0; i < numBones; ++i) {
-        if (bones.at(i).parent >= 0) {
-            m_GlobalMatrices.at(i) = m_GlobalMatrices.at(bones.at(i).parent) * m_LocalMatrices.at(i);
-        } else {
-            m_GlobalMatrices.at(i) = m_LocalMatrices.at(i);
-        }
-    }
-
-    for (int i = 0; i < numBones && i < se::assets::MAX_BONES; ++i) {
-        m_BoneMatrices.at(i) = m_GlobalMatrices.at(i) * bones.at(i).inverseBindMatrix;
-    }
-}
-
-glm::vec3 Animator::interpolatePosition(const se::assets::AnimationChannel& channel, float time) {
-    const auto& keys = channel.translations;
-
-    if (keys.size() == 1) {
-        return keys.at(0).value;
-    }
-
-    size_t i = findKeyframeIndex(keys, time);
-
-    if (channel.interpolation == se::assets::Interpolation::Step) {
-        return keys.at(i).value;
-    }
-
-    float f = scaleFactor(keys, i, time);
-
-    return glm::mix(keys.at(i).value, keys.at(i + 1).value, f);
-}
-
-glm::quat Animator::interpolateRotation(const se::assets::AnimationChannel& channel, float time) {
-    const auto& keys = channel.rotations;
-
-    if (keys.size() == 1) {
-        return keys.at(0).value;
-    }
-
-    size_t i = findKeyframeIndex(keys, time);
-
-    if (channel.interpolation == se::assets::Interpolation::Step) {
-        return keys.at(i).value;
-    }
-
-    float f = scaleFactor(keys, i, time);
-
-    return glm::slerp(keys.at(i).value, keys.at(i + 1).value, f);
-}
-
-glm::vec3 Animator::interpolateScale(const se::assets::AnimationChannel& channel, float time) {
-    const auto& keys = channel.scales;
-
-    if (keys.size() == 1) {
-        return keys.at(0).value;
-    }
-
-    size_t i = findKeyframeIndex(keys, time);
-
-    if (channel.interpolation == se::assets::Interpolation::Step) {
-        return keys.at(i).value;
-    }
-
-    float f = scaleFactor(keys, i, time);
-
-    return glm::mix(keys.at(i).value, keys.at(i + 1).value, f);
+    c->sample(m_CurrentTime, *s, m_LocalPose);
+    s->buildPalette(m_LocalPose, m_Bones);
 }
 
 }  // namespace se::scene

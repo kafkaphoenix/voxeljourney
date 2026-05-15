@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "Pose.h"
+
 namespace se::assets {
 
 // A single bone in the skeleton hierarchy.
@@ -28,8 +30,10 @@ struct Skeleton {
     // Maps glTF node index to bone index in this skeleton, or -1 if the node isn't a joint.
     // Used to match animation channels to bones.
     std::vector<int> nodeToJoint;
-};
 
-inline constexpr int MAX_BONES = 128;
+    // Builds the final palette of bone matrices for skinning by combining the current pose with the inverse bind
+    // matrices.
+    void buildPalette(const Pose& pose, BonePalette& outPalette) const;
+};
 
 }  // namespace se::assets

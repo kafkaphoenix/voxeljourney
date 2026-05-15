@@ -1,8 +1,12 @@
 #pragma once
+
 #include <glm/gtc/quaternion.hpp>
 #include <glm/vec3.hpp>
 #include <string>
 #include <vector>
+
+#include "Pose.h"
+#include "Skeleton.h"
 
 namespace se::assets {
 
@@ -31,6 +35,10 @@ struct AnimationClip {
     std::string name;
     float duration = 0.0f;  // max timestamp across all channels
     std::vector<AnimationChannel> channels;
+
+    // Evaluates the pose for the given time by sampling each channel and applying the animated transformations to the
+    // corresponding bones in the skeleton. The resulting pose is stored in outPose.
+    void sample(float time, const Skeleton& skeleton, Pose& outPose) const;
 };
 
 }  // namespace se::assets

@@ -136,7 +136,7 @@ void windowIconifyCallback(GLFWwindow* window, int iconified) {
 
 }
 
-Window::Window(const Config::Window& config, EventBus* eventBus)
+Window::Window(const Config::Window& config, const Config::Render& renderConfig, EventBus* eventBus)
     : m_EventBus(eventBus),
       m_Width(config.width),
       m_Height(config.height),
@@ -146,7 +146,7 @@ Window::Window(const Config::Window& config, EventBus* eventBus)
       m_BaseTitle(config.title),
       m_Vsync(config.vsync) {
     initGlfw();
-    setupGlfwHints();
+    setupGlfwHints(renderConfig);
     createWindow(config.width, config.height, m_Title);
     glfwSetWindowUserPointer(m_Window, this);
     try {
@@ -172,13 +172,13 @@ void Window::initGlfw() {
     }
 }
 
-void Window::setupGlfwHints() {
+void Window::setupGlfwHints(const Config::Render& renderConfig) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_SAMPLES, renderConfig.msaaSamples);
 }
 
 void Window::createWindow(int width, int height, std::string_view title) {
@@ -341,7 +341,7 @@ void Window::setMode(WindowMode newMode) {
         glfwSetWindowAttrib(m_Window, GLFW_DECORATED, GLFW_TRUE);
         monitor = nullptr;
         refresh = GLFW_DONT_CARE;
-        glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     } else {
         int nmonitors = 0;
         GLFWmonitor** monitors = glfwGetMonitors(&nmonitors);

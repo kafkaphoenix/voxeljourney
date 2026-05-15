@@ -11,9 +11,11 @@ mode = "windowed"
 mouseSmoothAlpha = 0.5
 
 [player]
-moveSpeed = 20.0
-sensitivity = 0.1
-fixedStep = 0.016
+walkSpeed = 20.0
+runSpeed = 40.0
+mouseSensitivity = 0.1
+useFixedStep = true
+fixedHz = 60.0
 cameraHeight = 10.0
 cameraDistance = 10.0
 startPosX = 0
@@ -22,9 +24,13 @@ startPosZ = 0
 
 [camera]
 fov = 90.0
-nearPlane = 0.1
-farPlane = 1000.0
-aspectRatio = 1.777
+nearPlane = 0.5
+farPlane = 500.0
+aspectRatio = 1.77777777778
+
+[render]
+msaaSamples = 4
+anisotropy = 8.0
 
 [stats]
 enabled = true

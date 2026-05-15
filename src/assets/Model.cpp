@@ -33,25 +33,65 @@ void updateAABB(se::render::AABB& aabb, const glm::vec3& pos, size_t i) {
     }
 }
 
-// attribute name -> raw source bytes, one entry per layout element
-using VertexSourceMap = std::unordered_map<std::string, std::span<const uint8_t>>;
+struct VertexSources {
+    std::span<const uint8_t> position;
+    std::span<const uint8_t> normal;
+    std::span<const uint8_t> texCoord;
+    std::span<const uint8_t> tangent;
+    std::span<const uint8_t> color;
+    std::span<const uint8_t> joints;
+    std::span<const uint8_t> weights;
+};
+
+std::span<const uint8_t> findSourceForAttribute(std::string_view attributeName, const VertexSources& sources) {
+    if (attributeName == "a_Position") {
+        return sources.position;
+    }
+    if (attributeName == "a_Normal") {
+        return sources.normal;
+    }
+    if (attributeName == "a_TexCoord") {
+        return sources.texCoord;
+    }
+    if (attributeName == "a_Tangent") {
+        return sources.tangent;
+    }
+    if (attributeName == "a_Color") {
+        return sources.color;
+    }
+    if (attributeName == "a_Joints") {
+        return sources.joints;
+    }
+    if (attributeName == "a_Weights") {
+        return sources.weights;
+    }
+    return {};
+}
 
 // Writes vertex data into a raw byte buffer driven entirely by the layout.
 // Each element is written at its layout offset; missing attributes are left zeroed.
-void packVertexData(const VertexSourceMap& sources, size_t vertexCount, const se::render::BufferLayout& layout,
+void packVertexData(const VertexSources& sources, size_t vertexCount, const se::render::BufferLayout& layout,
                     std::vector<uint8_t>& vertices) {
     vertices.resize(vertexCount * layout.getStride(), 0);
+
+    std::vector<std::span<const uint8_t>> orderedSources;
+    orderedSources.reserve(layout.getElements().size());
+    for (const auto& elem : layout.getElements()) {
+        orderedSources.push_back(findSourceForAttribute(elem.name, sources));
+    }
+
     for (size_t i = 0; i < vertexCount; ++i) {
         uint8_t* vptr = vertices.data() + i * layout.getStride();
-        for (const auto& elem : layout.getElements()) {
+        for (size_t e = 0; e < layout.getElements().size(); ++e) {
+            const auto& elem = layout.getElements()[e];
             const size_t elemBytes = static_cast<size_t>(elem.size) * elem.count;
-            auto it = sources.find(elem.name);
-            if (it == sources.end()) {
+            const auto& source = orderedSources[e];
+            if (source.empty()) {
                 continue;
             }
             const size_t srcOffset = i * elemBytes;
-            if (srcOffset + elemBytes <= it->second.size()) {
-                std::memcpy(vptr + elem.offset, it->second.data() + srcOffset, elemBytes);
+            if (srcOffset + elemBytes <= source.size()) {
+                std::memcpy(vptr + elem.offset, source.data() + srcOffset, elemBytes);
             }
         }
     }
@@ -225,11 +265,11 @@ TextureHandle createCheckerboardTexture(AssetManager& assetManager) {
         "<checkerboard>", std::span<const uint8_t>(PIXELS.data(), PIXELS.size()), SIZE, SIZE, 4);
 }
 
-MaterialHandle createDefaultMaterial(std::string_view name, AssetManager& assetManager, const ShaderHandle& shader) {
-    return assetManager.getOrLoadMaterial(name, shader, MaterialTextures{}, MaterialParams{}, RenderState{});
+MaterialHandle createDefaultMaterial(std::string_view name, AssetManager& assetManager, const ShaderHandle& handle) {
+    return assetManager.getOrLoadMaterial(name, handle, MaterialTextures{}, MaterialParams{}, RenderState{});
 }
 
-// Returns the image path string for a texture index, or "unknown" if it can't be resolved.
+// Returns the image path string for a texture index, or "unknown" if it can't be m_SceneFinalFbo.
 std::string resolveTexturePath(const tinygltf::Model& gltfModel, int texIndex) {
     if (texIndex < 0 || texIndex >= static_cast<int>(gltfModel.textures.size())) {
         return "unknown";
@@ -276,7 +316,7 @@ MaterialParams extractMaterialParams(const tinygltf::Material& mat) {
 }
 
 std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, AssetManager& assetManager,
-                                           const ShaderHandle& shader, const std::vector<TextureHandle>& textures,
+                                           const ShaderHandle& handle, const std::vector<TextureHandle>& textures,
                                            const TextureHandle& fallbackBaseColor) {
     std::vector<MaterialHandle> materials;
     materials.reserve(gltfModel.materials.size());
@@ -317,7 +357,7 @@ std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, Ass
         state.depthWrite = !state.blend;
         state.cull = !mat.doubleSided;
 
-        materials.push_back(assetManager.getOrLoadMaterial(matName, shader, matTextures, params, state));
+        materials.push_back(assetManager.getOrLoadMaterial(matName, handle, matTextures, params, state));
     }
     return materials;
 }
@@ -513,7 +553,8 @@ std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, cons
         clip.duration = 0.0f;
 
         // Group channels by bone index (a bone can have T, R, S channels).
-        std::unordered_map<int, AnimationChannel*> channelMap;
+        // Direct indexing avoids hash-map overhead during import.
+        std::vector<int> channelByBone(skeleton.bones.size(), -1);
 
         for (const auto& gltfChannel : gltfAnim.channels) {
             int nodeIdx = gltfChannel.target_node;
@@ -527,14 +568,14 @@ std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, cons
 
             // Get or create channel for this bone
             AnimationChannel* chan = nullptr;
-            auto it = channelMap.find(boneIdx);
-            if (it != channelMap.end()) {
-                chan = it->second;
+            int& channelIdx = channelByBone[static_cast<size_t>(boneIdx)];
+            if (channelIdx >= 0) {
+                chan = &clip.channels[static_cast<size_t>(channelIdx)];
             } else {
                 clip.channels.emplace_back();
                 chan = &clip.channels.back();
                 chan->boneIndex = boneIdx;
-                channelMap[boneIdx] = chan;
+                channelIdx = static_cast<int>(clip.channels.size()) - 1;
             }
 
             const auto& sampler = gltfAnim.samplers[gltfChannel.sampler];
@@ -697,16 +738,15 @@ std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& 
         return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(int32_t)};
     };
 
-    VertexSourceMap sources = {
-        {"a_Position", asBytes(positions)}, {"a_Normal", asBytes(normals)}, {"a_TexCoord", asBytes(texCoords)},
-        {"a_Tangent", asBytes(tangents)},   {"a_Color", asBytes(colors)},
+    VertexSources sources{
+        .position = asBytes(positions),
+        .normal = asBytes(normals),
+        .texCoord = asBytes(texCoords),
+        .tangent = asBytes(tangents),
+        .color = asBytes(colors),
+        .joints = joints.empty() ? std::span<const uint8_t>{} : asBytesInt(joints),
+        .weights = weights.empty() ? std::span<const uint8_t>{} : asBytes(weights),
     };
-    if (!joints.empty()) {
-        sources["a_Joints"] = asBytesInt(joints);
-    }
-    if (!weights.empty()) {
-        sources["a_Weights"] = asBytes(weights);
-    }
 
     std::vector<uint8_t> vertices;
     packVertexData(sources, vertexCount, layout, vertices);
@@ -726,29 +766,32 @@ MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive, const std::
 
 }  // namespace
 
-Model::Model(std::string gltfPath, ShaderHandle shader, AssetManager& assetManager) : Asset(std::move(gltfPath)) {
+Model::Model(std::string gltfPath, ShaderHandle handle, AssetManager& assetManager) : Asset(std::move(gltfPath)) {
     try {
         tinygltf::Model gltfModel = loadGltfModel(m_Name);
         std::string gltfDir = getDirectory(m_Name);
 
-        bool hasSkin = !gltfModel.skins.empty();
-        if (hasSkin) {
+        bool isAnimated = !gltfModel.skins.empty();
+        if (isAnimated) {
             m_Skeleton = loadSkeleton(gltfModel, gltfModel.skins[0]);
             m_Animations = loadAnimations(gltfModel, *m_Skeleton);
-            std::println("Loaded skeleton with {} bones, {} animations from '{}'", m_Skeleton->bones.size(),
-                         m_Animations.size(), m_Name);
+            m_AnimationIndexByName.reserve(m_Animations.size());
+            for (int i = 0; i < static_cast<int>(m_Animations.size()); ++i) {
+                m_AnimationIndexByName.try_emplace(m_Animations[i].name, i);
+            }
         }
 
         auto gltfTextures = loadGltfTextures(gltfModel, gltfDir, assetManager, m_Name);
         auto checkerboard = createCheckerboardTexture(assetManager);
-        auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Name), assetManager, shader);
-        auto gltfMaterials = buildMaterials(gltfModel, assetManager, shader, gltfTextures, checkerboard);
+        auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Name), assetManager, handle);
+        auto gltfMaterials = buildMaterials(gltfModel, assetManager, handle, gltfTextures, checkerboard);
 
-        auto meshLayout = hasSkin ? buildSkinnedMeshLayout() : buildStaticMeshLayout();
-        // Animated models are not instanced
-        bool instanced = !hasSkin;
-        auto instanceAttribBase = static_cast<GLuint>(meshLayout.getElements().size());
-        shader.get()->validateLayout(meshLayout, instanceAttribBase);
+        auto shader = handle.get();
+        if (!shader) {
+            throw std::runtime_error("Shader handle is invalid");
+        }
+        auto meshLayout = isAnimated ? buildSkinnedMeshLayout() : buildStaticMeshLayout();
+        shader->validateLayout(meshLayout);
 
         size_t totalPrimitives = 0;
         for (const auto& mesh : gltfModel.meshes) { totalPrimitives += mesh.primitives.size(); }
@@ -756,7 +799,7 @@ Model::Model(std::string gltfPath, ShaderHandle shader, AssetManager& assetManag
 
         for (const auto& mesh : gltfModel.meshes) {
             for (const auto& primitive : mesh.primitives) {
-                auto meshPtr = buildMeshFromPrimitive(gltfModel, primitive, meshLayout, instanced);
+                auto meshPtr = buildMeshFromPrimitive(gltfModel, primitive, meshLayout, !isAnimated);
                 if (!meshPtr) {
                     continue;
                 }
@@ -766,6 +809,21 @@ Model::Model(std::string gltfPath, ShaderHandle shader, AssetManager& assetManag
     } catch (const std::exception& e) {
         throw std::runtime_error(std::format("Failed to load model '{}': {}", m_Name, e.what()));
     }
+}
+
+const Skeleton& Model::getSkeleton() const {
+    if (!m_Skeleton) {
+        throw std::runtime_error("Model does not contain a skeleton");
+    }
+    return *m_Skeleton;
+}
+
+std::optional<int> Model::findAnimationClipIndex(std::string_view clipName) const {
+    const auto it = m_AnimationIndexByName.find(clipName);
+    if (it == m_AnimationIndexByName.end()) {
+        return std::nullopt;
+    }
+    return it->second;
 }
 
 std::string Model::getDirectory(std::string_view filepath) {

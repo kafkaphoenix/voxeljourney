@@ -41,6 +41,8 @@ The engine is organized into several modules, each responsible for a specific as
 - Texture: Image loading and OpenGL texture setup.
 - Material: Shader + textures + render state, matching glTF data. Lighting is simple diffuse.
 - Model: Loads glTF/glb into meshes and materials.
+- Animation: Stores skeletal animation clips, channels, and keyframes for animating bones over time.
+- Skeleton: Defines the bone hierarchy, inverse bind matrices, and rest pose transforms used for skinning and animation.
 
 ### Render
 - VertexArray: OpenGL VAO wrapper for vertex attribute setup.

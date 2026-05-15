@@ -12,7 +12,7 @@ class EventBus;
 
 class Window {
 public:
-    Window(const Config::Window& config, EventBus* eventBus);
+    Window(const Config::Window& config, const Config::Render& renderConfig, EventBus* eventBus);
     ~Window();
 
     static void pollEvents() { glfwPollEvents(); }
@@ -43,7 +43,7 @@ private:
     friend void windowGlDebugCallback(unsigned int source, unsigned int type, unsigned int id, unsigned int severity,
                                       int length, const char* message, const void* userParam);
     static void initGlfw();
-    static void setupGlfwHints();
+    static void setupGlfwHints(const Config::Render& renderConfig);
     void createWindow(int width, int height, std::string_view title);
     void initGlad();
     void setupGlDebug();

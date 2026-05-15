@@ -1,9 +1,10 @@
 #pragma once
 
+#include <memory>
 #include <span>
 #include <vector>
 
-#include "AnimatedActor.h"
+#include "AnimatedInstance.h"
 #include "ChunkRenderable.h"
 #include "Light.h"
 #include "LightData.h"
@@ -35,23 +36,23 @@ public:
     [[nodiscard]] Sky& getSky() { return m_Sky; }
     [[nodiscard]] const Sky& getSky() const { return m_Sky; }
 
-    AnimatedActor& addAnimatedActor(AnimatedActor actor) {
-        return *m_AnimatedActors.emplace_back(std::make_unique<AnimatedActor>(std::move(actor)));
+    AnimatedInstance& addAnimatedInstance(AnimatedInstance instance) {
+        return *m_AnimatedInstances.emplace_back(std::make_unique<AnimatedInstance>(std::move(instance)));
     }
 
-    [[nodiscard]] AnimatedActor* findActor(std::string_view tag) {
-        for (auto& a : m_AnimatedActors) {
-            if (a->getTag() == tag) {
+    [[nodiscard]] AnimatedInstance* findAnimatedInstance(std::string_view tag) {
+        for (auto& a : m_AnimatedInstances) {
+            if (a->tag == tag) {
                 return a.get();
             }
         }
         return nullptr;
     }
 
-    [[nodiscard]] const auto& getAnimatedActors() const { return m_AnimatedActors; }
+    [[nodiscard]] const auto& getAnimatedInstances() const { return m_AnimatedInstances; }
 
     void update(float deltaTime) {
-        for (auto& a : m_AnimatedActors) { a->update(deltaTime); }
+        for (auto& a : m_AnimatedInstances) { a->animator.update(deltaTime); }
     }
 
     // LightData is a zero-copy view into Scene's light vectors.
@@ -73,7 +74,7 @@ private:
     std::vector<SpotLight> m_SpotLights;
     std::vector<Renderable> m_Renderables;
     std::unordered_map<glm::ivec3, ChunkRenderable> m_ChunkRenderables;
-    std::vector<std::unique_ptr<AnimatedActor>> m_AnimatedActors;
+    std::vector<std::unique_ptr<AnimatedInstance>> m_AnimatedInstances;
 };
 
 }  // namespace se::scene

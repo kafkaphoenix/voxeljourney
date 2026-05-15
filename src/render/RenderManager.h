@@ -11,24 +11,25 @@
 #include "PostProcessRenderer.h"
 #include "RenderStats.h"
 #include "TerrainRenderer.h"
+#include "core/Config.h"
 
 namespace se::scene {
 class Camera;
 struct LightData;
 struct Renderable;
 struct ChunkRenderable;
+struct AnimatedRenderable;
 }  // namespace se::scene
 
 namespace se::render {
 
 class RenderManager {
 public:
-    RenderManager();
+    explicit RenderManager(const se::core::Config::Render& renderConfig);
 
     void beginFrame(const se::scene::Camera& camera);
     void submit(const se::scene::Renderable& renderable);
     void submit(const se::scene::ChunkRenderable& chunkRenderable);
-    void submitAnimated(const se::scene::Renderable& renderable, std::span<const glm::mat4> boneMatrices);
     void endFrame(const se::scene::LightData& lights);
 
     void resizeFramebuffer(int width, int height);
@@ -44,6 +45,7 @@ public:
 
 private:
     void initFramebuffer(int width, int height);
+    void resolveMsaaToFinalFramebuffer() const;
     static void setupGlState();
 
     const se::scene::Camera* m_Camera = nullptr;
@@ -53,9 +55,11 @@ private:
     PostProcessRenderer m_PostProcess;
     RenderStats m_Stats;
     bool m_Wireframe = false;
+    int m_MsaaSamples = 4;
 
     // Off-screen rendering
-    std::optional<Framebuffer> m_SceneFbo;
+    std::optional<Framebuffer> m_SceneMsaaFbo;
+    std::optional<Framebuffer> m_SceneFinalFbo;
 };
 
 }  // namespace se::render

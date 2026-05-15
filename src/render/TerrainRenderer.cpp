@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "assets/AssetManager.h"
-#include "render/UboBindings.h"
+#include "render/UboDefinitions.h"
 #include "scene/Camera.h"
 #include "scene/ChunkRenderable.h"
 #include "scene/Light.h"

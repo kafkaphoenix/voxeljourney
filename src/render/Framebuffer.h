@@ -9,6 +9,7 @@ namespace se::render {
 struct FramebufferSpec {
     int width = 0;
     int height = 0;
+    int samples = 1;  // 1 = single-sample, >1 = MSAA
     std::vector<GLenum> colorAttachments = {GL_RGBA8};
     bool depthStencil = true;   // depth24/stencil8 renderbuffer
     bool depthTexture = false;  // use a depth texture instead of renderbuffer (for shadow maps)
@@ -38,6 +39,7 @@ public:
     [[nodiscard]] unsigned int depthAttachment() const { return m_DepthStencilId; }
     [[nodiscard]] int width() const { return m_Spec.width; }
     [[nodiscard]] int height() const { return m_Spec.height; }
+    [[nodiscard]] bool isMultisampled() const { return m_Spec.samples > 1; }
     [[nodiscard]] const FramebufferSpec& spec() const { return m_Spec; }
 
 private:

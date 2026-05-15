@@ -9,6 +9,9 @@ Framebuffer::Framebuffer(FramebufferSpec spec) : m_Spec(std::move(spec)) {
     if (m_Spec.width <= 0 || m_Spec.height <= 0) {
         throw std::runtime_error(std::format("Invalid framebuffer dimensions: {}x{}", m_Spec.width, m_Spec.height));
     }
+    if (m_Spec.samples < 1) {
+        throw std::runtime_error(std::format("Invalid framebuffer sample count: {}", m_Spec.samples));
+    }
     create();
 }
 
@@ -68,12 +71,18 @@ void Framebuffer::bindColorTexture(unsigned int slot, size_t attachmentIndex) co
         throw std::runtime_error(
             std::format("Color attachment index {} out of range ({})", attachmentIndex, m_ColorAttachments.size()));
     }
+    if (m_Spec.samples > 1) {
+        throw std::runtime_error("Cannot bind multisampled color attachment as regular texture");
+    }
     glBindTextureUnit(slot, m_ColorAttachments[attachmentIndex]);
 }
 
 void Framebuffer::bindDepthTexture(unsigned int slot) const {
     if (!m_Spec.depthTexture) {
         throw std::runtime_error("Depth attachment is a renderbuffer, not a texture");
+    }
+    if (m_Spec.samples > 1) {
+        throw std::runtime_error("Cannot bind multisampled depth attachment as regular texture");
     }
     glBindTextureUnit(slot, m_DepthStencilId);
 }
@@ -94,13 +103,19 @@ void Framebuffer::create() {
     // Color attachments (textures)
     m_ColorAttachments.resize(m_Spec.colorAttachments.size());
     if (!m_ColorAttachments.empty()) {
-        glCreateTextures(GL_TEXTURE_2D, static_cast<GLsizei>(m_ColorAttachments.size()), m_ColorAttachments.data());
+        const GLenum target = m_Spec.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+        glCreateTextures(target, static_cast<GLsizei>(m_ColorAttachments.size()), m_ColorAttachments.data());
     }
 
     for (size_t i = 0; i < m_ColorAttachments.size(); ++i) {
         unsigned int texId = m_ColorAttachments[i];
 
-        glTextureStorage2D(texId, 1, m_Spec.colorAttachments[i], m_Spec.width, m_Spec.height);
+        if (m_Spec.samples > 1) {
+            glTextureStorage2DMultisample(texId, m_Spec.samples, m_Spec.colorAttachments[i], m_Spec.width,
+                                          m_Spec.height, GL_TRUE);
+        } else {
+            glTextureStorage2D(texId, 1, m_Spec.colorAttachments[i], m_Spec.width, m_Spec.height);
+        }
         glNamedFramebufferTexture(m_Id, GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(i), texId, 0);
 
         std::string texLabel = std::format("FBO Color {} [{}]", i, reinterpret_cast<uintptr_t>(this));
@@ -122,15 +137,26 @@ void Framebuffer::create() {
 
     // Depth/stencil attachment
     if (m_Spec.depthTexture) {
-        glCreateTextures(GL_TEXTURE_2D, 1, &m_DepthStencilId);
-        glTextureStorage2D(m_DepthStencilId, 1, GL_DEPTH24_STENCIL8, m_Spec.width, m_Spec.height);
+        const GLenum target = m_Spec.samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+        glCreateTextures(target, 1, &m_DepthStencilId);
+        if (m_Spec.samples > 1) {
+            glTextureStorage2DMultisample(m_DepthStencilId, m_Spec.samples, GL_DEPTH24_STENCIL8, m_Spec.width,
+                                          m_Spec.height, GL_TRUE);
+        } else {
+            glTextureStorage2D(m_DepthStencilId, 1, GL_DEPTH24_STENCIL8, m_Spec.width, m_Spec.height);
+        }
         glNamedFramebufferTexture(m_Id, GL_DEPTH_STENCIL_ATTACHMENT, m_DepthStencilId, 0);
 
         std::string depthLabel = std::format("FBO Depth Tex [{}]", reinterpret_cast<uintptr_t>(this));
         glObjectLabel(GL_TEXTURE, m_DepthStencilId, static_cast<GLsizei>(depthLabel.size()), depthLabel.c_str());
     } else if (m_Spec.depthStencil) {
         glCreateRenderbuffers(1, &m_DepthStencilId);
-        glNamedRenderbufferStorage(m_DepthStencilId, GL_DEPTH24_STENCIL8, m_Spec.width, m_Spec.height);
+        if (m_Spec.samples > 1) {
+            glNamedRenderbufferStorageMultisample(m_DepthStencilId, m_Spec.samples, GL_DEPTH24_STENCIL8, m_Spec.width,
+                                                  m_Spec.height);
+        } else {
+            glNamedRenderbufferStorage(m_DepthStencilId, GL_DEPTH24_STENCIL8, m_Spec.width, m_Spec.height);
+        }
         glNamedFramebufferRenderbuffer(m_Id, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, m_DepthStencilId);
 
         std::string rboLabel = std::format("FBO Depth RBO [{}]", reinterpret_cast<uintptr_t>(this));

@@ -26,9 +26,11 @@ public:
     };
 
     struct Player {
-        float moveSpeed;
-        float sensitivity;
-        float fixedStep;
+        float walkSpeed;
+        float runSpeed;
+        float mouseSensitivity;
+        bool useFixedStep;
+        float fixedHz;
         float cameraHeight;
         float cameraDistance;
         glm::vec3 startPosition;
@@ -43,8 +45,7 @@ public:
 
     struct Stats {
         bool enabled;
-        // How often to update stats in seconds. A lower interval will update more frequently
-        // but may cause more performance overhead.
+        // How often to update stats in seconds (lower interval = more frequent updates, higher performance overhead).
         float refreshInterval;
     };
 
@@ -52,6 +53,11 @@ public:
         // How many chunks away from the player to render. A higher render distance will show more of the world
         // but may cause more performance overhead.
         int renderDistance = 8;
+    };
+
+    struct Render {
+        int msaaSamples;
+        float anisotropy;
     };
 
     static Config load(std::string_view path);
@@ -62,6 +68,7 @@ public:
     [[nodiscard]] const Camera& camera() const { return m_Camera; }
     [[nodiscard]] const Stats& stats() const { return m_Stats; }
     [[nodiscard]] const World& world() const { return m_World; }
+    [[nodiscard]] const Render& render() const { return m_Render; }
 
 private:
     static void readWindow(const toml::table& t, Window& w);
@@ -70,6 +77,7 @@ private:
     static void readCamera(const toml::table& t, Camera& c);
     static void readStats(const toml::table& t, Stats& s);
     static void readWorld(const toml::table& t, World& w);
+    static void readRender(const toml::table& t, Render& r);
 
     static WindowMode parseWindowMode(std::string_view s);
 
@@ -82,6 +90,7 @@ private:
     Camera m_Camera{};
     Stats m_Stats{};
     World m_World{};
+    Render m_Render{};
 };
 
 }  // namespace se::core

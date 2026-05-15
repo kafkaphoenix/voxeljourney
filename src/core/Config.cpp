@@ -38,7 +38,7 @@ T optional(const toml::table& t, std::string_view key, T fallback) {
 }
 
 template <typename T>
-    requires std::is_arithmetic_v<T>
+requires std::is_arithmetic_v<T>
 void requireRange(std::string_view key, T v, T min, T max) {
     if (v < min || v > max) {
         throwConfigError(std::format("'{}' out of range", key));
@@ -46,7 +46,7 @@ void requireRange(std::string_view key, T v, T min, T max) {
 }
 
 template <typename T>
-    requires std::is_arithmetic_v<T>
+requires std::is_arithmetic_v<T>
 void requireGreater(std::string_view key, T v, T min) {
     if (v <= min) {
         throwConfigError(std::format("'{}' must be > {}", key, min));
@@ -83,6 +83,7 @@ Config Config::load(std::string_view path) {
     readCamera(t, cfg.m_Camera);
     readStats(t, cfg.m_Stats);
     readWorld(t, cfg.m_World);
+    readRender(t, cfg.m_Render);
 
     return cfg;
 }
@@ -113,9 +114,12 @@ void Config::readInput(const toml::table& t, Input& i) {
 void Config::readPlayer(const toml::table& t, Player& p) {
     const auto& tp = *t["player"].as_table();
 
-    p.moveSpeed = require<float>(tp, "moveSpeed");
-    p.sensitivity = require<float>(tp, "sensitivity");
-    p.fixedStep = require<float>(tp, "fixedStep");
+    p.walkSpeed = require<float>(tp, "walkSpeed");
+    p.runSpeed = require<float>(tp, "runSpeed");
+    p.mouseSensitivity = require<float>(tp, "mouseSensitivity");
+    p.useFixedStep = optional<bool>(tp, "useFixedStep", true);
+    p.fixedHz = p.useFixedStep ? require<float>(tp, "fixedHz") : optional<float>(tp, "fixedHz", 60.f);
+
     p.cameraHeight = require<float>(tp, "cameraHeight");
     p.cameraDistance = require<float>(tp, "cameraDistance");
 
@@ -123,9 +127,16 @@ void Config::readPlayer(const toml::table& t, Player& p) {
     p.startPosition.y = require<float>(tp, "startPosY");
     p.startPosition.z = require<float>(tp, "startPosZ");
 
-    requireGreater("player.moveSpeed", p.moveSpeed, 0.f);
-    requireGreater("player.sensitivity", p.sensitivity, 0.f);
-    requireGreater("player.fixedStep", p.fixedStep, 0.f);
+    requireGreater("player.walkSpeed", p.walkSpeed, 0.f);
+    requireGreater("player.runSpeed", p.runSpeed, 0.f);
+    requireGreater("player.mouseSensitivity", p.mouseSensitivity, 0.f);
+    requireRange("player.fixedHz", p.fixedHz, 1.f, 240.f);
+    requireGreater("player.cameraHeight", p.cameraHeight, 0.f);
+    requireGreater("player.cameraDistance", p.cameraDistance, 0.f);
+
+    if (p.walkSpeed >= p.runSpeed) {
+        throwConfigError("player.walkSpeed must be < player.runSpeed");
+    }
 }
 
 void Config::readCamera(const toml::table& t, Camera& c) {
@@ -134,10 +145,11 @@ void Config::readCamera(const toml::table& t, Camera& c) {
     c.fov = require<float>(tc, "fov");
     c.nearPlane = require<float>(tc, "nearPlane");
     c.farPlane = require<float>(tc, "farPlane");
-    c.aspectRatio = require<float>(tc, "aspectRatio");
+    c.aspectRatio = optional<float>(tc, "aspectRatio", 16.f / 9.f);
 
     requireRange("camera.fov", c.fov, 1.f, 179.f);
     requireGreater("camera.nearPlane", c.nearPlane, 0.f);
+    requireGreater("camera.farPlane", c.farPlane, 0.f);
     requireGreater("camera.aspectRatio", c.aspectRatio, 0.f);
 
     if (c.farPlane <= c.nearPlane) {
@@ -161,4 +173,18 @@ void Config::readWorld(const toml::table& t, World& w) {
 
     requireGreater("world.renderDistance", w.renderDistance, 0);
 }
+
+void Config::readRender(const toml::table& t, Render& r) {
+    if (const auto* tr = t["render"].as_table()) {
+        r.msaaSamples = optional<int>(*tr, "msaaSamples", 4);
+        r.anisotropy = optional<float>(*tr, "anisotropy", 4.0f);
+    } else {
+        r.msaaSamples = 4;
+        r.anisotropy = 4.0f;
+    }
+
+    requireRange("render.msaaSamples", r.msaaSamples, 1, 16);
+    requireRange("render.anisotropy", r.anisotropy, 1.0f, 16.0f);
+}
+
 }  // namespace se::core

@@ -29,7 +29,7 @@ public:
 
     [[nodiscard]] unsigned int id() const { return m_Id; }
 
-    void validateLayout(const se::render::BufferLayout& layout, GLuint instanceAttribBase) const;
+    void validateLayout(const se::render::BufferLayout& layout) const;
 
     void setInt(std::string_view name, int value);
     void setFloat(std::string_view name, float value);
@@ -43,6 +43,9 @@ public:
 private:
     // Returns cached location, or queries and caches it on first call.
     int getUniformLocation(std::string_view name);
+    static std::string loadFile(std::string_view path);
+    void checkShaderCompilation(unsigned int shader, std::string_view type) const;
+    void checkProgramLinking() const;
 
     unsigned int m_Id = 0;
     std::string m_VertPath;
