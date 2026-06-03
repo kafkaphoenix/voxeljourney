@@ -52,7 +52,10 @@ public:
     [[nodiscard]] const auto& getAnimatedInstances() const { return m_AnimatedInstances; }
 
     void update(float deltaTime) {
-        for (auto& a : m_AnimatedInstances) { a->animator.update(deltaTime); }
+        for (auto& a : m_AnimatedInstances) {
+            a->controller.apply(a->animator);
+            a->animator.update(deltaTime);
+        }
     }
 
     // LightData is a zero-copy view into Scene's light vectors.

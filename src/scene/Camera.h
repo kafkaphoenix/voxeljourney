@@ -1,4 +1,5 @@
 #pragma once
+
 #include <glm/glm.hpp>
 
 #include "core/Config.h"
@@ -7,7 +8,7 @@ namespace se::scene {
 
 class Camera {
 public:
-    Camera(const se::core::Config::Camera& config);
+    explicit Camera(const se::core::config::Camera& config);
 
     [[nodiscard]] glm::mat4 getViewProjection() const;
     [[nodiscard]] glm::vec3 getPosition() const { return m_Position; }

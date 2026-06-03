@@ -6,7 +6,7 @@
 
 namespace se::core {
 
-StatsTracker::StatsTracker(const Config::Stats& config)
+StatsTracker::StatsTracker(const config::Stats& config)
     : m_Enabled(config.enabled), m_RefreshInterval(config.refreshInterval) {}
 
 void StatsTracker::reset() {

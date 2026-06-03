@@ -10,7 +10,7 @@ namespace se::core {
 
 class StatsTracker {
 public:
-    explicit StatsTracker(const Config::Stats& config);
+    explicit StatsTracker(const config::Stats& config);
 
     void setEnabled(bool enabled) { m_Enabled = enabled; }
     [[nodiscard]] bool enabled() const { return m_Enabled; }

@@ -16,7 +16,7 @@ namespace se::voxel {
 
 class World {
 public:
-    explicit World(const se::core::Config::World& config);
+    explicit World(const se::core::config::World& config);
 
     void setVoxel(const glm::ivec3& worldCoord, VoxelType type);
     void updateChunks(se::scene::Scene& scene, const glm::vec3& playerWorldPos);

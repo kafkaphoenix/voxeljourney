@@ -9,7 +9,7 @@
 
 namespace se::voxel {
 
-World::World(const se::core::Config::World& config) : m_RenderDistance(config.renderDistance) {
+World::World(const se::core::config::World& config) : m_RenderDistance(config.renderDistance) {
     // to remove
     auto& chunk = m_ChunkMap.createChunk(glm::ivec3(0));
     // replace with actual terrain generation later.

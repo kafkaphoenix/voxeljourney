@@ -3,6 +3,8 @@
 #include <format>
 #include <stdexcept>
 
+using namespace se::core::config;
+
 namespace se::core {
 
 namespace {
@@ -24,6 +26,36 @@ T require(const toml::table& t, std::string_view key) {
     }
 
     return *value;
+}
+
+template <typename T>
+concept GlmVec = requires {
+    typename T::value_type;
+    { T::length() } -> std::convertible_to<glm::length_t>;
+}
+&&std::is_same_v<typename T::value_type, float>;
+
+template <GlmVec T>
+T require(const toml::table& t, std::string_view key) {
+    constexpr glm::length_t N = T::length();
+    auto node = t[key];
+    if (!node)
+        throwConfigError(std::format("missing key '{}'", key));
+
+    const auto* arr = node.as_array();
+    if (!arr || static_cast<glm::length_t>(arr->size()) != N)
+        throwConfigError(std::format("'{}' must be an array with {} elements", key, N));
+
+    T result;
+    for (glm::length_t i = 0; i < N; ++i) {
+        if (auto v = arr->get_as<double>(i))
+            result[i] = static_cast<float>(v->get());
+        else if (auto v = arr->get_as<int64_t>(i))
+            result[i] = static_cast<float>(v->get());
+        else
+            throwConfigError(std::format("'{}[{}]' must be a number", key, i));
+    }
+    return result;
 }
 
 template <typename T>
@@ -53,6 +85,16 @@ void requireGreater(std::string_view key, T v, T min) {
     }
 }
 
+const toml::table& requireTable(const toml::table& t, std::string_view key) {
+    auto* table = t[key].as_table();
+
+    if (!table) {
+        throwConfigError(std::format("missing table '[{}]'", key));
+    }
+
+    return *table;
+}
+
 }  // namespace
 
 WindowMode Config::parseWindowMode(std::string_view s) {
@@ -78,9 +120,10 @@ Config Config::load(std::string_view path) {
     } catch (const toml::parse_error& e) { throwConfigError(e.description()); }
 
     readWindow(t, cfg.m_Window);
-    readInput(t, cfg.m_Input);
     readPlayer(t, cfg.m_Player);
     readCamera(t, cfg.m_Camera);
+    readCharacterController(t, cfg.m_CharacterController);
+    readThirdPersonCameraController(t, cfg.m_ThirdPersonCameraController);
     readStats(t, cfg.m_Stats);
     readWorld(t, cfg.m_World);
     readRender(t, cfg.m_Render);
@@ -89,7 +132,7 @@ Config Config::load(std::string_view path) {
 }
 
 void Config::readWindow(const toml::table& t, Window& w) {
-    const auto& tw = *t["window"].as_table();
+    const auto& tw = requireTable(t, "window");
 
     w.title = require<std::string>(tw, "title");
     w.width = require<int>(tw, "width");
@@ -104,43 +147,34 @@ void Config::readWindow(const toml::table& t, Window& w) {
     requireGreater("window.height", w.height, 0);
 }
 
-void Config::readInput(const toml::table& t, Input& i) {
-    const auto& ti = *t["input"].as_table();
+void Config::readPlayer(const toml::table& t, Player& p) {
+    const auto& tp = requireTable(t, "player");
 
-    i.mouseSmoothAlpha = require<float>(ti, "mouseSmoothAlpha");
-    requireRange("input.mouseSmoothAlpha", i.mouseSmoothAlpha, 0.f, 1.f);
+    p.spawn = require<glm::vec3>(tp, "spawn");
 }
 
-void Config::readPlayer(const toml::table& t, Player& p) {
-    const auto& tp = *t["player"].as_table();
+void Config::readCharacterController(const toml::table& t, CharacterController& cc) {
+    const auto& tm = requireTable(t, "characterController");
 
-    p.walkSpeed = require<float>(tp, "walkSpeed");
-    p.runSpeed = require<float>(tp, "runSpeed");
-    p.mouseSensitivity = require<float>(tp, "mouseSensitivity");
-    p.useFixedStep = optional<bool>(tp, "useFixedStep", true);
-    p.fixedHz = p.useFixedStep ? require<float>(tp, "fixedHz") : optional<float>(tp, "fixedHz", 60.f);
+    cc.walkSpeed = require<float>(tm, "walkSpeed");
+    cc.runSpeed = require<float>(tm, "runSpeed");
+    cc.mouseSensitivity = require<float>(tm, "mouseSensitivity");
+    cc.mouseSmoothAlpha = optional<float>(tm, "mouseSmoothAlpha", 0.5f);
+    cc.useFixedStep = optional<bool>(tm, "useFixedStep", true);
+    cc.fixedHz = cc.useFixedStep ? require<float>(tm, "fixedHz") : optional<float>(tm, "fixedHz", 60.f);
 
-    p.cameraHeight = require<float>(tp, "cameraHeight");
-    p.cameraDistance = require<float>(tp, "cameraDistance");
+    requireGreater("characterController.walkSpeed", cc.walkSpeed, 0.f);
+    requireGreater("characterController.runSpeed", cc.runSpeed, 0.f);
+    requireGreater("characterController.mouseSensitivity", cc.mouseSensitivity, 0.f);
+    requireRange("characterController.fixedHz", cc.fixedHz, 1.f, 240.f);
 
-    p.startPosition.x = require<float>(tp, "startPosX");
-    p.startPosition.y = require<float>(tp, "startPosY");
-    p.startPosition.z = require<float>(tp, "startPosZ");
-
-    requireGreater("player.walkSpeed", p.walkSpeed, 0.f);
-    requireGreater("player.runSpeed", p.runSpeed, 0.f);
-    requireGreater("player.mouseSensitivity", p.mouseSensitivity, 0.f);
-    requireRange("player.fixedHz", p.fixedHz, 1.f, 240.f);
-    requireGreater("player.cameraHeight", p.cameraHeight, 0.f);
-    requireGreater("player.cameraDistance", p.cameraDistance, 0.f);
-
-    if (p.walkSpeed >= p.runSpeed) {
-        throwConfigError("player.walkSpeed must be < player.runSpeed");
+    if (cc.walkSpeed >= cc.runSpeed) {
+        throwConfigError("characterController.walkSpeed must be < characterController.runSpeed");
     }
 }
 
 void Config::readCamera(const toml::table& t, Camera& c) {
-    const auto& tc = *t["camera"].as_table();
+    const auto& tc = requireTable(t, "camera");
 
     c.fov = require<float>(tc, "fov");
     c.nearPlane = require<float>(tc, "nearPlane");
@@ -157,8 +191,18 @@ void Config::readCamera(const toml::table& t, Camera& c) {
     }
 }
 
+void Config::readThirdPersonCameraController(const toml::table& t, ThirdPersonCameraController& cc) {
+    const auto& tcc = requireTable(t, "thirdPersonCameraController");
+
+    cc.followDistance = require<float>(tcc, "followDistance");
+    cc.followHeight = require<float>(tcc, "followHeight");
+
+    requireGreater("thirdPersonCameraController.followDistance", cc.followDistance, 0.f);
+    requireGreater("thirdPersonCameraController.followHeight", cc.followHeight, 0.f);
+}
+
 void Config::readStats(const toml::table& t, Stats& s) {
-    const auto& ts = *t["stats"].as_table();
+    const auto& ts = requireTable(t, "stats");
 
     s.enabled = require<bool>(ts, "enabled");
     s.refreshInterval = require<float>(ts, "refreshInterval");
@@ -175,13 +219,10 @@ void Config::readWorld(const toml::table& t, World& w) {
 }
 
 void Config::readRender(const toml::table& t, Render& r) {
-    if (const auto* tr = t["render"].as_table()) {
-        r.msaaSamples = optional<int>(*tr, "msaaSamples", 4);
-        r.anisotropy = optional<float>(*tr, "anisotropy", 4.0f);
-    } else {
-        r.msaaSamples = 4;
-        r.anisotropy = 4.0f;
-    }
+    const auto& tr = requireTable(t, "render");
+
+    r.msaaSamples = require<int>(tr, "msaaSamples");
+    r.anisotropy = require<float>(tr, "anisotropy");
 
     requireRange("render.msaaSamples", r.msaaSamples, 1, 16);
     requireRange("render.anisotropy", r.anisotropy, 1.0f, 16.0f);

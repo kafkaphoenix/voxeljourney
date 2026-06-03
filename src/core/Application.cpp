@@ -82,8 +82,8 @@ void Application::handleShortcuts() {
 
     if (m_Input.isKeyPressed(GLFW_KEY_F12)) {
         switch (m_Window.mode()) {
-        case WindowMode::Windowed: m_Window.setMode(WindowMode::Fullscreen); break;
-        case WindowMode::Fullscreen: m_Window.setMode(WindowMode::Windowed); break;
+        case config::WindowMode::Windowed: m_Window.setMode(config::WindowMode::Fullscreen); break;
+        case config::WindowMode::Fullscreen: m_Window.setMode(config::WindowMode::Windowed); break;
         }
     }
 }

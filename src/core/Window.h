@@ -12,13 +12,13 @@ class EventBus;
 
 class Window {
 public:
-    Window(const Config::Window& config, const Config::Render& renderConfig, EventBus* eventBus);
+    Window(const config::Window& config, const config::Render& renderConfig, EventBus* eventBus);
     ~Window();
 
     static void pollEvents() { glfwPollEvents(); }
     static void waitEvents(double timeoutSeconds) { glfwWaitEventsTimeout(timeoutSeconds); }
     void swapBuffers() const;
-    void setMode(WindowMode mode);
+    void setMode(config::WindowMode mode);
     void onFramebufferResize(int width, int height);
     void onKeyEvent(int key, int scancode, int action, int mods);
     void onMouseButtonEvent(int button, int action, int mods);
@@ -34,7 +34,7 @@ public:
     [[nodiscard]] bool shouldClose() const;
     [[nodiscard]] bool isMinimized() const { return m_Minimized; }
     [[nodiscard]] bool isFocused() const { return m_Focused; }
-    [[nodiscard]] WindowMode mode() const { return m_Mode; }
+    [[nodiscard]] config::WindowMode mode() const { return m_Mode; }
     [[nodiscard]] bool isVsync() const { return m_Vsync; }
     [[nodiscard]] std::string_view getBaseTitle() const { return m_BaseTitle; }
     [[nodiscard]] GLFWwindow* native() const { return m_Window; }
@@ -43,7 +43,7 @@ private:
     friend void windowGlDebugCallback(unsigned int source, unsigned int type, unsigned int id, unsigned int severity,
                                       int length, const char* message, const void* userParam);
     static void initGlfw();
-    static void setupGlfwHints(const Config::Render& renderConfig);
+    static void setupGlfwHints(const config::Render& renderConfig);
     void createWindow(int width, int height, std::string_view title);
     void initGlad();
     void setupGlDebug();
@@ -59,11 +59,11 @@ private:
     bool m_Minimized = false;
     bool m_Focused = true;
     bool m_IgnoreSizeEvents = false;
-    WindowMode m_LastMode = WindowMode::Windowed;
+    config::WindowMode m_LastMode = config::WindowMode::Windowed;
     std::string m_Title;
     std::string m_BaseTitle;
     bool m_Vsync;
-    WindowMode m_Mode = WindowMode::Windowed;
+    config::WindowMode m_Mode = config::WindowMode::Windowed;
     int m_LastFramebufferWidth = 0;
     int m_LastFramebufferHeight = 0;
 };

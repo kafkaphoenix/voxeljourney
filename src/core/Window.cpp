@@ -136,7 +136,7 @@ void windowIconifyCallback(GLFWwindow* window, int iconified) {
 
 }
 
-Window::Window(const Config::Window& config, const Config::Render& renderConfig, EventBus* eventBus)
+Window::Window(const config::Window& config, const config::Render& renderConfig, EventBus* eventBus)
     : m_EventBus(eventBus),
       m_Width(config.width),
       m_Height(config.height),
@@ -172,7 +172,7 @@ void Window::initGlfw() {
     }
 }
 
-void Window::setupGlfwHints(const Config::Render& renderConfig) {
+void Window::setupGlfwHints(const config::Render& renderConfig) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -298,7 +298,7 @@ void Window::onFocusChange(bool focused) {
 }
 
 void Window::onPositionChange(int xpos, int ypos) {
-    if (m_Mode != WindowMode::Windowed || m_IgnoreSizeEvents || m_LastMode != WindowMode::Windowed) {
+    if (m_Mode != config::WindowMode::Windowed || m_IgnoreSizeEvents || m_LastMode != config::WindowMode::Windowed) {
         return;
     }
     m_PosX = xpos;
@@ -306,7 +306,7 @@ void Window::onPositionChange(int xpos, int ypos) {
 }
 
 void Window::onSizeChange(int width, int height) {
-    if (m_Mode != WindowMode::Windowed || m_IgnoreSizeEvents || m_LastMode != WindowMode::Windowed) {
+    if (m_Mode != config::WindowMode::Windowed || m_IgnoreSizeEvents || m_LastMode != config::WindowMode::Windowed) {
         return;
     }
     if (width <= 0 || height <= 0) {
@@ -318,7 +318,7 @@ void Window::onSizeChange(int width, int height) {
 
 void Window::onIconifyChange(bool minimized) { m_Minimized = minimized; }
 
-void Window::setMode(WindowMode newMode) {
+void Window::setMode(config::WindowMode newMode) {
     if (m_Mode == newMode) {
         return;
     }
@@ -333,7 +333,7 @@ void Window::setMode(WindowMode newMode) {
     int refresh = GLFW_DONT_CARE;
 
     m_IgnoreSizeEvents = true;
-    if (newMode == WindowMode::Windowed) {
+    if (newMode == config::WindowMode::Windowed) {
         xpos = m_PosX;
         ypos = m_PosY;
         width = m_Width;
@@ -371,7 +371,7 @@ void Window::setMode(WindowMode newMode) {
         width = mode->width;
         height = mode->height;
         refresh = mode->refreshRate;
-        if (newMode == WindowMode::Borderless) {
+        if (newMode == config::WindowMode::Borderless) {
             glfwSetWindowAttrib(m_Window, GLFW_DECORATED, GLFW_FALSE);
         } else {
             glfwSetWindowAttrib(m_Window, GLFW_DECORATED, GLFW_TRUE);
@@ -380,7 +380,7 @@ void Window::setMode(WindowMode newMode) {
     }
 
     glfwSetWindowMonitor(m_Window, monitor, xpos, ypos, width, height, refresh);
-    if (newMode == WindowMode::Windowed) {
+    if (newMode == config::WindowMode::Windowed) {
         glfwSetWindowPos(m_Window, xpos, ypos);
     }
     m_IgnoreSizeEvents = false;

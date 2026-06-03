@@ -7,7 +7,7 @@
 
 namespace se::render {
 
-RenderManager::RenderManager(const se::core::Config::Render& renderConfig)
+RenderManager::RenderManager(const se::core::config::Render& renderConfig)
     : m_ModelRenderer(renderConfig.anisotropy), m_MsaaSamples((std::max)(1, renderConfig.msaaSamples)) {
     setupGlState();
 }
