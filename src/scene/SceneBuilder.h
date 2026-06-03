@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <string>
 
 #include "AnimationController.h"
@@ -25,9 +24,10 @@ public:
 private:
     static void createSky(Scene& scene);
     static void loadModels(Scene& scene, se::assets::AssetManager& assetManager);
-    static void submitModel(const se::assets::ModelHandle& model, const Transform& transform, Scene& scene,
-                            std::optional<std::string> animatedTag = std::nullopt,
-                            std::optional<AnimationController::LocomotionClips> locomotionClips = std::nullopt);
+    static void submitModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene);
+    static void submitAnimatedModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene,
+                                    std::string animatedTag,
+                                    const AnimationController::LocomotionClips& locomotionClips);
 };
 
 }  // namespace se::scene

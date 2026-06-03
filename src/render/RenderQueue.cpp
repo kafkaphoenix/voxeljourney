@@ -1,5 +1,6 @@
 #include "RenderQueue.h"
 
+#include <algorithm>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <stdexcept>
 
@@ -31,12 +32,14 @@ const std::vector<RenderQueue::StaticOpaqueBatch>& RenderQueue::getOrderedStatic
 
 void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat4& modelMatrix,
                          const glm::mat4& viewMatrix) {
-    if (!renderable.mesh)
+    if (!renderable.mesh) {
         throw std::runtime_error("Renderable missing mesh");
+    }
 
     auto material = renderable.material.get();
-    if (!material)
+    if (!material) {
         throw std::runtime_error("Renderable missing material");
+    }
 
     const bool isTransparent = material->getState().blend;
     const se::scene::Animator* animator = renderable.resolvedAnimator();

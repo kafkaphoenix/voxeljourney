@@ -36,7 +36,7 @@
     },
     {
       "name": "tinygltf",
-      "version": "2.9.7#0"
+      "version": "2.9.7"
     },
     {
       "name": "tomlplusplus",

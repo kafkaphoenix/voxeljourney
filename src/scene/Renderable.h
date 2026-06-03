@@ -27,26 +27,26 @@ struct Renderable {
     se::assets::MaterialHandle material;
     std::variant<StaticPose, DynamicPose> poseSource = StaticPose{};
 
-    [[nodiscard]] static Renderable makeStatic(se::render::Mesh* mesh, se::assets::MaterialHandle material,
+    [[nodiscard]] static Renderable makeStatic(se::render::Mesh* mesh, se::assets::MaterialHandle handle,
                                                Transform transform) {
         return Renderable{
             .mesh = mesh,
-            .material = std::move(material),
-            .poseSource = StaticPose{std::move(transform)},
+            .material = handle,
+            .poseSource = StaticPose{transform},
         };
     }
 
-    [[nodiscard]] static Renderable makeAnimated(se::render::Mesh* mesh, se::assets::MaterialHandle material,
+    [[nodiscard]] static Renderable makeAnimated(se::render::Mesh* mesh, se::assets::MaterialHandle handle,
                                                  const Transform& transform, const Animator& animator) {
         return Renderable{
             .mesh = mesh,
-            .material = std::move(material),
+            .material = handle,
             .poseSource = DynamicPose{&transform, &animator},
         };
     }
 
     [[nodiscard]] const Transform& resolvedTransform() const {
-        if (const auto staticPose = std::get_if<StaticPose>(&poseSource)) {
+        if (const auto* const staticPose = std::get_if<StaticPose>(&poseSource)) {
             return staticPose->transform;
         }
 
@@ -56,7 +56,7 @@ struct Renderable {
     }
 
     [[nodiscard]] const Animator* resolvedAnimator() const {
-        if (const auto dynamicPose = std::get_if<DynamicPose>(&poseSource)) {
+        if (const auto* const dynamicPose = std::get_if<DynamicPose>(&poseSource)) {
             return dynamicPose->animator;
         }
         return nullptr;

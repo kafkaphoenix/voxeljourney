@@ -17,12 +17,9 @@ struct AnimatedInstance {
     AnimationController controller;
     std::string tag;
 
-    AnimatedInstance(se::assets::ModelHandle modelHandle, Transform instanceTransform, std::string instanceTag,
+    AnimatedInstance(se::assets::ModelHandle handle, Transform instanceTransform, std::string instanceTag,
                      AnimationController::LocomotionClips clips = {})
-        : model(std::move(modelHandle)),
-          transform(std::move(instanceTransform)),
-          animator(model),
-          tag(std::move(instanceTag)) {
+        : model(handle), transform(instanceTransform), animator(model), tag(std::move(instanceTag)) {
         controller.setLocomotionClips(std::move(clips));
     }
 };

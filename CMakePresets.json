@@ -6,8 +6,8 @@
       "hidden": true,
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {
@@ -25,21 +25,48 @@
       }
     },
     {
+      "name": "windows-tidy",
+      "displayName": "Windows Clang-Tidy (Ninja)",
+      "inherits": "base",
+      "generator": "Ninja",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "environment": {
+        "VCPKG_ROOT": "C:/vcpkg"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_CLANG_TIDY": "ON"
+      }
+    },
+    {
       "name": "ubuntu-gcc",
       "displayName": "Ubuntu GCC Debug",
       "inherits": "base",
       "generator": "Unix Makefiles",
-      "environment": {
-        "VCPKG_ROOT": "$env{HOME}/vcpkg"
-      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Linux"
       },
+      "environment": {
+        "VCPKG_ROOT": "$env{HOME}/vcpkg"
+      },
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "gcc",
         "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "ubuntu-tidy",
+      "displayName": "Ubuntu Clang-Tidy",
+      "inherits": "ubuntu-gcc",
+      "cacheVariables": {
+        "ENABLE_CLANG_TIDY": "ON"
       }
     }
   ],
@@ -48,14 +75,21 @@
       "name": "windows-msvc-debug",
       "configurePreset": "windows-msvc",
       "configuration": "Debug",
-      "targets": [
-        "ALL_BUILD"
-      ]
+      "targets": ["ALL_BUILD"]
+    },
+    {
+      "name": "windows-tidy",
+      "configurePreset": "windows-tidy",
+      "targets": ["simpleengine"]
     },
     {
       "name": "ubuntu-gcc-debug",
-      "configurePreset": "ubuntu-gcc",
-      "configuration": "Debug"
+      "configurePreset": "ubuntu-gcc"
+    },
+    {
+      "name": "ubuntu-tidy",
+      "configurePreset": "ubuntu-tidy",
+      "targets": ["simpleengine"]
     }
   ]
 }

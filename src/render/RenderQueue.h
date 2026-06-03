@@ -36,7 +36,7 @@ class RenderQueue {
 public:
     struct StaticOpaqueBatch {
         BatchKey key{};
-        std::span<const InstanceData> batch{};
+        std::span<const InstanceData> batch;
     };
 
     struct DrawItem {

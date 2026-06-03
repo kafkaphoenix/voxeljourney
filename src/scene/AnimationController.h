@@ -21,7 +21,7 @@ public:
     void apply(Animator& animator);
 
 private:
-    const std::string& clipForState(LocomotionState state) const;
+    [[nodiscard]] const std::string& clipForState(LocomotionState state) const;
 
     LocomotionClips m_Clips;
     LocomotionState m_CurrentState = LocomotionState::Idle;

@@ -828,7 +828,7 @@ const Skeleton& Model::getSkeleton() const {
 }
 
 std::optional<int> Model::findAnimationClipIndex(std::string_view clipName) const {
-    if (auto it = m_AnimationIndexByName.find(clipName); it != m_AnimationIndexByName.end()) {
+    if (const auto it = m_AnimationIndexByName.find(clipName); it != m_AnimationIndexByName.end()) {
         return it->second;
     }
     return std::nullopt;

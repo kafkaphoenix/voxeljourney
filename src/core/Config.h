@@ -16,7 +16,7 @@ struct Window {
 };
 
 struct PostProcess {
-    float exposure; // Only used for effects that require tone mapping (e.g. bloom)
+    float exposure;  // Only used for effects that require tone mapping (e.g. bloom)
 };
 
 struct Player {
@@ -72,6 +72,7 @@ public:
     [[nodiscard]] const config::World& world() const { return m_World; }
     [[nodiscard]] const config::Render& render() const { return m_Render; }
     [[nodiscard]] const config::PostProcess& postProcess() const { return m_PostProcess; }
+
 private:
     static void readWindow(const toml::table& t, config::Window& w);
     static void readPlayer(const toml::table& t, config::Player& p);

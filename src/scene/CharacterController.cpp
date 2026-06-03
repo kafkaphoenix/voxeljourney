@@ -53,20 +53,21 @@ void CharacterController::updateMovement(float deltaTime, const se::core::Input&
     }
 
     m_MoveAccumulator += frameDt;
-    constexpr int kMaxSubSteps = 4;
+    constexpr int MAX_SUB_STEPS = 4;
     int steps = 0;
-    while (m_MoveAccumulator >= m_FixedStep && steps < kMaxSubSteps) {
+    while (m_MoveAccumulator >= m_FixedStep && steps < MAX_SUB_STEPS) {
         applyMovementStep(m_FixedStep, input, transform);
         m_MoveAccumulator -= m_FixedStep;
         ++steps;
     }
 
-    if (m_MoveAccumulator > m_FixedStep * static_cast<float>(kMaxSubSteps)) {
+    if (m_MoveAccumulator > m_FixedStep * static_cast<float>(MAX_SUB_STEPS)) {
         m_MoveAccumulator = m_FixedStep;
     }
 }
 
-void CharacterController::applyMovementStep(float stepSeconds, const se::core::Input& input, Transform& transform) {
+void CharacterController::applyMovementStep(float stepSeconds, const se::core::Input& input,
+                                            Transform& transform) const {
     float velocity = m_WalkSpeed * stepSeconds;
     if (input.isKeyDown(GLFW_KEY_LEFT_SHIFT) || input.isKeyDown(GLFW_KEY_RIGHT_SHIFT)) {
         velocity = m_RunSpeed * stepSeconds;
@@ -77,15 +78,20 @@ void CharacterController::applyMovementStep(float stepSeconds, const se::core::I
     const glm::vec3 right{-std::sin(yawRad), 0.0f, std::cos(yawRad)};
 
     glm::vec3 moveDir{0.0f};
-    if (input.isKeyDown(GLFW_KEY_W))
+    if (input.isKeyDown(GLFW_KEY_W)) {
         moveDir += forward;
-    if (input.isKeyDown(GLFW_KEY_S))
+    }
+    if (input.isKeyDown(GLFW_KEY_S)) {
         moveDir -= forward;
-    if (input.isKeyDown(GLFW_KEY_D))
+    }
+    if (input.isKeyDown(GLFW_KEY_D)) {
         moveDir += right;
-    if (input.isKeyDown(GLFW_KEY_A))
+    }
+    if (input.isKeyDown(GLFW_KEY_A)) {
         moveDir -= right;
+    }
 
+    // Normalize diagonal movement to prevent faster speed.
     if (glm::length(moveDir) > 0.0f) {
         moveDir = glm::normalize(moveDir);
     }

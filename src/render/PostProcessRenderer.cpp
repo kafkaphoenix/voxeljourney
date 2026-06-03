@@ -2,7 +2,10 @@
 
 namespace se::render {
 
-PostProcessRenderer::PostProcessRenderer(const se::core::config::PostProcess& pp) : m_Shader("assets/shaders/postprocess"), m_Exposure(pp.exposure) { setupSampler(); }
+PostProcessRenderer::PostProcessRenderer(const se::core::config::PostProcess& pp)
+    : m_Shader("assets/shaders/postprocess"), m_Exposure(pp.exposure) {
+    setupSampler();
+}
 
 PostProcessRenderer::~PostProcessRenderer() {
     if (m_Sampler) {

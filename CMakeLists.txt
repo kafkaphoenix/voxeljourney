@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 message(VERBOSE "*")
-message(VERBOSE "* ${PROJECT_NAME} v${PROJECT_VERSION})")
+message(VERBOSE "* ${PROJECT_NAME} v${PROJECT_VERSION}")
 message(VERBOSE "*")
 
 # Static Analysis
@@ -19,10 +19,13 @@ message(VERBOSE "*")
 option(ENABLE_CLANG_TIDY "Enable static analysis with clang-tidy" OFF)
 
 if(ENABLE_CLANG_TIDY)
+    if(CMAKE_GENERATOR MATCHES "Visual Studio")
+        message(FATAL_ERROR "clang-tidy is not supported with the Visual Studio generator, use the windows-tidy preset instead")
+    endif()
     find_program(CLANG_TIDY_EXE NAMES "clang-tidy" REQUIRED)
     set(CMAKE_CXX_CLANG_TIDY
         ${CLANG_TIDY_EXE}
-        --extra-arg=-std=c++23
+        --extra-arg=-std=c++2b
         --header-filter=${CMAKE_CURRENT_SOURCE_DIR}/src/.*
     )
     message(STATUS "clang-tidy enabled: ${CLANG_TIDY_EXE}")

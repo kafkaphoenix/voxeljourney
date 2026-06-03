@@ -39,7 +39,7 @@ private:
     void drawOpaquePass(RenderStats& stats) const;
     void drawTransparentPass(RenderStats& stats);
     void bindMaterialTextures(const se::assets::MaterialTextures& textures) const;
-    void flushBatch(const BatchKey& key, const std::span<const InstanceData> batch, RenderStats& stats) const;
+    void flushBatch(const BatchKey& key, std::span<const InstanceData> batch, RenderStats& stats) const;
     void drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, RenderStats& stats) const;
     void updateFrameUbo(const se::scene::LightData& lights, const se::scene::Camera& camera);
 

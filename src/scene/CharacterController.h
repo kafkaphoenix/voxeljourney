@@ -27,7 +27,7 @@ public:
 private:
     void updateMouseLook(const se::core::Input& input);
     void updateMovement(float deltaTime, const se::core::Input& input, Transform& transform);
-    void applyMovementStep(float stepSeconds, const se::core::Input& input, Transform& transform);
+    void applyMovementStep(float stepSeconds, const se::core::Input& input, Transform& transform) const;
 
     float m_Yaw = 0.0f;
     float m_Pitch = 0.0f;

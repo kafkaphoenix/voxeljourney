@@ -38,21 +38,24 @@ template <GlmVec T>
 T require(const toml::table& t, std::string_view key) {
     constexpr glm::length_t N = T::length();
     auto node = t[key];
-    if (!node)
+    if (!node) {
         throwConfigError(std::format("missing key '{}'", key));
+    }
 
     const auto* arr = node.as_array();
-    if (!arr || static_cast<glm::length_t>(arr->size()) != N)
+    if (!arr || static_cast<glm::length_t>(arr->size()) != N) {
         throwConfigError(std::format("'{}' must be an array with {} elements", key, N));
+    }
 
-    T result;
+    T result{};
     for (glm::length_t i = 0; i < N; ++i) {
-        if (auto v = arr->get_as<double>(i))
+        if (const auto* v = arr->get_as<double>(i)) {
             result[i] = static_cast<float>(v->get());
-        else if (auto v = arr->get_as<int64_t>(i))
+        } else if (const auto* v = arr->get_as<int64_t>(i)) {
             result[i] = static_cast<float>(v->get());
-        else
+        } else {
             throwConfigError(std::format("'{}[{}]' must be a number", key, i));
+        }
     }
     return result;
 }
@@ -85,7 +88,7 @@ void requireGreater(std::string_view key, T v, T min) {
 }
 
 const toml::table& requireTable(const toml::table& t, std::string_view key) {
-    auto* table = t[key].as_table();
+    const auto* table = t[key].as_table();
 
     if (!table) {
         throwConfigError(std::format("missing table '[{}]'", key));
