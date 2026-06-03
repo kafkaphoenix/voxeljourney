@@ -21,13 +21,21 @@ void SceneBuilder::build(Scene& scene, se::assets::AssetManager& assetManager) {
 
 void SceneBuilder::createSky(Scene& scene) {
     scene.addDirectionalLight(DirectionalLight{
-        .direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.3f)),
-        .color = glm::vec3(1.0f, 0.95f, 0.9f),
-        .intensity = 1.0f,
+        .direction = glm::normalize(glm::vec3(-0.5f, -0.5f, -0.5f)),  // 45 degree angle from above and front
+        .color = glm::vec3(1.0f, 0.92f, 0.75f),                       // warm sunlight
+        .intensity = 2.0f,
     });
 
-    scene.getSky().setAmbientColor(glm::vec3(1.0f, 1.0f, 1.0f));
-    scene.getSky().setAmbientStrength(0.7f);
+    // Additional fill light to reduce contrast and give impression of light bouncing around the scene. Not physically
+    // accurate but looks better.
+    scene.addDirectionalLight(DirectionalLight{
+        .direction = glm::normalize(glm::vec3(0.5f, 0.5f, 0.3f)),  // opposite of sun
+        .color = glm::vec3(0.6f, 0.65f, 0.75f),                    // cool fill
+        .intensity = 0.2f,
+    });
+
+    scene.getSky().setAmbientColor(glm::vec3(0.5f, 0.55f, 0.65f));  // cool blue-grey
+    scene.getSky().setAmbientIntensity(0.4f);
 }
 
 void SceneBuilder::loadModels(Scene& scene, se::assets::AssetManager& assetManager) {

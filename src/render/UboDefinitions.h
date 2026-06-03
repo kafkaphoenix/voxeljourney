@@ -29,11 +29,11 @@ struct alignas(16) PointLightGpuData {
 };
 
 struct alignas(16) FrameUbo {
-    glm::mat4 view;
-    glm::mat4 projection;
+    glm::mat4 viewProj;
     glm::vec4 sunDir;
     glm::vec4 sunColor;
     glm::vec4 ambient;
+    glm::vec4 cameraPos;
     glm::ivec4 lightCounts;
     std::array<PointLightGpuData, 4> pointLights;
 };

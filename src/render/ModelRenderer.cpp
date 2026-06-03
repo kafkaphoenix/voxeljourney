@@ -302,13 +302,17 @@ void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, 
 void ModelRenderer::updateFrameUbo(const se::scene::LightData& lights, const se::scene::Camera& camera) {
     FrameUbo data{};
 
+    data.viewProj = camera.getViewProjection();
+    data.cameraPos = glm::vec4(camera.getPosition(), 1.0f);
+    data.ambient = glm::vec4(lights.ambientColor, lights.ambientIntensity);
+
     if (!lights.directionalLights.empty()) {
         const auto& sun = lights.directionalLights[0];
         data.sunDir = glm::vec4(glm::normalize(sun.direction), 0.0f);
-        data.sunColor = glm::vec4(sun.color * sun.intensity, 0.0f);
+        data.sunColor = glm::vec4(sun.color, sun.intensity);
     }
 
-    data.ambient = glm::vec4(lights.ambientColor, lights.ambientStrength);
+    data.ambient = glm::vec4(lights.ambientColor, lights.ambientIntensity);
 
     // (std::min) is between parentheses to avoid macro expansion, as min from windows.h causes problems with std::min
     // usage in this file We only support up to 4 point lights in the shader, so we need to clamp the count and ignore
@@ -320,7 +324,7 @@ void ModelRenderer::updateFrameUbo(const se::scene::LightData& lights, const se:
         const auto& l = lights.pointLights[i];
         data.pointLights.at(i) = {
             .positionRange = glm::vec4(l.position, l.range),
-            .colorIntensity = glm::vec4(l.color * l.intensity, l.intensity),
+            .colorIntensity = glm::vec4(l.color, l.intensity),
         };
     }
 

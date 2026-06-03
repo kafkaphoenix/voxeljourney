@@ -25,10 +25,11 @@ struct PointLight {
 
 layout(std140, binding = 0) uniform FrameData {
     mat4 u_ViewProj;
-    vec4 u_SunDir;
-    vec4 u_SunColor;
-    vec4 u_Ambient;
-    ivec4 u_LightCounts;
+    vec4 u_SunDir;        // xyz = direction (pointing away from sun)
+    vec4 u_SunColor;      // xyz = color, w = intensity
+    vec4 u_Ambient;       // xyz = color, w = intensity
+    vec4 u_CameraPos;     // xyz = world position
+    ivec4 u_LightCounts;  // x = point light count
     PointLight u_PointLights[4];
 };
 

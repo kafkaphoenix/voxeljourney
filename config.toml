@@ -32,6 +32,9 @@ followHeight = 10.0
 msaaSamples = 4
 anisotropy = 8.0
 
+[postProcess]
+exposure = 0.7
+
 [stats]
 enabled = true
 refreshInterval = 0.5

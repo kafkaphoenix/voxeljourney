@@ -38,7 +38,7 @@ private:
 
     se::assets::ShaderHandle m_Shader;
     std::vector<ChunkDraw> m_DrawList;
-    std::optional<UniformBuffer> m_Ubo;
+    std::optional<UniformBuffer> m_TerrainUbo;
     bool m_Wireframe = false;
 };
 

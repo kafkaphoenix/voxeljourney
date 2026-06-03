@@ -5,10 +5,14 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include "core/Config.h"
+
 namespace se::render {
 
-RenderManager::RenderManager(const se::core::config::Render& renderConfig)
-    : m_ModelRenderer(renderConfig.anisotropy), m_MsaaSamples((std::max)(1, renderConfig.msaaSamples)) {
+RenderManager::RenderManager(const se::core::Config& config)
+    : m_ModelRenderer(config.render().anisotropy),
+      m_MsaaSamples((std::max)(1, config.render().msaaSamples)),
+      m_PostProcess(config.postProcess()) {
     setupGlState();
 }
 

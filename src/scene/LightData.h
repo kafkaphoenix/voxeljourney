@@ -11,7 +11,7 @@ struct LightData {
     std::span<const PointLight> pointLights;
     std::span<const SpotLight> spotLights;
     glm::vec3 ambientColor{1.0f};
-    float ambientStrength = 0.2f;
+    float ambientIntensity = 0.2f;
 };
 
 }  // namespace se::scene

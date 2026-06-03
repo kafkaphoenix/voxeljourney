@@ -2,7 +2,7 @@
 
 namespace se::render {
 
-PostProcessRenderer::PostProcessRenderer() : m_Shader("assets/shaders/postprocess") { setupSampler(); }
+PostProcessRenderer::PostProcessRenderer(const se::core::config::PostProcess& pp) : m_Shader("assets/shaders/postprocess"), m_Exposure(pp.exposure) { setupSampler(); }
 
 PostProcessRenderer::~PostProcessRenderer() {
     if (m_Sampler) {
@@ -20,6 +20,7 @@ void PostProcessRenderer::execute(const Framebuffer& source) {
     m_Shader.setInt("u_Effect", static_cast<int>(m_Effect));
     glm::vec2 texelSize = {1.0f / static_cast<float>(source.width()), 1.0f / static_cast<float>(source.height())};
     m_Shader.setVec2("u_TexelSize", texelSize);
+    m_Shader.setFloat("u_Exposure", m_Exposure);
 
     source.bindColorTexture(0);
     glBindSampler(0, m_Sampler);

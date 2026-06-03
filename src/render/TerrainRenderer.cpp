@@ -13,16 +13,7 @@
 
 namespace se::render {
 
-namespace {
-struct TerrainFrameUbo {
-    glm::mat4 viewProj;
-    glm::vec4 sunDir;
-    glm::vec4 sunColor;
-    glm::vec4 ambient;
-};
-}  // namespace
-
-TerrainRenderer::TerrainRenderer() { m_Ubo.emplace(sizeof(TerrainFrameUbo), UboBinding::Terrain); }
+TerrainRenderer::TerrainRenderer() { m_TerrainUbo.emplace(sizeof(TerrainUbo), UboBinding::Terrain); }
 
 void TerrainRenderer::submit(const se::scene::ChunkRenderable& chunkRenderable, const Frustum& frustum) {
     if (!chunkRenderable.mesh) {
@@ -60,18 +51,19 @@ void TerrainRenderer::flush(const se::scene::LightData& lights, const se::scene:
 }
 
 void TerrainRenderer::updateUbo(const se::scene::LightData& lights, const se::scene::Camera& camera) {
-    TerrainFrameUbo ubo{};
-    ubo.viewProj = camera.getViewProjection();
+    TerrainUbo data{};
+
+    data.viewProj = camera.getViewProjection();
 
     if (!lights.directionalLights.empty()) {
         const auto& sun = lights.directionalLights[0];
-        ubo.sunDir = glm::vec4(glm::normalize(sun.direction), 0.0f);
-        ubo.sunColor = glm::vec4(sun.color * sun.intensity, 0.0f);
+        data.sunDir = glm::vec4(glm::normalize(sun.direction), 0.0f);
+        data.sunColor = glm::vec4(sun.color, sun.intensity);
     }
 
-    ubo.ambient = glm::vec4(lights.ambientColor, lights.ambientStrength);
+    data.ambient = glm::vec4(lights.ambientColor, lights.ambientIntensity);
 
-    m_Ubo->updateSubData(0, ubo);
+    m_TerrainUbo->updateSubData(0, data);
 }
 
 }  // namespace se::render

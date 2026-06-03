@@ -32,8 +32,7 @@ template <typename T>
 concept GlmVec = requires {
     typename T::value_type;
     { T::length() } -> std::convertible_to<glm::length_t>;
-}
-&&std::is_same_v<typename T::value_type, float>;
+} && std::is_same_v<typename T::value_type, float>;
 
 template <GlmVec T>
 T require(const toml::table& t, std::string_view key) {
@@ -70,7 +69,7 @@ T optional(const toml::table& t, std::string_view key, T fallback) {
 }
 
 template <typename T>
-requires std::is_arithmetic_v<T>
+    requires std::is_arithmetic_v<T>
 void requireRange(std::string_view key, T v, T min, T max) {
     if (v < min || v > max) {
         throwConfigError(std::format("'{}' out of range", key));
@@ -78,7 +77,7 @@ void requireRange(std::string_view key, T v, T min, T max) {
 }
 
 template <typename T>
-requires std::is_arithmetic_v<T>
+    requires std::is_arithmetic_v<T>
 void requireGreater(std::string_view key, T v, T min) {
     if (v <= min) {
         throwConfigError(std::format("'{}' must be > {}", key, min));
@@ -127,6 +126,7 @@ Config Config::load(std::string_view path) {
     readStats(t, cfg.m_Stats);
     readWorld(t, cfg.m_World);
     readRender(t, cfg.m_Render);
+    readPostProcess(t, cfg.m_PostProcess);
 
     return cfg;
 }
@@ -226,6 +226,14 @@ void Config::readRender(const toml::table& t, Render& r) {
 
     requireRange("render.msaaSamples", r.msaaSamples, 1, 16);
     requireRange("render.anisotropy", r.anisotropy, 1.0f, 16.0f);
+}
+
+void Config::readPostProcess(const toml::table& t, PostProcess& pp) {
+    const auto& tp = requireTable(t, "postProcess");
+
+    pp.exposure = require<float>(tp, "exposure");
+
+    requireGreater("postProcess.exposure", pp.exposure, 0.f);
 }
 
 }  // namespace se::core

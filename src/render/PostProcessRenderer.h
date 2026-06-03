@@ -7,6 +7,7 @@
 #include "Framebuffer.h"
 #include "ScreenQuad.h"
 #include "assets/Shader.h"
+#include "core/Config.h"
 
 namespace se::render {
 
@@ -18,12 +19,12 @@ enum class PostEffect : uint8_t {
     Sharpen,
     Blur,
     EdgeDetect,
-    COUNT  // keep last
+    COUNT  // keep last for iterating over effects
 };
 
 class PostProcessRenderer {
 public:
-    PostProcessRenderer();
+    explicit PostProcessRenderer(const se::core::config::PostProcess& pp);
     ~PostProcessRenderer();
 
     PostProcessRenderer(const PostProcessRenderer&) = delete;
@@ -44,6 +45,7 @@ private:
     se::assets::Shader m_Shader;
     GLuint m_Sampler = 0;
     PostEffect m_Effect = PostEffect::None;
+    float m_Exposure = 1.0f;
 };
 
 }  // namespace se::render

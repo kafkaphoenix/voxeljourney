@@ -15,6 +15,10 @@ struct Window {
     WindowMode mode;
 };
 
+struct PostProcess {
+    float exposure; // Only used for effects that require tone mapping (e.g. bloom)
+};
+
 struct Player {
     glm::vec3 spawn;
 };
@@ -67,7 +71,7 @@ public:
     [[nodiscard]] const config::Stats& stats() const { return m_Stats; }
     [[nodiscard]] const config::World& world() const { return m_World; }
     [[nodiscard]] const config::Render& render() const { return m_Render; }
-
+    [[nodiscard]] const config::PostProcess& postProcess() const { return m_PostProcess; }
 private:
     static void readWindow(const toml::table& t, config::Window& w);
     static void readPlayer(const toml::table& t, config::Player& p);
@@ -77,6 +81,7 @@ private:
     static void readStats(const toml::table& t, config::Stats& s);
     static void readWorld(const toml::table& t, config::World& w);
     static void readRender(const toml::table& t, config::Render& r);
+    static void readPostProcess(const toml::table& t, config::PostProcess& pp);
     static config::WindowMode parseWindowMode(std::string_view s);
 
     Config() = default;
@@ -89,6 +94,7 @@ private:
     config::Stats m_Stats{};
     config::World m_World{};
     config::Render m_Render{};
+    config::PostProcess m_PostProcess{};
 };
 
 }  // namespace se::core

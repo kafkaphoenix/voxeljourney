@@ -68,27 +68,31 @@ std::span<const uint8_t> findSourceForAttribute(std::string_view attributeName, 
     return {};
 }
 
-// Writes vertex data into a raw byte buffer driven entirely by the layout.
-// Each element is written at its layout offset; missing attributes are left zeroed.
-void packVertexData(const VertexSources& sources, size_t vertexCount, const se::render::BufferLayout& layout,
-                    std::vector<uint8_t>& vertices) {
-    vertices.resize(vertexCount * layout.getStride(), 0);
-
+std::vector<std::span<const uint8_t>> buildOrderedSources(const VertexSources& sources,
+                                                          const se::render::BufferLayout& layout) {
     std::vector<std::span<const uint8_t>> orderedSources;
     orderedSources.reserve(layout.getElements().size());
     for (const auto& elem : layout.getElements()) {
         orderedSources.push_back(findSourceForAttribute(elem.name, sources));
     }
+    return orderedSources;
+}
+
+// Writes vertex data into a raw byte buffer driven entirely by the layout.
+// Each element is written at its layout offset; missing attributes are left zeroed.
+void packVertexData(const std::vector<std::span<const uint8_t>>& orderedSources, size_t vertexCount,
+                    const se::render::BufferLayout& layout, std::vector<uint8_t>& vertices) {
+    vertices.resize(vertexCount * layout.getStride(), 0);
 
     for (size_t i = 0; i < vertexCount; ++i) {
         uint8_t* vptr = vertices.data() + i * layout.getStride();
         for (size_t e = 0; e < layout.getElements().size(); ++e) {
             const auto& elem = layout.getElements()[e];
-            const size_t elemBytes = static_cast<size_t>(elem.size) * elem.count;
             const auto& source = orderedSources[e];
             if (source.empty()) {
                 continue;
             }
+            const size_t elemBytes = static_cast<size_t>(elem.size) * elem.count;
             const size_t srcOffset = i * elemBytes;
             if (srcOffset + elemBytes <= source.size()) {
                 std::memcpy(vptr + elem.offset, source.data() + srcOffset, elemBytes);
@@ -122,39 +126,34 @@ void readStridedVec(const tinygltf::Model& gltfModel, const tinygltf::Accessor& 
 void readPrimitiveAttributes(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
                              std::vector<float>& positions, std::vector<float>& normals, std::vector<float>& texCoords,
                              std::vector<float>& tangents, std::vector<float>& colors) {
-    if (auto posIt = primitive.attributes.find("POSITION"); posIt != primitive.attributes.end()) {
-        readStridedVec(gltfModel, gltfModel.accessors[posIt->second], 3, positions);
-    }
+    static const std::unordered_map<std::string, int> componentCount = {
+        {"POSITION", 3}, {"NORMAL", 3}, {"TEXCOORD_0", 2}, {"TANGENT", 4}};
 
-    if (auto normIt = primitive.attributes.find("NORMAL"); normIt != primitive.attributes.end()) {
-        readStridedVec(gltfModel, gltfModel.accessors[normIt->second], 3, normals);
-    }
-
-    if (auto texIt = primitive.attributes.find("TEXCOORD_0"); texIt != primitive.attributes.end()) {
-        readStridedVec(gltfModel, gltfModel.accessors[texIt->second], 2, texCoords);
-    }
-
-    if (auto tanIt = primitive.attributes.find("TANGENT"); tanIt != primitive.attributes.end()) {
-        readStridedVec(gltfModel, gltfModel.accessors[tanIt->second], 4, tangents);
-    }
-
-    if (auto colorIt = primitive.attributes.find("COLOR_0"); colorIt != primitive.attributes.end()) {
-        const auto& accessor = gltfModel.accessors[colorIt->second];
-        int components = (accessor.type == TINYGLTF_TYPE_VEC4) ? 4 : 3;
-        // Only support float for now; unsupported types will be left as white (1.0) in the shader fallback logic
-        if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
-            readStridedVec(gltfModel, accessor, components, colors);
-            // If VEC3, expand to VEC4 with alpha=1
-            if (components == 3) {
-                std::vector<float> expanded;
-                expanded.reserve((colors.size() / 3) * 4);
-                for (size_t i = 0; i < colors.size(); i += 3) {
-                    expanded.push_back(colors[i]);
-                    expanded.push_back(colors[i + 1]);
-                    expanded.push_back(colors[i + 2]);
-                    expanded.push_back(1.0f);
+    for (const auto& [name, accessorIdx] : primitive.attributes) {
+        if (name == "POSITION")
+            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 3, positions);
+        else if (name == "NORMAL")
+            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 3, normals);
+        else if (name == "TEXCOORD_0")
+            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 2, texCoords);
+        else if (name == "TANGENT")
+            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 4, tangents);
+        else if (name == "COLOR_0") {
+            const auto& accessor = gltfModel.accessors[accessorIdx];
+            int components = (accessor.type == TINYGLTF_TYPE_VEC4) ? 4 : 3;
+            // Only support float for now; unsupported types will be left as white (1.0) in the shader fallback logic
+            if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+                readStridedVec(gltfModel, accessor, components, colors);
+                // If VEC3, expand to VEC4 with alpha=1
+                if (components == 3) {
+                    colors.resize((colors.size() / 3) * 4);
+                    for (size_t i = colors.size() / 4; i-- > 0;) {
+                        colors[i * 4 + 3] = 1.0f;
+                        colors[i * 4 + 2] = colors[i * 3 + 2];
+                        colors[i * 4 + 1] = colors[i * 3 + 1];
+                        colors[i * 4 + 0] = colors[i * 3 + 0];
+                    }
                 }
-                colors = std::move(expanded);
             }
         }
     }
@@ -269,7 +268,7 @@ MaterialHandle createDefaultMaterial(std::string_view name, AssetManager& assetM
     return assetManager.getOrLoadMaterial(name, handle, MaterialTextures{}, MaterialParams{}, RenderState{});
 }
 
-// Returns the image path string for a texture index, or "unknown" if it can't be m_SceneFinalFbo.
+// Returns the image path string for a texture index, or "unknown" if it can't be resolved.
 std::string resolveTexturePath(const tinygltf::Model& gltfModel, int texIndex) {
     if (texIndex < 0 || texIndex >= static_cast<int>(gltfModel.textures.size())) {
         return "unknown";
@@ -424,25 +423,19 @@ NodeTRS extractNodeTRS(const tinygltf::Node& node) {
     return trs;
 }
 
-// Finds the joint index of the parent of joint j, or -1 if it has no parent within the skin.
-int findParentJoint(const tinygltf::Skin& skin, const tinygltf::Model& gltfModel, size_t j, int nodeIdx) {
-    for (size_t p = 0; p < skin.joints.size(); ++p) {
-        if (p == j) {
-            continue;
-        }
-        const auto& parentNode = gltfModel.nodes[skin.joints[p]];
-        for (int child : parentNode.children) {
-            if (child == nodeIdx) {
-                return static_cast<int>(p);
-            }
-        }
-    }
-    return -1;
-}
-
 // Builds a skeleton from a glTF skin, extracting the bone hierarchy, inverse bind matrices, and rest pose TRS.
 Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& skin) {
     Skeleton skeleton;
+
+    // Build a parent index list for all nodes to help find bone hierarchies. Nodes that aren't joints will have -1.
+    std::vector<int> nodeParent(gltfModel.nodes.size(), -1);
+    for (size_t i = 0; i < gltfModel.nodes.size(); ++i) {
+        for (int child : gltfModel.nodes[i].children) {
+            if (child >= 0 && child < static_cast<int>(gltfModel.nodes.size())) {
+                nodeParent[child] = static_cast<int>(i);
+            }
+        }
+    }
 
     // Build node to joint mapping for quick lookup during animation loading. Nodes that aren't joints will have -1.
     skeleton.nodeToJoint.resize(gltfModel.nodes.size(), -1);
@@ -483,31 +476,17 @@ Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& sk
         bone.restRotation = trs.rotation;
         bone.restScale = trs.scale;
 
-        bone.parent = findParentJoint(skin, gltfModel, j, nodeIdx);
+        int parentNodeIdx = nodeParent[nodeIdx];
+        bone.parent = (parentNodeIdx >= 0) ? skeleton.nodeToJoint[parentNodeIdx] : -1;
     }
 
     return skeleton;
 }
 
-// Reads a float accessor into a vector (handles stride).
-void readFloatAccessor(const tinygltf::Model& gltfModel, int accessorIndex, int components, std::vector<float>& out) {
-    const auto& acc = gltfModel.accessors[accessorIndex];
-    const auto& bv = gltfModel.bufferViews[acc.bufferView];
-    const auto& buf = gltfModel.buffers[bv.buffer];
-    const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
-    size_t stride = bv.byteStride > 0 ? bv.byteStride : components * sizeof(float);
-
-    out.reserve(acc.count * components);
-    for (size_t i = 0; i < acc.count; ++i) {
-        const auto* elem = reinterpret_cast<const float*>(base + i * stride);
-        for (int c = 0; c < components; ++c) { out.push_back(elem[c]); }
-    }
-}
-
 void readTranslationKeys(AnimationChannel& chan, const std::vector<float>& timestamps, const tinygltf::Model& gltfModel,
                          const tinygltf::AnimationSampler& sampler, float& duration) {
     std::vector<float> values;
-    readFloatAccessor(gltfModel, sampler.output, 3, values);
+    readStridedVec(gltfModel, gltfModel.accessors[sampler.output], 3, values);
     chan.translations.reserve(timestamps.size());
     for (size_t i = 0; i < timestamps.size(); ++i) {
         chan.translations.push_back({timestamps[i], glm::vec3(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])});
@@ -518,7 +497,7 @@ void readTranslationKeys(AnimationChannel& chan, const std::vector<float>& times
 void readRotationKeys(AnimationChannel& chan, const std::vector<float>& timestamps, const tinygltf::Model& gltfModel,
                       const tinygltf::AnimationSampler& sampler, float& duration) {
     std::vector<float> values;
-    readFloatAccessor(gltfModel, sampler.output, 4, values);
+    readStridedVec(gltfModel, gltfModel.accessors[sampler.output], 4, values);
     chan.rotations.reserve(timestamps.size());
     for (size_t i = 0; i < timestamps.size(); ++i) {
         // glTF quaternion: [x, y, z, w] → glm::quat(w, x, y, z)
@@ -531,7 +510,7 @@ void readRotationKeys(AnimationChannel& chan, const std::vector<float>& timestam
 void readScaleKeys(AnimationChannel& chan, const std::vector<float>& timestamps, const tinygltf::Model& gltfModel,
                    const tinygltf::AnimationSampler& sampler, float& duration) {
     std::vector<float> values;
-    readFloatAccessor(gltfModel, sampler.output, 3, values);
+    readStridedVec(gltfModel, gltfModel.accessors[sampler.output], 3, values);
     chan.scales.reserve(timestamps.size());
     for (size_t i = 0; i < timestamps.size(); ++i) {
         chan.scales.push_back({timestamps[i], glm::vec3(values[i * 3], values[i * 3 + 1], values[i * 3 + 2])});
@@ -556,14 +535,28 @@ std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, cons
         // Direct indexing avoids hash-map overhead during import.
         std::vector<int> channelByBone(skeleton.bones.size(), -1);
 
+        // Pre-allocate timestamp vectors for each sampler to avoid redundant reads if multiple channels share the same
+        // sampler.
+        std::vector<std::vector<float>> samplerTimestamps(gltfAnim.samplers.size());
+
         for (const auto& gltfChannel : gltfAnim.channels) {
-            int nodeIdx = gltfChannel.target_node;
+            const int nodeIdx = gltfChannel.target_node;
             if (nodeIdx < 0 || nodeIdx >= static_cast<int>(skeleton.nodeToJoint.size())) {
                 continue;
             }
-            int boneIdx = skeleton.nodeToJoint[nodeIdx];
+            const int boneIdx = skeleton.nodeToJoint[nodeIdx];
             if (boneIdx < 0) {
                 continue;
+            }
+
+            const int samplerIdx = gltfChannel.sampler;
+            if (samplerIdx < 0 || samplerIdx >= static_cast<int>(gltfAnim.samplers.size())) {
+                continue;
+            }
+            std::vector<float>& timestamps = samplerTimestamps[samplerIdx];
+            if (timestamps.empty()) {
+                const auto& sampler = gltfAnim.samplers[samplerIdx];
+                readStridedVec(gltfModel, gltfModel.accessors[sampler.input], 1, timestamps);
             }
 
             // Get or create channel for this bone
@@ -585,14 +578,12 @@ std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, cons
                 chan->interpolation = Interpolation::Step;
             }
 
-            std::vector<float> timestamps;
-            readFloatAccessor(gltfModel, sampler.input, 1, timestamps);
-
-            if (gltfChannel.target_path == "translation") {
+            const std::string_view path = gltfChannel.target_path;
+            if (path == "translation") {
                 readTranslationKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
-            } else if (gltfChannel.target_path == "rotation") {
+            } else if (path == "rotation") {
                 readRotationKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
-            } else if (gltfChannel.target_path == "scale") {
+            } else if (path == "scale") {
                 readScaleKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
             }
         }
@@ -663,97 +654,115 @@ se::render::BufferLayout buildSkinnedMeshLayout() {
     });
 }
 
-std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
-                                                         const tinygltf::Primitive& primitive,
-                                                         const se::render::BufferLayout& layout, bool instanced) {
-    auto posIt = primitive.attributes.find("POSITION");
-    if (posIt == primitive.attributes.end()) {
-        return nullptr;
-    }
-
-    const auto& posAccessor = gltfModel.accessors[posIt->second];
-    if (posAccessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT || posAccessor.type != TINYGLTF_TYPE_VEC3 ||
-        posAccessor.bufferView < 0 || posAccessor.bufferView >= static_cast<int>(gltfModel.bufferViews.size())) {
-        return nullptr;
-    }
-
-    const size_t vertexCount = posAccessor.count;
-
+struct PrimitiveData {
     std::vector<float> positions;
     std::vector<float> normals;
     std::vector<float> texCoords;
     std::vector<float> tangents;
     std::vector<float> colors;
-    readPrimitiveAttributes(gltfModel, primitive, positions, normals, texCoords, tangents, colors);
+    std::vector<int32_t> joints;
+    std::vector<float> weights;
+    size_t vertexCount = 0;
+    se::render::AABB aabb{};
+};
 
-    // Fill defaults before building the source map so packVertexData stays generic.
-    // Default normal: up (0,1,0)
-    if (normals.empty()) {
-        normals.resize(vertexCount * 3, 0.0f);
-        for (size_t i = 0; i < vertexCount; ++i) {
-            normals[i * 3 + 1] = 1.0f;  // up
+bool readPrimitiveData(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive, PrimitiveData& out) {
+    auto posIt = primitive.attributes.find("POSITION");
+    if (posIt == primitive.attributes.end()) {
+        return false;
+    }
+
+    const auto& posAccessor = gltfModel.accessors[posIt->second];
+    if (posAccessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT || posAccessor.type != TINYGLTF_TYPE_VEC3 ||
+        posAccessor.bufferView < 0 || posAccessor.bufferView >= static_cast<int>(gltfModel.bufferViews.size())) {
+        return false;
+    }
+
+    out.vertexCount = posAccessor.count;
+
+    readPrimitiveAttributes(gltfModel, primitive, out.positions, out.normals, out.texCoords, out.tangents, out.colors);
+    readJointIndices(gltfModel, primitive, out.joints);
+    readJointWeights(gltfModel, primitive, out.weights);
+
+    return true;
+}
+
+void fillPrimitiveDefaults(PrimitiveData& data) {
+    const size_t n = data.vertexCount;
+
+    if (data.normals.empty()) {
+        data.normals.resize(n * 3, 0.0f);
+        for (size_t i = 0; i < n; ++i) data.normals[i * 3 + 1] = 1.0f;
+    }
+
+    if (data.texCoords.empty()) {
+        data.texCoords.resize(n * 2, 0.0f);
+    }
+
+    if (data.tangents.empty()) {
+        data.tangents.resize(n * 4, 0.0f);
+        for (size_t i = 0; i < n; ++i) {
+            data.tangents[i * 4] = 1.0f;
+            data.tangents[i * 4 + 3] = 1.0f;
         }
     }
 
-    // Default UV: (0,0)
-    if (texCoords.empty()) {
-        texCoords.resize(vertexCount * 2, 0.0f);
+    if (data.colors.empty()) {
+        data.colors.resize(n * 4, 1.0f);
     }
 
-    // Default tangent: +X with w=1 (positive bitangent sign)
-    if (tangents.empty()) {
-        tangents.resize(vertexCount * 4, 0.0f);
-        for (size_t i = 0; i < vertexCount; ++i) {
-            tangents[i * 4] = 1.0f;
-            tangents[i * 4 + 3] = 1.0f;
-        }
-    }
+    // Flip V for OpenGL
+    for (size_t i = 1; i < data.texCoords.size(); i += 2) { data.texCoords[i] = 1.0f - data.texCoords[i]; }
+}
 
-    // Default color: white
-    if (colors.empty()) {
-        colors.resize(vertexCount * 4, 1.0f);
-    }
-
-    // GLTF's V coordinate is typically flipped compared to OpenGL, so is flipped here.
-    for (size_t i = 1; i < texCoords.size(); i += 2) { texCoords[i] = 1.0f - texCoords[i]; }
-
-    // Compute AABB from positions while we have them as typed floats.
+se::render::AABB computeAABB(const std::vector<float>& positions, size_t vertexCount) {
     se::render::AABB aabb{};
     for (size_t i = 0; i < vertexCount; ++i) {
         updateAABB(aabb, {positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]}, i);
     }
+    return aabb;
+}
 
-    // Build source map keyed by layout attribute name.
+VertexSources buildVertexSources(const PrimitiveData& data) {
     auto asBytes = [](const std::vector<float>& v) -> std::span<const uint8_t> {
         return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(float)};
     };
-
-    // Read joint/weight data for skinned meshes.
-    std::vector<int32_t> joints;
-    std::vector<float> weights;
-    readJointIndices(gltfModel, primitive, joints);
-    readJointWeights(gltfModel, primitive, weights);
-
     auto asBytesInt = [](const std::vector<int32_t>& v) -> std::span<const uint8_t> {
         return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(int32_t)};
     };
 
-    VertexSources sources{
-        .position = asBytes(positions),
-        .normal = asBytes(normals),
-        .texCoord = asBytes(texCoords),
-        .tangent = asBytes(tangents),
-        .color = asBytes(colors),
-        .joints = joints.empty() ? std::span<const uint8_t>{} : asBytesInt(joints),
-        .weights = weights.empty() ? std::span<const uint8_t>{} : asBytes(weights),
+    return VertexSources{
+        .position = asBytes(data.positions),
+        .normal = asBytes(data.normals),
+        .texCoord = asBytes(data.texCoords),
+        .tangent = asBytes(data.tangents),
+        .color = asBytes(data.colors),
+        .joints = data.joints.empty() ? std::span<const uint8_t>{} : asBytesInt(data.joints),
+        .weights = data.weights.empty() ? std::span<const uint8_t>{} : asBytes(data.weights),
     };
+}
+
+std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
+                                                         const tinygltf::Primitive& primitive,
+                                                         const se::render::BufferLayout& layout, bool instanced) {
+    PrimitiveData data;
+    if (!readPrimitiveData(gltfModel, primitive, data)) {
+        return nullptr;
+    }
+
+    fillPrimitiveDefaults(data);
+
+    data.aabb = computeAABB(data.positions, data.vertexCount);
+
+    VertexSources sources = buildVertexSources(data);
+    auto orderedSources = buildOrderedSources(sources, layout);
 
     std::vector<uint8_t> vertices;
-    packVertexData(sources, vertexCount, layout, vertices);
+    packVertexData(orderedSources, data.vertexCount, layout, vertices);
 
-    auto indices = readIndices(gltfModel, primitive, vertexCount);
+    auto indices = readIndices(gltfModel, primitive, data.vertexCount);
 
-    return std::make_unique<se::render::Mesh>(vertices, indices, aabb, layout, instanced);
+    return std::make_unique<se::render::Mesh>(vertices, indices, data.aabb, layout, instanced);
 }
 
 MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive, const std::vector<MaterialHandle>& materials,
@@ -819,11 +828,10 @@ const Skeleton& Model::getSkeleton() const {
 }
 
 std::optional<int> Model::findAnimationClipIndex(std::string_view clipName) const {
-    const auto it = m_AnimationIndexByName.find(clipName);
-    if (it == m_AnimationIndexByName.end()) {
-        return std::nullopt;
+    if (auto it = m_AnimationIndexByName.find(clipName); it != m_AnimationIndexByName.end()) {
+        return it->second;
     }
-    return it->second;
+    return std::nullopt;
 }
 
 std::string Model::getDirectory(std::string_view filepath) {

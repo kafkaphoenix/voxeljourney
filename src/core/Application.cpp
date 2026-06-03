@@ -9,7 +9,7 @@ Application::Application()
     : m_Config(Config::load("config.toml")),
       m_StatsTracker(m_Config.stats()),
       m_Window(m_Config.window(), m_Config.render(), &m_EventBus),
-      m_RenderManager(m_Config.render()),
+      m_RenderManager(m_Config),
       m_Level(m_Config, m_RenderManager, m_AssetManager) {
     subscribeEvents();
     m_EventBus.dispatchQueued();

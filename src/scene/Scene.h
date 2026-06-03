@@ -66,7 +66,7 @@ public:
             .pointLights = m_PointLights,
             .spotLights = m_SpotLights,
             .ambientColor = m_Sky.getAmbientColor(),
-            .ambientStrength = m_Sky.getAmbientStrength(),
+            .ambientIntensity = m_Sky.getAmbientIntensity(),
         };
     }
 

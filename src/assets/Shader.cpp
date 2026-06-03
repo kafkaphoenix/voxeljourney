@@ -58,7 +58,7 @@ void Shader::checkProgramLinking() const {
 Shader::Shader(std::string_view directory) : Shader(directory, directory) {}
 
 Shader::Shader(std::string_view vertPath, std::string_view fragPath)
-    : Asset(std::format("{}|{}", vertPath, fragPath)),
+    : Asset(std::format("{}.vert|{}.frag", vertPath, fragPath)),
       m_VertPath(vertPath),
       m_FragPath(fragPath),
       m_Id(glCreateProgram()) {
