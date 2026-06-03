@@ -80,7 +80,7 @@
     {
       "name": "windows-tidy",
       "configurePreset": "windows-tidy",
-      "targets": ["simpleengine"]
+      "targets": ["voxeljourney"]
     },
     {
       "name": "ubuntu-gcc-debug",
@@ -89,7 +89,7 @@
     {
       "name": "ubuntu-tidy",
       "configurePreset": "ubuntu-tidy",
-      "targets": ["simpleengine"]
+      "targets": ["voxeljourney"]
     }
   ]
 }

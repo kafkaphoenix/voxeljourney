@@ -39,10 +39,10 @@ The engine is organized into several modules, each responsible for a specific as
 - AssetManager: Loads and caches shaders, textures, models, and materials.
 - Shader: GLSL program compilation and uniform updates.
 - Texture: Image loading and OpenGL texture setup.
-- Material: Shader + textures + render state, matching glTF data. Lighting is simple diffuse.
+- Material: Shader + textures + render state, matching glTF data.
 - Model: Loads glTF/glb into meshes and materials.
-- Animation: Stores skeletal animation clips, channels, and keyframes for animating bones over time.
-- Skeleton: Defines the bone hierarchy, inverse bind matrices, and rest pose transforms used for skinning and animation.
+- Animation: Stores skeletal clips/channels/keyframes and samples a clip into a local-space pose.
+- Skeleton: Defines bone hierarchy, inverse bind matrices, and rest pose; builds final skinning palette matrices from a sampled pose.
 
 ### Render
 - VertexArray: OpenGL VAO wrapper for vertex attribute setup.
@@ -50,14 +50,14 @@ The engine is organized into several modules, each responsible for a specific as
 - Buffer: OpenGL buffer wrapper for vertex/index data.
 - Mesh: Vertex/index data loaded from models, with OpenGL buffers and VAO setup.
 - UniformBuffer: OpenGL UBO wrapper for per-frame data (camera, lights).
-- Framebuffer: Off-screen render target with color textures (HDR) and depth. Supports multiple render targets and depth-only FBOs.
+- Framebuffer: Off-screen render target with color/depth attachments. Supports single-sample, MSAA, and HDR configurations.
 - Frustum: Simple CPU frustum culling for renderables outside the camera view.
-- RenderManager: Orchestrates render passes (geometry, skybox, post-process) and framebuffer management.
-- ModelRenderer: Handles submitting model renderables to the RenderQueue and grouping them for efficient rendering.
+- RenderManager: Orchestrates passes (terrain, geometry, post-process), framebuffer management, and MSAA resolve.
+- ModelRenderer: Submits renderables to the RenderQueue and renders opaque and transparent passes for static and animated items.
 - TerrainRenderer: Submits visible chunk renderables to a draw list.
 - PostProcessRenderer: Full-screen post-processing pass with selectable effects (tone map, inversion, grayscale, sharpen, blur, edge detect).
 - ScreenQuad: Attributeless full-screen triangle for post-processing.
-- RenderQueue: Collects renderables each frame to be processed by each renderer at the end of the frame.
+- RenderQueue: Collects renderables each frame and classifies them into static opaque batches, animated opaque draws, and depth-sorted transparent draws.
 - RenderStats: Tracks draw calls, triangles for stats display.
 
 ### Scene
@@ -67,10 +67,13 @@ The engine is organized into several modules, each responsible for a specific as
 - Sun: Directional light with color and intensity.
 - Sky: Simple sky color and ambient light.
 - Transform: Defines position, rotation, and scale.
-- Renderable: Defines a renderable object composed of a mesh, material, and transform.
+- Renderable: Defines a renderable mesh/material with either static pose data or dynamic transform/animator references.
 - ChunkRenderable: Renderable for a chunk composed of a mesh and transform.
-- Camera: Simple perspective camera with view/projection matrix calculation.
-- Player: Camera controller with WASD movement and mouse look, no physics, collisions or model.
+- Camera: Perspective camera with configurable projection/view settings.
+- Player: Third-person player controller with camera movement, mouse look, and animated character support.
+- Animator: Updates skeleton poses and generates bone matrices for skeletal animation.
+- AnimationController: High-level locomotion state controller driving Animator clip transitions.
+- AnimatedInstance: Runtime scene object combining model, transform, animator, controller, and tag.
 
 ### Voxel
 - Voxel: Defines a voxel with a type (e.g., air, dirt, stone).
@@ -80,12 +83,19 @@ The engine is organized into several modules, each responsible for a specific as
 - ChunkCoords: Utility functions for converting between world, chunk, and voxel coordinates.
 - World: Owns the ChunkMap and handles chunk streaming based on the player's position. It also coordinates with the Scene to update chunk renderables when chunks are loaded or modified.
 
-## Potential improvements
+## Frame render order
+1. Terrain
+2. Static opaque (instanced where possible, grouped by material/mesh to reduce state changes).
+3. Animated opaque (non-instanced, per-draw bone palette update).
+4. Transparent (single depth-sorted stream, mixed static and animated).
+5. MSAA resolve (if enabled) and post-process full-screen pass.
+
+## Potential improvements ideas
 - Better error handling and logging. Using a logging library like spdlog would be a good improvement.
 - More robust asset management with reference counting and unloading/reloading.
 - Improve renderer (forward+ or deferred) and add more features like shadows and reflections or more complex lighting logic.
 - More complete input handling with action mapping and support for gamepads.
-- More complete scene management with entities, components, and systems.
+- More complete scene management with entities, components, and systems (ECS architecture).
 - State management for different game states (main menu, gameplay, pause, etc).
 - Debug rendering and tools for inspecting the scene and assets. Using a library like ImGui would be great for this.
 - UI system for in-game menus, HUD, etc. Using RmlUI or similar would be a good option.
