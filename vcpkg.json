@@ -15,7 +15,8 @@
     "glm",
     "stb",
     "tinygltf",
-    "tomlplusplus"
+    "tomlplusplus",
+    "mikktspace"
   ],
   "overrides": [
     {
@@ -41,6 +42,10 @@
     {
       "name": "tomlplusplus",
       "version": "3.4.0#1"
+    },
+    {
+      "name": "mikktspace",
+      "version": "2020-10-06#3"
     }
   ]
 }

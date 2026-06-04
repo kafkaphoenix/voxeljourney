@@ -22,10 +22,10 @@ void RenderManager::beginFrame(const se::scene::Camera& camera) {
 
     if (m_SceneMsaaFbo) {
         m_SceneMsaaFbo->bind();
-        m_SceneMsaaFbo->clear();
+        clearSceneFramebuffer(*m_SceneMsaaFbo);
     } else if (m_SceneFinalFbo) {
         m_SceneFinalFbo->bind();
-        m_SceneFinalFbo->clear();
+        clearSceneFramebuffer(*m_SceneFinalFbo);
     }
 }
 
@@ -50,13 +50,23 @@ void RenderManager::endFrame(const se::scene::LightData& lights) {
     }
 
     m_Stats.reset();
-    m_TerrainRenderer.flush(lights, *m_Camera, m_Stats);
-    m_ModelRenderer.flush(lights, *m_Camera, m_Stats);
 
     if (m_SceneMsaaFbo && m_SceneFinalFbo) {
-        resolveMsaaToFinalFramebuffer();
+        m_SceneMsaaFbo->bind();
+        m_TerrainRenderer.flush(lights, *m_Camera, m_Stats);
+        m_ModelRenderer.flushOpaque(lights, *m_Camera, m_Stats);
+
+        resolveMsaaSceneToFinalFramebuffer();
+
+        m_SceneFinalFbo->bind();
+        clearTransparencyTargets(*m_SceneFinalFbo);
+        m_ModelRenderer.flushTransparent(lights, *m_Camera, m_Stats);
+        m_ModelRenderer.clearQueuedDraws();
+
         m_PostProcess.execute(*m_SceneFinalFbo);
     } else if (m_SceneFinalFbo) {
+        m_TerrainRenderer.flush(lights, *m_Camera, m_Stats);
+        m_ModelRenderer.flush(lights, *m_Camera, m_Stats);
         m_PostProcess.execute(*m_SceneFinalFbo);
     }
 
@@ -84,6 +94,8 @@ void RenderManager::toggleWireframe() {
     m_ModelRenderer.setWireframe(m_Wireframe);
 }
 
+void RenderManager::cycleRenderDebugView() { m_ModelRenderer.cycleRenderDebugView(); }
+
 void RenderManager::cyclePostEffect() { m_PostProcess.cycleEffect(); }
 
 void RenderManager::setPostEffect(PostEffect effect) { m_PostProcess.setEffect(effect); }
@@ -102,7 +114,7 @@ void RenderManager::initFramebuffer(int width, int height) {
         .width = width,
         .height = height,
         .samples = 1,
-        .colorAttachments = {GL_RGBA16F},
+        .colorAttachments = {GL_RGBA16F, GL_RGBA16F, GL_R8},
         .depthStencil = true,
     });
 
@@ -111,20 +123,57 @@ void RenderManager::initFramebuffer(int width, int height) {
             .width = width,
             .height = height,
             .samples = m_MsaaSamples,
-            .colorAttachments = {GL_RGBA16F},
+            .colorAttachments = {GL_RGBA16F, GL_RGBA16F, GL_R8},
             .depthStencil = true,
         });
     }
 }
 
-void RenderManager::resolveMsaaToFinalFramebuffer() const {
+void RenderManager::clearSceneFramebuffer(const Framebuffer& framebuffer) {
+    constexpr std::array<GLfloat, 4> SCENE_COLOR = {0.2f, 0.3f, 0.8f, 1.0f};
+    constexpr std::array<GLfloat, 4> OIT_ACCUM_CLEAR = {0.0f, 0.0f, 0.0f, 0.0f};
+    constexpr std::array<GLfloat, 1> OIT_REVEAL_CLEAR = {1.0f};
+
+    glClearNamedFramebufferfv(framebuffer.id(), GL_COLOR, 0, SCENE_COLOR.data());
+    glClearNamedFramebufferfv(framebuffer.id(), GL_COLOR, 1, OIT_ACCUM_CLEAR.data());
+    glClearNamedFramebufferfv(framebuffer.id(), GL_COLOR, 2, OIT_REVEAL_CLEAR.data());
+
+    constexpr GLfloat DEPTH_CLEAR = 1.0f;
+    glClearNamedFramebufferfv(framebuffer.id(), GL_DEPTH, 0, &DEPTH_CLEAR);
+}
+
+void RenderManager::clearTransparencyTargets(const Framebuffer& framebuffer) {
+    constexpr std::array<GLfloat, 4> OIT_ACCUM_CLEAR = {0.0f, 0.0f, 0.0f, 0.0f};
+    constexpr std::array<GLfloat, 1> OIT_REVEAL_CLEAR = {1.0f};
+
+    glClearNamedFramebufferfv(framebuffer.id(), GL_COLOR, 1, OIT_ACCUM_CLEAR.data());
+    glClearNamedFramebufferfv(framebuffer.id(), GL_COLOR, 2, OIT_REVEAL_CLEAR.data());
+}
+
+void RenderManager::resolveMsaaSceneToFinalFramebuffer() const {
     if (!m_SceneMsaaFbo || !m_SceneFinalFbo) {
         return;
     }
 
+    // Resolve only scene color attachment; OIT attachments are rendered directly on single-sample FBO.
+    glNamedFramebufferReadBuffer(m_SceneMsaaFbo->id(), GL_COLOR_ATTACHMENT0);
+    glNamedFramebufferDrawBuffer(m_SceneFinalFbo->id(), GL_COLOR_ATTACHMENT0);
     glBlitNamedFramebuffer(m_SceneMsaaFbo->id(), m_SceneFinalFbo->id(), 0, 0, m_SceneMsaaFbo->width(),
                            m_SceneMsaaFbo->height(), 0, 0, m_SceneFinalFbo->width(), m_SceneFinalFbo->height(),
-                           GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    glNamedFramebufferReadBuffer(m_SceneMsaaFbo->id(), GL_NONE);
+    glNamedFramebufferDrawBuffer(m_SceneFinalFbo->id(), GL_NONE);
+    glBlitNamedFramebuffer(m_SceneMsaaFbo->id(), m_SceneFinalFbo->id(), 0, 0, m_SceneMsaaFbo->width(),
+                           m_SceneMsaaFbo->height(), 0, 0, m_SceneFinalFbo->width(), m_SceneFinalFbo->height(),
+                           GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+    glNamedFramebufferReadBuffer(m_SceneMsaaFbo->id(), GL_COLOR_ATTACHMENT0);
+
+    constexpr std::array<GLenum, 3> FINAL_DRAW_BUFFERS = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+                                                          GL_COLOR_ATTACHMENT2};
+    glNamedFramebufferDrawBuffers(m_SceneFinalFbo->id(), static_cast<GLsizei>(FINAL_DRAW_BUFFERS.size()),
+                                  FINAL_DRAW_BUFFERS.data());
 }
 
 void RenderManager::setupGlState() {

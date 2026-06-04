@@ -1,6 +1,7 @@
 #include "Model.h"
 
 #define TINYGLTF_IMPLEMENTATION
+#include <mikktspace.h>
 #include <tiny_gltf.h>
 
 #include <array>
@@ -31,6 +32,455 @@ void updateAABB(se::render::AABB& aabb, const glm::vec3& pos, size_t i) {
         aabb.min = glm::min(aabb.min, pos);
         aabb.max = glm::max(aabb.max, pos);
     }
+}
+
+se::render::AABB computeAABB(const std::vector<float>& positions, size_t vertexCount) {
+    se::render::AABB aabb{};
+    for (size_t i = 0; i < vertexCount; ++i) {
+        updateAABB(aabb, {positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]}, i);
+    }
+    return aabb;
+}
+
+se::render::BufferLayout buildStaticMeshLayout() {
+    return se::render::BufferLayout({
+        {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
+        {"a_Normal", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
+        {"a_TexCoord", GL_FLOAT, sizeof(float), 0, 2, GL_FALSE},
+        {"a_Tangent", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+        {"a_Color", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+    });
+}
+
+se::render::BufferLayout buildSkinnedMeshLayout() {
+    return se::render::BufferLayout({
+        {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
+        {"a_Normal", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
+        {"a_TexCoord", GL_FLOAT, sizeof(float), 0, 2, GL_FALSE},
+        {"a_Tangent", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+        {"a_Color", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+        {"a_Joints", GL_INT, sizeof(int32_t), 0, 4, GL_FALSE},
+        {"a_Weights", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
+    });
+}
+
+size_t componentTypeSize(int componentType) {
+    switch (componentType) {
+    case TINYGLTF_COMPONENT_TYPE_BYTE:
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return sizeof(uint8_t);
+    case TINYGLTF_COMPONENT_TYPE_SHORT:
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return sizeof(uint16_t);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+    case TINYGLTF_COMPONENT_TYPE_FLOAT: return sizeof(uint32_t);
+    default: throw std::runtime_error("Unsupported accessor component type");
+    }
+}
+
+float decodeComponentAsFloat(const uint8_t* ptr, int componentType, bool normalized) {
+    switch (componentType) {
+    case TINYGLTF_COMPONENT_TYPE_FLOAT: return *reinterpret_cast<const float*>(ptr);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: {
+        const auto v = *ptr;
+        return normalized ? static_cast<float>(v) / 255.0f : static_cast<float>(v);
+    }
+    case TINYGLTF_COMPONENT_TYPE_BYTE: {
+        const auto v = *reinterpret_cast<const int8_t*>(ptr);
+        return normalized ? (std::max)(-1.0f, static_cast<float>(v) / 127.0f) : static_cast<float>(v);
+    }
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+        const auto v = *reinterpret_cast<const uint16_t*>(ptr);
+        return normalized ? static_cast<float>(v) / 65535.0f : static_cast<float>(v);
+    }
+    case TINYGLTF_COMPONENT_TYPE_SHORT: {
+        const auto v = *reinterpret_cast<const int16_t*>(ptr);
+        return normalized ? (std::max)(-1.0f, static_cast<float>(v) / 32767.0f) : static_cast<float>(v);
+    }
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
+        return static_cast<float>(*reinterpret_cast<const uint32_t*>(ptr));
+    }
+    default: throw std::runtime_error("Unsupported accessor component type");
+    }
+}
+
+// Reads any strided accessor into a flat float vector, supporting normalized integer source formats.
+void readStridedVec(const tinygltf::Model& gltfModel, const tinygltf::Accessor& acc, int components,
+                    std::vector<float>& out) {
+    if (acc.bufferView < 0 || acc.bufferView >= static_cast<int>(gltfModel.bufferViews.size())) {
+        throw std::runtime_error("Invalid bufferView for accessor");
+    }
+    const auto& bv = gltfModel.bufferViews[acc.bufferView];
+    if (bv.buffer < 0 || bv.buffer >= static_cast<int>(gltfModel.buffers.size())) {
+        throw std::runtime_error("Invalid buffer for accessor");
+    }
+    const auto& buf = gltfModel.buffers[bv.buffer];
+    const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
+    const size_t compSz = componentTypeSize(acc.componentType);
+    const size_t elemSz = static_cast<size_t>(components) * compSz;
+    const size_t stride = bv.byteStride > 0 ? bv.byteStride : elemSz;
+
+    out.reserve(out.size() + acc.count * components);
+    for (size_t i = 0; i < acc.count; ++i) {
+        const uint8_t* elem = base + i * stride;
+        for (int c = 0; c < components; ++c) {
+            out.push_back(
+                decodeComponentAsFloat(elem + static_cast<size_t>(c) * compSz, acc.componentType, acc.normalized));
+        }
+    }
+}
+
+size_t getIndexElementSize(int componentType) {
+    switch (componentType) {
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return sizeof(uint16_t);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return sizeof(uint32_t);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return sizeof(uint8_t);
+    default: throw std::runtime_error("Unsupported index component type");
+    }
+}
+
+unsigned int extractIndex(const std::vector<unsigned char>& buffer, size_t offset, int componentType) {
+    switch (componentType) {
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return *reinterpret_cast<const uint16_t*>(&buffer[offset]);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return *reinterpret_cast<const uint32_t*>(&buffer[offset]);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return *reinterpret_cast<const uint8_t*>(&buffer[offset]);
+    default: throw std::runtime_error("Unsupported index component type");
+    }
+}
+
+void validateAccessorBuffer(const tinygltf::Accessor& accessor, const tinygltf::Model& gltfModel) {
+    if (accessor.bufferView < 0 || accessor.bufferView >= static_cast<int>(gltfModel.bufferViews.size())) {
+        throw std::runtime_error("Invalid bufferView for indices");
+    }
+    const auto& bufferView = gltfModel.bufferViews[accessor.bufferView];
+    if (bufferView.buffer < 0 || bufferView.buffer >= static_cast<int>(gltfModel.buffers.size())) {
+        throw std::runtime_error("Invalid buffer for indices");
+    }
+}
+
+std::vector<unsigned int> readIndices(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
+                                      size_t vertexCount) {
+    std::vector<unsigned int> indices;
+
+    if (primitive.indices < 0) {
+        indices.reserve(vertexCount);
+        for (size_t i = 0; i < vertexCount; ++i) { indices.push_back(static_cast<unsigned int>(i)); }
+        return indices;
+    }
+
+    const auto& accessor = gltfModel.accessors[primitive.indices];
+    validateAccessorBuffer(accessor, gltfModel);
+    const auto& bufferView = gltfModel.bufferViews[accessor.bufferView];
+    const auto& buffer = gltfModel.buffers[bufferView.buffer];
+
+    indices.reserve(accessor.count);
+    size_t elemSize = getIndexElementSize(accessor.componentType);
+    size_t stride = bufferView.byteStride > 0 ? bufferView.byteStride : elemSize;
+    size_t baseOffset = bufferView.byteOffset + accessor.byteOffset;
+
+    for (size_t i = 0; i < accessor.count; ++i) {
+        indices.push_back(extractIndex(buffer.data, baseOffset + i * stride, accessor.componentType));
+    }
+    return indices;
+}
+
+void readPrimitiveAttributes(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
+                             std::vector<float>& positions, std::vector<float>& normals, std::vector<float>& texCoords,
+                             std::vector<float>& tangents, std::vector<float>& colors) {
+    for (const auto& [name, accessorIdx] : primitive.attributes) {
+        if (name == "POSITION") {
+            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 3, positions);
+        } else if (name == "NORMAL") {
+            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 3, normals);
+        } else if (name == "TEXCOORD_0") {
+            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 2, texCoords);
+        } else if (name == "TANGENT") {
+            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 4, tangents);
+        } else if (name == "COLOR_0") {
+            const auto& accessor = gltfModel.accessors[accessorIdx];
+            int components = (accessor.type == TINYGLTF_TYPE_VEC4) ? 4 : 3;
+            readStridedVec(gltfModel, accessor, components, colors);
+            // If VEC3, expand to VEC4 with alpha=1 (in-place, back-to-front to avoid stomping)
+            if (components == 3) {
+                size_t count = colors.size() / 3;
+                colors.resize(count * 4);
+                for (size_t i = count; i-- > 0;) {
+                    colors[i * 4 + 3] = 1.0f;
+                    colors[i * 4 + 2] = colors[i * 3 + 2];
+                    colors[i * 4 + 1] = colors[i * 3 + 1];
+                    colors[i * 4 + 0] = colors[i * 3 + 0];
+                }
+            }
+        }
+    }
+}
+
+void readJointIndices(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
+                      std::vector<int32_t>& joints) {
+    auto it = primitive.attributes.find("JOINTS_0");
+    if (it == primitive.attributes.end()) {
+        return;
+    }
+
+    const auto& acc = gltfModel.accessors[it->second];
+    const auto& bv = gltfModel.bufferViews[acc.bufferView];
+    const auto& buf = gltfModel.buffers[bv.buffer];
+    const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
+
+    joints.resize(acc.count * 4);
+
+    if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+        size_t stride = bv.byteStride > 0 ? bv.byteStride : 4 * sizeof(uint8_t);
+        for (size_t i = 0; i < acc.count; ++i) {
+            const auto* elem = base + i * stride;
+            for (int c = 0; c < 4; ++c) { joints[i * 4 + c] = static_cast<int32_t>(elem[c]); }
+        }
+    } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+        size_t stride = bv.byteStride > 0 ? bv.byteStride : 4 * sizeof(uint16_t);
+        for (size_t i = 0; i < acc.count; ++i) {
+            const auto* elem = reinterpret_cast<const uint16_t*>(base + i * stride);
+            for (int c = 0; c < 4; ++c) { joints[i * 4 + c] = static_cast<int32_t>(elem[c]); }
+        }
+    }
+}
+
+void readJointWeights(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
+                      std::vector<float>& weights) {
+    auto it = primitive.attributes.find("WEIGHTS_0");
+    if (it == primitive.attributes.end()) {
+        return;
+    }
+    readStridedVec(gltfModel, gltfModel.accessors[it->second], 4, weights);
+}
+
+void normalizeSkinningWeights(std::vector<float>& weights, size_t vertexCount) {
+    constexpr float EPS = 1e-6f;
+    if (weights.size() < vertexCount * 4) {
+        return;
+    }
+
+    for (size_t i = 0; i < vertexCount; ++i) {
+        float* w = weights.data() + i * 4;
+        const float sum = w[0] + w[1] + w[2] + w[3];
+        if (sum > EPS) {
+            const float inv = 1.0f / sum;
+            w[0] *= inv;
+            w[1] *= inv;
+            w[2] *= inv;
+            w[3] *= inv;
+        } else {
+            // Keep a valid blend in degenerate cases instead of producing a zero skin matrix.
+            w[0] = 1.0f;
+            w[1] = 0.0f;
+            w[2] = 0.0f;
+            w[3] = 0.0f;
+        }
+    }
+}
+
+// Generates smooth normals by accumulating area-weighted face normals per vertex.
+// Used when the glTF primitive has no NORMAL attribute.
+void generateNormals(std::vector<float>& normals, const std::vector<float>& positions,
+                     const std::vector<unsigned int>& indices, size_t vertexCount) {
+    normals.assign(vertexCount * 3, 0.0f);
+
+    for (size_t i = 0; i + 2 < indices.size(); i += 3) {
+        const size_t i0 = indices[i];
+        const size_t i1 = indices[i + 1];
+        const size_t i2 = indices[i + 2];
+        const glm::vec3 p0 = {positions[i0 * 3], positions[i0 * 3 + 1], positions[i0 * 3 + 2]};
+        const glm::vec3 p1 = {positions[i1 * 3], positions[i1 * 3 + 1], positions[i1 * 3 + 2]};
+        const glm::vec3 p2 = {positions[i2 * 3], positions[i2 * 3 + 1], positions[i2 * 3 + 2]};
+        // Cross product length = 2 * triangle area, so this weights by area automatically.
+        const glm::vec3 n = glm::cross(p1 - p0, p2 - p0);
+        for (size_t v : {i0, i1, i2}) {
+            normals[v * 3] += n.x;
+            normals[v * 3 + 1] += n.y;
+            normals[v * 3 + 2] += n.z;
+        }
+    }
+
+    for (size_t i = 0; i < vertexCount; ++i) {
+        glm::vec3 n = {normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]};
+        float len = glm::length(n);
+        n = (len > 1e-6f) ? n / len : glm::vec3(0.0f, 1.0f, 0.0f);
+        normals[i * 3] = n.x;
+        normals[i * 3 + 1] = n.y;
+        normals[i * 3 + 2] = n.z;
+    }
+}
+
+// Context passed through MikkTSpace callbacks.
+struct MikkTSpaceContext {
+    const std::vector<float>* positions;
+    const std::vector<float>* normals;
+    const std::vector<float>* texCoords;
+    const std::vector<unsigned int>* indices;
+    std::vector<float>* tangents;  // output: flat vec4 array (xyz=tangent, w=sign)
+};
+
+// MikkTSpace callback implementations, the library calls these to read geometry
+// and write the computed tangents back.
+// The C-style array parameters (float[3], float[2]) are part of the MikkTSpace C API
+// and cannot be changed.
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+int mtsGetNumFaces(const SMikkTSpaceContext* ctx) {
+    const auto* c = static_cast<const MikkTSpaceContext*>(ctx->m_pUserData);
+    return static_cast<int>(c->indices->size() / 3);
+}
+
+int mtsGetNumVerticesOfFace(const SMikkTSpaceContext* /*ctx*/, int /*faceIdx*/) {
+    return 3;  // always triangles
+}
+
+void mtsGetPosition(const SMikkTSpaceContext* ctx, float outPos[3], int face, int vert) {
+    const auto* c = static_cast<const MikkTSpaceContext*>(ctx->m_pUserData);
+    const size_t idx = (*c->indices)[static_cast<size_t>(face) * 3 + vert];
+    outPos[0] = (*c->positions)[idx * 3];
+    outPos[1] = (*c->positions)[idx * 3 + 1];
+    outPos[2] = (*c->positions)[idx * 3 + 2];
+}
+
+void mtsGetNormal(const SMikkTSpaceContext* ctx, float outNorm[3], int face, int vert) {
+    const auto* c = static_cast<const MikkTSpaceContext*>(ctx->m_pUserData);
+    const size_t idx = (*c->indices)[static_cast<size_t>(face) * 3 + vert];
+    outNorm[0] = (*c->normals)[idx * 3];
+    outNorm[1] = (*c->normals)[idx * 3 + 1];
+    outNorm[2] = (*c->normals)[idx * 3 + 2];
+}
+
+void mtsGetTexCoord(const SMikkTSpaceContext* ctx, float outUV[2], int face, int vert) {
+    const auto* c = static_cast<const MikkTSpaceContext*>(ctx->m_pUserData);
+    const size_t idx = (*c->indices)[static_cast<size_t>(face) * 3 + vert];
+    outUV[0] = (*c->texCoords)[idx * 2];
+    outUV[1] = (*c->texCoords)[idx * 2 + 1];
+}
+
+void mtsSetTSpaceBasic(const SMikkTSpaceContext* ctx, const float tangent[3], float sign, int face, int vert) {
+    auto* c = static_cast<MikkTSpaceContext*>(ctx->m_pUserData);
+    const size_t idx = (*c->indices)[static_cast<size_t>(face) * 3 + vert];
+    (*c->tangents)[idx * 4] = tangent[0];
+    (*c->tangents)[idx * 4 + 1] = tangent[1];
+    (*c->tangents)[idx * 4 + 2] = tangent[2];
+    (*c->tangents)[idx * 4 + 3] = sign;
+}
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+
+// Generates tangents using MikkTSpace. Requires normals and texcoords to already be populated.
+// Falls back to a simple (1,0,0,1) default if UVs are all zero (no meaningful UV space to work with).
+void generateTangentsMikkTSpace(std::vector<float>& tangents, const std::vector<float>& positions,
+                                const std::vector<float>& normals, const std::vector<float>& texCoords,
+                                const std::vector<unsigned int>& indices, size_t vertexCount) {
+    tangents.assign(vertexCount * 4, 0.0f);
+
+    // If there are no real UVs, MikkTSpace will produce garbage. Fall back to a neutral tangent.
+    bool hasUVs = false;
+    for (float v : texCoords) {
+        if (v != 0.0f) {
+            hasUVs = true;
+            break;
+        }
+    }
+    if (!hasUVs) {
+        for (size_t i = 0; i < vertexCount; ++i) {
+            tangents[i * 4] = 1.0f;
+            tangents[i * 4 + 3] = 1.0f;
+        }
+        return;
+    }
+
+    MikkTSpaceContext userData{&positions, &normals, &texCoords, &indices, &tangents};
+
+    SMikkTSpaceInterface iface{};
+    iface.m_getNumFaces = mtsGetNumFaces;
+    iface.m_getNumVerticesOfFace = mtsGetNumVerticesOfFace;
+    iface.m_getPosition = mtsGetPosition;
+    iface.m_getNormal = mtsGetNormal;
+    iface.m_getTexCoord = mtsGetTexCoord;
+    iface.m_setTSpaceBasic = mtsSetTSpaceBasic;
+    iface.m_setTSpace = nullptr;  // basic variant is sufficient
+
+    SMikkTSpaceContext mikkCtx{};
+    mikkCtx.m_pInterface = &iface;
+    mikkCtx.m_pUserData = &userData;
+
+    if (!genTangSpaceDefault(&mikkCtx)) {
+        // MikkTSpace failed, fall back to neutral tangent
+        std::println("Warning: MikkTSpace tangent generation failed, using fallback");
+        for (size_t i = 0; i < vertexCount; ++i) {
+            tangents[i * 4] = 1.0f;
+            tangents[i * 4 + 3] = 1.0f;
+        }
+    }
+}
+
+struct PrimitiveData {
+    std::vector<float> positions;
+    std::vector<float> normals;
+    std::vector<float> texCoords;
+    std::vector<float> tangents;
+    std::vector<float> colors;
+    std::vector<int32_t> joints;
+    std::vector<float> weights;
+    std::vector<unsigned int> indices;  // stored here so generation steps can share them
+    size_t vertexCount = 0;
+    se::render::AABB aabb{};
+};
+
+bool readPrimitiveData(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive, PrimitiveData& out) {
+    auto posIt = primitive.attributes.find("POSITION");
+    if (posIt == primitive.attributes.end()) {
+        return false;
+    }
+
+    const auto& posAccessor = gltfModel.accessors[posIt->second];
+    if (posAccessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT || posAccessor.type != TINYGLTF_TYPE_VEC3 ||
+        posAccessor.bufferView < 0 || posAccessor.bufferView >= static_cast<int>(gltfModel.bufferViews.size())) {
+        return false;
+    }
+
+    out.vertexCount = posAccessor.count;
+    readPrimitiveAttributes(gltfModel, primitive, out.positions, out.normals, out.texCoords, out.tangents, out.colors);
+    readJointIndices(gltfModel, primitive, out.joints);
+    readJointWeights(gltfModel, primitive, out.weights);
+    out.indices = readIndices(gltfModel, primitive, out.vertexCount);
+    return true;
+}
+
+// Fills in any missing vertex attributes, generating normals and tangents from geometry where needed.
+// texCoords default to (0,0) and colors to (1,1,1,1). Joints and weights default to zero (no skinning influence).
+void fillMissingAttributes(PrimitiveData& data) {
+    const size_t n = data.vertexCount;
+
+    // Texcoords and colors: simple neutral defaults are fine.
+    if (data.texCoords.empty()) {
+        data.texCoords.resize(n * 2, 0.0f);
+    }
+    if (data.colors.empty()) {
+        data.colors.assign(n * 4, 1.0f);
+    }
+
+    // glTF UVs are authored for top-left image origin; OpenGL texture sampling uses bottom-left origin.
+    for (size_t i = 1; i < data.texCoords.size(); i += 2) { data.texCoords[i] = 1.0f - data.texCoords[i]; }
+
+    // Normals: generate smooth area-weighted normals from geometry if absent.
+    if (data.normals.empty()) {
+        generateNormals(data.normals, data.positions, data.indices, n);
+    }
+
+    // Tangents: generate with MikkTSpace if absent. Requires normals and texcoords to be ready.
+    if (data.tangents.empty()) {
+        generateTangentsMikkTSpace(data.tangents, data.positions, data.normals, data.texCoords, data.indices, n);
+    }
+
+    // Skinning defaults: zero joints and weights mean the vertex is unaffected by any bone.
+    if (data.joints.empty()) {
+        data.joints.assign(n * 4, 0);
+    }
+    if (data.weights.empty()) {
+        data.weights.assign(n * 4, 0.0f);
+        for (size_t i = 0; i < n; ++i) { data.weights[i * 4] = 1.0f; }
+    }
+
+    normalizeSkinningWeights(data.weights, n);
 }
 
 struct VertexSources {
@@ -101,90 +551,42 @@ void packVertexData(const std::vector<std::span<const uint8_t>>& orderedSources,
     }
 }
 
-// Reads a strided float accessor into a flat vector.
-// Necessary because GLB exporters (e.g. Blender) often produce interleaved
-// vertex buffers with a non-zero byteStride, which a raw pointer cast would misread.
-void readStridedVec(const tinygltf::Model& gltfModel, const tinygltf::Accessor& acc, int components,
-                    std::vector<float>& out) {
-    if (acc.bufferView < 0 || acc.bufferView >= static_cast<int>(gltfModel.bufferViews.size())) {
-        throw std::runtime_error("Invalid bufferView for accessor");
-    }
-    const auto& bv = gltfModel.bufferViews[acc.bufferView];
-    if (bv.buffer < 0 || bv.buffer >= static_cast<int>(gltfModel.buffers.size())) {
-        throw std::runtime_error("Invalid buffer for accessor");
-    }
-    const auto& buf = gltfModel.buffers[bv.buffer];
-    const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
-    size_t stride = bv.byteStride > 0 ? bv.byteStride : components * sizeof(float);
-    out.reserve(acc.count * components);
-    for (size_t i = 0; i < acc.count; ++i) {
-        const auto* elem = reinterpret_cast<const float*>(base + i * stride);
-        for (int c = 0; c < components; ++c) { out.push_back(elem[c]); }
-    }
+VertexSources buildVertexSources(const PrimitiveData& data) {
+    auto asBytes = [](const std::vector<float>& v) -> std::span<const uint8_t> {
+        return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(float)};
+    };
+    auto asBytesInt = [](const std::vector<int32_t>& v) -> std::span<const uint8_t> {
+        return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(int32_t)};
+    };
+
+    return VertexSources{
+        .position = asBytes(data.positions),
+        .normal = asBytes(data.normals),
+        .texCoord = asBytes(data.texCoords),
+        .tangent = asBytes(data.tangents),
+        .color = asBytes(data.colors),
+        .joints = data.joints.empty() ? std::span<const uint8_t>{} : asBytesInt(data.joints),
+        .weights = data.weights.empty() ? std::span<const uint8_t>{} : asBytes(data.weights),
+    };
 }
 
-void readPrimitiveAttributes(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
-                             std::vector<float>& positions, std::vector<float>& normals, std::vector<float>& texCoords,
-                             std::vector<float>& tangents, std::vector<float>& colors) {
-    static const std::unordered_map<std::string, int> componentCount = {
-        {"POSITION", 3}, {"NORMAL", 3}, {"TEXCOORD_0", 2}, {"TANGENT", 4}};
+std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
+                                                         const tinygltf::Primitive& primitive,
+                                                         const se::render::BufferLayout& layout, bool instanced) {
+    PrimitiveData data;
+    if (!readPrimitiveData(gltfModel, primitive, data)) {
+        return nullptr;
+    }
 
-    for (const auto& [name, accessorIdx] : primitive.attributes) {
-        if (name == "POSITION")
-            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 3, positions);
-        else if (name == "NORMAL")
-            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 3, normals);
-        else if (name == "TEXCOORD_0")
-            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 2, texCoords);
-        else if (name == "TANGENT")
-            readStridedVec(gltfModel, gltfModel.accessors[accessorIdx], 4, tangents);
-        else if (name == "COLOR_0") {
-            const auto& accessor = gltfModel.accessors[accessorIdx];
-            int components = (accessor.type == TINYGLTF_TYPE_VEC4) ? 4 : 3;
-            // Only support float for now; unsupported types will be left as white (1.0) in the shader fallback logic
-            if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
-                readStridedVec(gltfModel, accessor, components, colors);
-                // If VEC3, expand to VEC4 with alpha=1
-                if (components == 3) {
-                    colors.resize((colors.size() / 3) * 4);
-                    for (size_t i = colors.size() / 4; i-- > 0;) {
-                        colors[i * 4 + 3] = 1.0f;
-                        colors[i * 4 + 2] = colors[i * 3 + 2];
-                        colors[i * 4 + 1] = colors[i * 3 + 1];
-                        colors[i * 4 + 0] = colors[i * 3 + 0];
-                    }
-                }
-            }
-        }
-    }
-}
+    fillMissingAttributes(data);
+    data.aabb = computeAABB(data.positions, data.vertexCount);
 
-size_t getIndexElementSize(int componentType) {
-    switch (componentType) {
-    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return sizeof(uint16_t);
-    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return sizeof(uint32_t);
-    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return sizeof(uint8_t);
-    default: throw std::runtime_error("Unsupported index component type");
-    }
-}
+    VertexSources sources = buildVertexSources(data);
+    auto orderedSources = buildOrderedSources(sources, layout);
+    std::vector<uint8_t> vertices;
+    packVertexData(orderedSources, data.vertexCount, layout, vertices);
 
-unsigned int extractIndex(const std::vector<unsigned char>& buffer, size_t offset, int componentType) {
-    switch (componentType) {
-    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return *reinterpret_cast<const uint16_t*>(&buffer[offset]);
-    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return *reinterpret_cast<const uint32_t*>(&buffer[offset]);
-    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return *reinterpret_cast<const uint8_t*>(&buffer[offset]);
-    default: throw std::runtime_error("Unsupported index component type");
-    }
-}
-
-void validateAccessorBuffer(const tinygltf::Accessor& accessor, const tinygltf::Model& gltfModel) {
-    if (accessor.bufferView < 0 || accessor.bufferView >= static_cast<int>(gltfModel.bufferViews.size())) {
-        throw std::runtime_error("Invalid bufferView for indices");
-    }
-    const auto& bufferView = gltfModel.bufferViews[accessor.bufferView];
-    if (bufferView.buffer < 0 || bufferView.buffer >= static_cast<int>(gltfModel.buffers.size())) {
-        throw std::runtime_error("Invalid buffer for indices");
-    }
+    return std::make_unique<se::render::Mesh>(vertices, data.indices, data.aabb, layout, instanced);
 }
 
 tinygltf::Model loadGltfModel(std::string_view gltfPath) {
@@ -213,12 +615,10 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
 
     for (const auto& texture : gltfModel.textures) {
         TextureHandle handle;
-
         try {
             if (texture.source < 0 || texture.source >= static_cast<int>(gltfModel.images.size())) {
                 throw std::runtime_error(std::format("Invalid texture source: {}", texture.source));
             }
-
             const auto& image = gltfModel.images[texture.source];
 
             if (!image.uri.empty()) {
@@ -237,7 +637,6 @@ std::vector<TextureHandle> loadGltfTextures(const tinygltf::Model& gltfModel, st
             std::println("Warning: failed to load texture (source={}) from '{}': {}", texture.source, gltfPath,
                          e.what());
         }
-
         gltfTextures.push_back(handle);
     }
     return gltfTextures;
@@ -268,7 +667,6 @@ MaterialHandle createDefaultMaterial(std::string_view name, AssetManager& assetM
     return assetManager.getOrLoadMaterial(name, handle, MaterialTextures{}, MaterialParams{}, RenderState{});
 }
 
-// Returns the image path string for a texture index, or "unknown" if it can't be resolved.
 std::string resolveTexturePath(const tinygltf::Model& gltfModel, int texIndex) {
     if (texIndex < 0 || texIndex >= static_cast<int>(gltfModel.textures.size())) {
         return "unknown";
@@ -281,7 +679,6 @@ std::string resolveTexturePath(const tinygltf::Model& gltfModel, int texIndex) {
     return img.uri.empty() ? img.name : img.uri;
 }
 
-// Warns if a texture slot was referenced in the GLTF but failed to resolve to a valid handle.
 void warnMissingTexture(const tinygltf::Model& gltfModel, const std::string& matName, int texIndex,
                         const TextureHandle& handle, const char* slot) {
     if (texIndex >= 0 && !handle.isValid()) {
@@ -290,10 +687,8 @@ void warnMissingTexture(const tinygltf::Model& gltfModel, const std::string& mat
     }
 }
 
-// Extracts PBR material parameters from a glTF material.
 MaterialParams extractMaterialParams(const tinygltf::Material& mat) {
     MaterialParams params;
-
     if (mat.pbrMetallicRoughness.baseColorFactor.size() == 4) {
         params.baseColorFactor = glm::vec4(static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[0]),
                                            static_cast<float>(mat.pbrMetallicRoughness.baseColorFactor[1]),
@@ -302,21 +697,51 @@ MaterialParams extractMaterialParams(const tinygltf::Material& mat) {
     }
     params.metallicFactor = static_cast<float>(mat.pbrMetallicRoughness.metallicFactor);
     params.roughnessFactor = static_cast<float>(mat.pbrMetallicRoughness.roughnessFactor);
-
     if (mat.emissiveFactor.size() == 3) {
         params.emissiveFactor =
             glm::vec3(static_cast<float>(mat.emissiveFactor[0]), static_cast<float>(mat.emissiveFactor[1]),
                       static_cast<float>(mat.emissiveFactor[2]));
     }
-
+    params.occlusionStrength = static_cast<float>(mat.occlusionTexture.strength);
     params.alphaCutoff = (mat.alphaMode == "MASK") ? static_cast<float>(mat.alphaCutoff) : 0.0f;
-
     return params;
+}
+
+TransparencyMode extractTransparencyMode(const tinygltf::Material& mat) {
+    if (!mat.extras.IsObject()) {
+        return TransparencyMode::Sorted;
+    }
+
+    auto parseTag = [](std::string_view tag) {
+        if (tag == "oit") {
+            return TransparencyMode::OIT;
+        }
+        if (tag == "sorted") {
+            return TransparencyMode::Sorted;
+        }
+        return TransparencyMode::Sorted;
+    };
+
+    if (mat.extras.Has("renderQueue")) {
+        const auto& rq = mat.extras.Get("renderQueue");
+        if (rq.IsString()) {
+            return parseTag(rq.Get<std::string>());
+        }
+    }
+
+    if (mat.extras.Has("transparencyMode")) {
+        const auto& tm = mat.extras.Get("transparencyMode");
+        if (tm.IsString()) {
+            return parseTag(tm.Get<std::string>());
+        }
+    }
+
+    return TransparencyMode::Sorted;
 }
 
 std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, AssetManager& assetManager,
                                            const ShaderHandle& handle, const std::vector<TextureHandle>& textures,
-                                           const TextureHandle& fallbackBaseColor) {
+                                           const TextureHandle& fallbackBaseColor, std::string_view sourceModelPath) {
     std::vector<MaterialHandle> materials;
     materials.reserve(gltfModel.materials.size());
 
@@ -335,6 +760,11 @@ std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, Ass
         assignTexture(mat.normalTexture.index, matTextures.normal);
         assignTexture(mat.emissiveTexture.index, matTextures.emissive);
         assignTexture(mat.occlusionTexture.index, matTextures.occlusion);
+
+        // Some assets pack AO in ORM but omit an explicit occlusion slot; use ORM as AO fallback.
+        if (!matTextures.occlusion.isValid() && matTextures.metallicRoughness.isValid()) {
+            matTextures.occlusion = matTextures.metallicRoughness;
+        }
 
         std::string matName = mat.name.empty() ? "material_" + std::to_string(i) : mat.name;
 
@@ -355,37 +785,21 @@ std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, Ass
         state.blend = (mat.alphaMode == "BLEND");
         state.depthWrite = !state.blend;
         state.cull = !mat.doubleSided;
+        state.transparency = state.blend ? extractTransparencyMode(mat) : TransparencyMode::Sorted;
 
-        materials.push_back(assetManager.getOrLoadMaterial(matName, handle, matTextures, params, state));
+        // Namespace by source model and material index to avoid cache collisions across files.
+        std::string cacheName = std::format("{}#{}#{}", sourceModelPath, i, matName);
+        materials.push_back(assetManager.getOrLoadMaterial(cacheName, handle, matTextures, params, state));
     }
     return materials;
 }
 
-std::vector<unsigned int> readIndices(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
-                                      size_t vertexCount) {
-    std::vector<unsigned int> indices;
-
-    if (primitive.indices < 0) {
-        indices.reserve(vertexCount);
-        for (size_t i = 0; i < vertexCount; ++i) { indices.push_back(static_cast<unsigned int>(i)); }
-        return indices;
+MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive, const std::vector<MaterialHandle>& materials,
+                               const MaterialHandle& fallback) {
+    if (primitive.material >= 0 && primitive.material < static_cast<int>(materials.size())) {
+        return materials[primitive.material];
     }
-
-    const auto& accessor = gltfModel.accessors[primitive.indices];
-    validateAccessorBuffer(accessor, gltfModel);
-    const auto& bufferView = gltfModel.bufferViews[accessor.bufferView];
-    const auto& buffer = gltfModel.buffers[bufferView.buffer];
-
-    indices.reserve(accessor.count);
-    size_t elemSize = getIndexElementSize(accessor.componentType);
-    size_t stride = bufferView.byteStride > 0 ? bufferView.byteStride : elemSize;
-    const size_t baseOffset = bufferView.byteOffset + accessor.byteOffset;
-
-    for (size_t i = 0; i < accessor.count; ++i) {
-        indices.push_back(extractIndex(buffer.data, baseOffset + i * stride, accessor.componentType));
-    }
-
-    return indices;
+    return fallback;
 }
 
 struct NodeTRS {
@@ -396,9 +810,7 @@ struct NodeTRS {
 
 NodeTRS extractNodeTRS(const tinygltf::Node& node) {
     NodeTRS trs;
-
     if (node.matrix.size() == 16) {
-        // Decompose the matrix into TRS.
         glm::mat4 m = glm::make_mat4(node.matrix.data());
         trs.translation = glm::vec3(m[3]);
         trs.scale = glm::vec3(glm::length(m[0]), glm::length(m[1]), glm::length(m[2]));
@@ -406,7 +818,6 @@ NodeTRS extractNodeTRS(const tinygltf::Node& node) {
         trs.rotation = glm::quat_cast(rotMat);
         return trs;
     }
-
     if (node.translation.size() == 3) {
         trs.translation = glm::vec3(static_cast<float>(node.translation[0]), static_cast<float>(node.translation[1]),
                                     static_cast<float>(node.translation[2]));
@@ -423,7 +834,6 @@ NodeTRS extractNodeTRS(const tinygltf::Node& node) {
     return trs;
 }
 
-// Builds a skeleton from a glTF skin, extracting the bone hierarchy, inverse bind matrices, and rest pose TRS.
 Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& skin) {
     Skeleton skeleton;
 
@@ -446,7 +856,6 @@ Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& sk
         }
     }
 
-    // Read inverse bind matrices
     std::vector<glm::mat4> inverseBindMatrices(skin.joints.size(), glm::mat4{1.0f});
     if (skin.inverseBindMatrices >= 0) {
         const auto& acc = gltfModel.accessors[skin.inverseBindMatrices];
@@ -454,7 +863,6 @@ Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& sk
         const auto& buf = gltfModel.buffers[bv.buffer];
         const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
         size_t stride = bv.byteStride > 0 ? bv.byteStride : sizeof(glm::mat4);
-
         for (size_t i = 0; i < acc.count && i < skin.joints.size(); ++i) {
             std::memcpy(&inverseBindMatrices[i], base + i * stride, sizeof(glm::mat4));
         }
@@ -470,7 +878,6 @@ Skeleton loadSkeleton(const tinygltf::Model& gltfModel, const tinygltf::Skin& sk
         bone.name = node.name;
         bone.inverseBindMatrix = inverseBindMatrices[j];
 
-        // Store decomposed rest pose TRS from glTF node
         auto trs = extractNodeTRS(node);
         bone.restPosition = trs.translation;
         bone.restRotation = trs.rotation;
@@ -518,9 +925,65 @@ void readScaleKeys(AnimationChannel& chan, const std::vector<float>& timestamps,
     }
 }
 
-// Loads animations from a glTF model and maps them to the given skeleton. Each glTF animation channel is matched to a
-// bone based on the target node index and the skeleton's node-to-joint mapping. The resulting AnimationClip contains
-// channels for each animated bone, with keyframes for translation, rotation, and scale.
+// Returns the AnimationChannel for the given bone, creating it if it doesn't exist yet.
+AnimationChannel& getOrCreateChannel(AnimationClip& clip, std::vector<int>& channelByBone, int boneIdx) {
+    int& channelIdx = channelByBone[static_cast<size_t>(boneIdx)];
+    if (channelIdx >= 0) {
+        return clip.channels[static_cast<size_t>(channelIdx)];
+    }
+    clip.channels.emplace_back();
+    clip.channels.back().boneIndex = boneIdx;
+    channelIdx = static_cast<int>(clip.channels.size()) - 1;
+    return clip.channels.back();
+}
+
+// Ensures the timestamp vector for a sampler is populated, reading it lazily on first use.
+const std::vector<float>& ensureSamplerTimestamps(const tinygltf::Model& gltfModel, const tinygltf::Animation& gltfAnim,
+                                                  int samplerIdx, std::vector<std::vector<float>>& samplerTimestamps) {
+    std::vector<float>& timestamps = samplerTimestamps[static_cast<size_t>(samplerIdx)];
+    if (timestamps.empty()) {
+        readStridedVec(gltfModel, gltfModel.accessors[gltfAnim.samplers[samplerIdx].input], 1, timestamps);
+    }
+    return timestamps;
+}
+
+void processAnimationChannel(const tinygltf::Model& gltfModel, const tinygltf::Animation& gltfAnim,
+                             const tinygltf::AnimationChannel& gltfChannel, const Skeleton& skeleton,
+                             std::vector<std::vector<float>>& samplerTimestamps, AnimationClip& clip,
+                             std::vector<int>& channelByBone) {
+    const int nodeIdx = gltfChannel.target_node;
+    if (nodeIdx < 0 || nodeIdx >= static_cast<int>(skeleton.nodeToJoint.size())) {
+        return;
+    }
+    const int boneIdx = skeleton.nodeToJoint[nodeIdx];
+    if (boneIdx < 0) {
+        return;
+    }
+
+    const int samplerIdx = gltfChannel.sampler;
+    if (samplerIdx < 0 || samplerIdx >= static_cast<int>(gltfAnim.samplers.size())) {
+        return;
+    }
+
+    const std::vector<float>& timestamps = ensureSamplerTimestamps(gltfModel, gltfAnim, samplerIdx, samplerTimestamps);
+
+    AnimationChannel& chan = getOrCreateChannel(clip, channelByBone, boneIdx);
+
+    const auto& sampler = gltfAnim.samplers[samplerIdx];
+    if (sampler.interpolation == "STEP") {
+        chan.interpolation = Interpolation::Step;
+    }
+
+    const std::string_view path = gltfChannel.target_path;
+    if (path == "translation") {
+        readTranslationKeys(chan, timestamps, gltfModel, sampler, clip.duration);
+    } else if (path == "rotation") {
+        readRotationKeys(chan, timestamps, gltfModel, sampler, clip.duration);
+    } else if (path == "scale") {
+        readScaleKeys(chan, timestamps, gltfModel, sampler, clip.duration);
+    }
+}
+
 std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, const Skeleton& skeleton) {
     std::vector<AnimationClip> clips;
     clips.reserve(gltfModel.animations.size());
@@ -531,246 +994,19 @@ std::vector<AnimationClip> loadAnimations(const tinygltf::Model& gltfModel, cons
         clip.name = gltfAnim.name.empty() ? std::format("animation_{}", a) : gltfAnim.name;
         clip.duration = 0.0f;
 
-        // Group channels by bone index (a bone can have T, R, S channels).
-        // Direct indexing avoids hash-map overhead during import.
         std::vector<int> channelByBone(skeleton.bones.size(), -1);
 
-        // Pre-allocate timestamp vectors for each sampler to avoid redundant reads if multiple channels share the same
-        // sampler.
+        // Pre-allocate timestamp vectors for each sampler to avoid redundant reads if multiple
+        // channels share the same sampler.
         std::vector<std::vector<float>> samplerTimestamps(gltfAnim.samplers.size());
 
         for (const auto& gltfChannel : gltfAnim.channels) {
-            const int nodeIdx = gltfChannel.target_node;
-            if (nodeIdx < 0 || nodeIdx >= static_cast<int>(skeleton.nodeToJoint.size())) {
-                continue;
-            }
-            const int boneIdx = skeleton.nodeToJoint[nodeIdx];
-            if (boneIdx < 0) {
-                continue;
-            }
-
-            const int samplerIdx = gltfChannel.sampler;
-            if (samplerIdx < 0 || samplerIdx >= static_cast<int>(gltfAnim.samplers.size())) {
-                continue;
-            }
-            std::vector<float>& timestamps = samplerTimestamps[samplerIdx];
-            if (timestamps.empty()) {
-                const auto& sampler = gltfAnim.samplers[samplerIdx];
-                readStridedVec(gltfModel, gltfModel.accessors[sampler.input], 1, timestamps);
-            }
-
-            // Get or create channel for this bone
-            AnimationChannel* chan = nullptr;
-            int& channelIdx = channelByBone[static_cast<size_t>(boneIdx)];
-            if (channelIdx >= 0) {
-                chan = &clip.channels[static_cast<size_t>(channelIdx)];
-            } else {
-                clip.channels.emplace_back();
-                chan = &clip.channels.back();
-                chan->boneIndex = boneIdx;
-                channelIdx = static_cast<int>(clip.channels.size()) - 1;
-            }
-
-            const auto& sampler = gltfAnim.samplers[gltfChannel.sampler];
-
-            // Store interpolation mode (STEP or LINEAR; CUBICSPLINE treated as LINEAR for now)
-            if (sampler.interpolation == "STEP") {
-                chan->interpolation = Interpolation::Step;
-            }
-
-            const std::string_view path = gltfChannel.target_path;
-            if (path == "translation") {
-                readTranslationKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
-            } else if (path == "rotation") {
-                readRotationKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
-            } else if (path == "scale") {
-                readScaleKeys(*chan, timestamps, gltfModel, sampler, clip.duration);
-            }
+            processAnimationChannel(gltfModel, gltfAnim, gltfChannel, skeleton, samplerTimestamps, clip, channelByBone);
         }
 
         clips.push_back(std::move(clip));
     }
-
     return clips;
-}
-
-void readJointIndices(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
-                      std::vector<int32_t>& joints) {
-    auto it = primitive.attributes.find("JOINTS_0");
-    if (it == primitive.attributes.end()) {
-        return;
-    }
-
-    const auto& acc = gltfModel.accessors[it->second];
-    const auto& bv = gltfModel.bufferViews[acc.bufferView];
-    const auto& buf = gltfModel.buffers[bv.buffer];
-    const uint8_t* base = buf.data.data() + bv.byteOffset + acc.byteOffset;
-
-    joints.resize(acc.count * 4);
-
-    if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
-        size_t stride = bv.byteStride > 0 ? bv.byteStride : 4 * sizeof(uint8_t);
-        for (size_t i = 0; i < acc.count; ++i) {
-            const auto* elem = base + i * stride;
-            for (int c = 0; c < 4; ++c) { joints[i * 4 + c] = static_cast<int32_t>(elem[c]); }
-        }
-    } else if (acc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
-        size_t stride = bv.byteStride > 0 ? bv.byteStride : 4 * sizeof(uint16_t);
-        for (size_t i = 0; i < acc.count; ++i) {
-            const auto* elem = reinterpret_cast<const uint16_t*>(base + i * stride);
-            for (int c = 0; c < 4; ++c) { joints[i * 4 + c] = static_cast<int32_t>(elem[c]); }
-        }
-    }
-}
-
-void readJointWeights(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive,
-                      std::vector<float>& weights) {
-    auto it = primitive.attributes.find("WEIGHTS_0");
-    if (it == primitive.attributes.end()) {
-        return;
-    }
-    readStridedVec(gltfModel, gltfModel.accessors[it->second], 4, weights);
-}
-
-se::render::BufferLayout buildStaticMeshLayout() {
-    return se::render::BufferLayout({
-        {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
-        {"a_Normal", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
-        {"a_TexCoord", GL_FLOAT, sizeof(float), 0, 2, GL_FALSE},
-        {"a_Tangent", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
-        {"a_Color", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
-    });
-}
-
-se::render::BufferLayout buildSkinnedMeshLayout() {
-    return se::render::BufferLayout({
-        {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
-        {"a_Normal", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
-        {"a_TexCoord", GL_FLOAT, sizeof(float), 0, 2, GL_FALSE},
-        {"a_Tangent", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
-        {"a_Color", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
-        {"a_Joints", GL_INT, sizeof(int32_t), 0, 4, GL_FALSE},
-        {"a_Weights", GL_FLOAT, sizeof(float), 0, 4, GL_FALSE},
-    });
-}
-
-struct PrimitiveData {
-    std::vector<float> positions;
-    std::vector<float> normals;
-    std::vector<float> texCoords;
-    std::vector<float> tangents;
-    std::vector<float> colors;
-    std::vector<int32_t> joints;
-    std::vector<float> weights;
-    size_t vertexCount = 0;
-    se::render::AABB aabb{};
-};
-
-bool readPrimitiveData(const tinygltf::Model& gltfModel, const tinygltf::Primitive& primitive, PrimitiveData& out) {
-    auto posIt = primitive.attributes.find("POSITION");
-    if (posIt == primitive.attributes.end()) {
-        return false;
-    }
-
-    const auto& posAccessor = gltfModel.accessors[posIt->second];
-    if (posAccessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT || posAccessor.type != TINYGLTF_TYPE_VEC3 ||
-        posAccessor.bufferView < 0 || posAccessor.bufferView >= static_cast<int>(gltfModel.bufferViews.size())) {
-        return false;
-    }
-
-    out.vertexCount = posAccessor.count;
-
-    readPrimitiveAttributes(gltfModel, primitive, out.positions, out.normals, out.texCoords, out.tangents, out.colors);
-    readJointIndices(gltfModel, primitive, out.joints);
-    readJointWeights(gltfModel, primitive, out.weights);
-
-    return true;
-}
-
-void fillPrimitiveDefaults(PrimitiveData& data) {
-    const size_t n = data.vertexCount;
-
-    if (data.normals.empty()) {
-        data.normals.resize(n * 3, 0.0f);
-        for (size_t i = 0; i < n; ++i) data.normals[i * 3 + 1] = 1.0f;
-    }
-
-    if (data.texCoords.empty()) {
-        data.texCoords.resize(n * 2, 0.0f);
-    }
-
-    if (data.tangents.empty()) {
-        data.tangents.resize(n * 4, 0.0f);
-        for (size_t i = 0; i < n; ++i) {
-            data.tangents[i * 4] = 1.0f;
-            data.tangents[i * 4 + 3] = 1.0f;
-        }
-    }
-
-    if (data.colors.empty()) {
-        data.colors.resize(n * 4, 1.0f);
-    }
-
-    // Flip V for OpenGL
-    for (size_t i = 1; i < data.texCoords.size(); i += 2) { data.texCoords[i] = 1.0f - data.texCoords[i]; }
-}
-
-se::render::AABB computeAABB(const std::vector<float>& positions, size_t vertexCount) {
-    se::render::AABB aabb{};
-    for (size_t i = 0; i < vertexCount; ++i) {
-        updateAABB(aabb, {positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]}, i);
-    }
-    return aabb;
-}
-
-VertexSources buildVertexSources(const PrimitiveData& data) {
-    auto asBytes = [](const std::vector<float>& v) -> std::span<const uint8_t> {
-        return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(float)};
-    };
-    auto asBytesInt = [](const std::vector<int32_t>& v) -> std::span<const uint8_t> {
-        return {reinterpret_cast<const uint8_t*>(v.data()), v.size() * sizeof(int32_t)};
-    };
-
-    return VertexSources{
-        .position = asBytes(data.positions),
-        .normal = asBytes(data.normals),
-        .texCoord = asBytes(data.texCoords),
-        .tangent = asBytes(data.tangents),
-        .color = asBytes(data.colors),
-        .joints = data.joints.empty() ? std::span<const uint8_t>{} : asBytesInt(data.joints),
-        .weights = data.weights.empty() ? std::span<const uint8_t>{} : asBytes(data.weights),
-    };
-}
-
-std::unique_ptr<se::render::Mesh> buildMeshFromPrimitive(const tinygltf::Model& gltfModel,
-                                                         const tinygltf::Primitive& primitive,
-                                                         const se::render::BufferLayout& layout, bool instanced) {
-    PrimitiveData data;
-    if (!readPrimitiveData(gltfModel, primitive, data)) {
-        return nullptr;
-    }
-
-    fillPrimitiveDefaults(data);
-
-    data.aabb = computeAABB(data.positions, data.vertexCount);
-
-    VertexSources sources = buildVertexSources(data);
-    auto orderedSources = buildOrderedSources(sources, layout);
-
-    std::vector<uint8_t> vertices;
-    packVertexData(orderedSources, data.vertexCount, layout, vertices);
-
-    auto indices = readIndices(gltfModel, primitive, data.vertexCount);
-
-    return std::make_unique<se::render::Mesh>(vertices, indices, data.aabb, layout, instanced);
-}
-
-MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive, const std::vector<MaterialHandle>& materials,
-                               const MaterialHandle& fallback) {
-    if (primitive.material >= 0 && primitive.material < static_cast<int>(materials.size())) {
-        return materials[primitive.material];
-    }
-    return fallback;
 }
 
 }  // namespace
@@ -793,7 +1029,7 @@ Model::Model(std::string gltfPath, ShaderHandle handle, AssetManager& assetManag
         auto gltfTextures = loadGltfTextures(gltfModel, gltfDir, assetManager, m_Name);
         auto checkerboard = createCheckerboardTexture(assetManager);
         auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Name), assetManager, handle);
-        auto gltfMaterials = buildMaterials(gltfModel, assetManager, handle, gltfTextures, checkerboard);
+        auto gltfMaterials = buildMaterials(gltfModel, assetManager, handle, gltfTextures, checkerboard, m_Name);
 
         auto shader = handle.get();
         if (!shader) {

@@ -25,7 +25,10 @@ See the [build instructions](docs/build.md) for detailed steps on how to build a
 - Mouse: Look
 - Space / Left Ctrl: Up / down
 - F3: Wireframe toggle
-- F4: Cycle post-process effect
+- F4: Cycle post-process effect (none, tone map, inversion, grayscale, sharpen, blur, edge detect)
+- F5: Cycle stats mode (basic/timing averages)
+- F6: Cycle material debug view (lit, normals, albedo, NdotL, roughness, metallic, occlusion, normal map,
+    linear depth, material ID, OIT revealage, emissive, shadow placeholder)
 - F12: Toggle fullscreen
 - Esc: Quit
 

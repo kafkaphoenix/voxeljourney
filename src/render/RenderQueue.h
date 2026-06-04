@@ -52,16 +52,19 @@ public:
     void clear();
 
     bool isEmpty() const {
-        return m_StaticOpaqueBatches.empty() && m_TransparentDrawItems.empty() && m_OpaqueAnimatedDrawItems.empty();
+        return m_StaticOpaqueBatches.empty() && m_SortedTransparentDrawItems.empty() &&
+               m_OITTransparentDrawItems.empty() && m_OpaqueAnimatedDrawItems.empty();
     }
 
     const std::vector<StaticOpaqueBatch>& getOrderedStaticOpaqueBatches() const;
     const std::vector<DrawItem>& getDepthSortedTransparentDrawItems();
+    const std::vector<DrawItem>& getOITTransparentDrawItems() const { return m_OITTransparentDrawItems; }
     const std::vector<DrawItem>& getOpaqueAnimatedDrawItems() const { return m_OpaqueAnimatedDrawItems; }
 
 private:
     BatchMap m_StaticOpaqueBatches;
-    std::vector<DrawItem> m_TransparentDrawItems;
+    std::vector<DrawItem> m_SortedTransparentDrawItems;
+    std::vector<DrawItem> m_OITTransparentDrawItems;
     std::vector<DrawItem> m_OpaqueAnimatedDrawItems;
     mutable std::vector<StaticOpaqueBatch> m_StaticOpaqueBatchViews;
 };

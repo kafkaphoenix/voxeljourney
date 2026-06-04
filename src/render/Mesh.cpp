@@ -49,7 +49,7 @@ GLuint Mesh::setupVertexAttributes(const BufferLayout& layout) {
 void Mesh::setupInstanceAttributes(GLuint baseIndex) {
     if (s_DefaultInstanceCapacityBytes > 0) {
         m_InstanceVbo.setData(static_cast<GLsizeiptr>(s_DefaultInstanceCapacityBytes),
-                              GL_STREAM_DRAW);  // allocate only
+                              GL_DYNAMIC_DRAW);  // allocate only
         m_InstanceCapacityBytes = s_DefaultInstanceCapacityBytes;
     }
 
@@ -131,7 +131,7 @@ void Mesh::updateInstanceBuffer(std::span<const std::byte> data) {
         if (newCapacity > static_cast<size_t>(std::numeric_limits<GLsizeiptr>::max())) {
             throw std::overflow_error("Instance buffer size exceeds GLsizeiptr maximum value");
         }
-        m_InstanceVbo.setData(static_cast<GLsizeiptr>(newCapacity), GL_STREAM_DRAW);  // allocate only
+        m_InstanceVbo.setData(static_cast<GLsizeiptr>(newCapacity), GL_DYNAMIC_DRAW);  // allocate only
         m_InstanceCapacityBytes = newCapacity;
     }
 

@@ -26,7 +26,7 @@ private:
     void handleShortcuts();
     void update(float deltaTime);
     void render();
-    void updateStats(float deltaTime);
+    void updateStats(float deltaTime, const FrameDebugStats& frameDebugStats);
 
     Config m_Config;
     StatsTracker m_StatsTracker;

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <print>
 
+#include "Timer.h"
+
 namespace se::core {
 
 Application::Application()
@@ -34,8 +36,8 @@ void Application::beginFrame() {
     m_EventBus.dispatchQueued();
 }
 
-void Application::updateStats(float deltaTime) {
-    auto stats = m_StatsTracker.update(deltaTime, m_RenderManager.getStats(), m_Window.getBaseTitle());
+void Application::updateStats(float deltaTime, const FrameDebugStats& frameDebugStats) {
+    auto stats = m_StatsTracker.update(deltaTime, m_RenderManager.getStats(), frameDebugStats, m_Window.getBaseTitle());
     if (stats) {
         m_Window.setStatsTitle(*stats);
     }
@@ -80,6 +82,14 @@ void Application::handleShortcuts() {
         m_RenderManager.cyclePostEffect();
     }
 
+    if (m_Input.isKeyPressed(GLFW_KEY_F5)) {
+        m_StatsTracker.cycleDisplayMode();
+    }
+
+    if (m_Input.isKeyPressed(GLFW_KEY_F6)) {
+        m_RenderManager.cycleRenderDebugView();
+    }
+
     if (m_Input.isKeyPressed(GLFW_KEY_F12)) {
         switch (m_Window.mode()) {
         case config::WindowMode::Windowed: m_Window.setMode(config::WindowMode::Fullscreen); break;
@@ -95,6 +105,7 @@ void Application::render() { m_Level.render(m_RenderManager); }
 void Application::run() {
     float lastTime = 0.0f;
     while (!m_Window.shouldClose()) {
+        Timer frameTimer;
         float dt = updateDeltaTime(lastTime);
 
         beginFrame();
@@ -106,10 +117,19 @@ void Application::run() {
 
         handleShortcuts();
 
+        Timer updateTimer;
         update(dt);
-        render();
+        auto updateMs = static_cast<float>(updateTimer.millis());
 
-        updateStats(dt);
+        Timer renderTimer;
+        render();
+        auto renderMs = static_cast<float>(renderTimer.millis());
+
+        FrameDebugStats frameDebugStats;
+        frameDebugStats.updateMs = updateMs;
+        frameDebugStats.renderMs = renderMs;
+        frameDebugStats.frameMs = static_cast<float>(frameTimer.millis());
+        updateStats(dt, frameDebugStats);
 
         m_Window.swapBuffers();
     }

@@ -48,12 +48,18 @@ void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat
     const glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(modelMatrix)));
 
     if (isTransparent) {
-        // it won't work for overlapping transparent objects, but good enough for typical alpha-tested foliage
         const auto& aabb = renderable.mesh->getAABB();
         const glm::vec3 localCenter = 0.5f * (aabb.min + aabb.max);
         const glm::vec4 worldCenter = modelMatrix * glm::vec4(localCenter, 1.0f);
         const float depth = -(viewMatrix * worldCenter).z;
-        m_TransparentDrawItems.push_back({
+
+        // Two transparency modes:
+        // - Sorted: CPU sorts objects back-to-front; correct for non-intersecting geometry, cheap for few objects.
+        // - OIT: order-independent, handles intersecting transparents in one pass, no sorting needed but approximate.
+        auto& bucket = material->getState().transparency == se::assets::TransparencyMode::OIT
+                           ? m_OITTransparentDrawItems
+                           : m_SortedTransparentDrawItems;
+        bucket.push_back({
             .viewDepth = depth,
             .mesh = renderable.mesh,
             .material = material.get(),
@@ -85,14 +91,15 @@ void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat
 }
 
 const std::vector<RenderQueue::DrawItem>& RenderQueue::getDepthSortedTransparentDrawItems() {
-    std::ranges::sort(m_TransparentDrawItems, std::greater{}, &DrawItem::viewDepth);
+    std::ranges::sort(m_SortedTransparentDrawItems, std::greater{}, &DrawItem::viewDepth);
 
-    return m_TransparentDrawItems;
+    return m_SortedTransparentDrawItems;
 }
 
 void RenderQueue::clear() {
     m_StaticOpaqueBatches.clear();
-    m_TransparentDrawItems.clear();
+    m_SortedTransparentDrawItems.clear();
+    m_OITTransparentDrawItems.clear();
     m_OpaqueAnimatedDrawItems.clear();
     m_StaticOpaqueBatchViews.clear();
 }

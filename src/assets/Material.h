@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <string>
@@ -8,10 +9,13 @@
 
 namespace se::assets {
 
+enum class TransparencyMode : uint8_t { Sorted = 0, OIT };
+
 struct RenderState {
     bool blend = false;
     bool depthWrite = true;
     bool cull = true;
+    TransparencyMode transparency = TransparencyMode::Sorted;
 };
 
 struct MaterialTextures {
@@ -27,6 +31,7 @@ struct MaterialParams {
     float metallicFactor = 1.0f;
     float roughnessFactor = 1.0f;
     glm::vec3 emissiveFactor{0.0f, 0.0f, 0.0f};
+    float occlusionStrength = 1.0f;
     float alphaCutoff = 0.5f;
 };
 

@@ -52,6 +52,8 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE "STBI_FAILURE_USERMSG")
 find_package(tomlplusplus CONFIG REQUIRED)
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 target_include_directories(${PROJECT_NAME} PRIVATE ${TINYGLTF_INCLUDE_DIRS})
+find_package(mikktspace CONFIG REQUIRED)
+target_include_directories(${PROJECT_NAME} PRIVATE ${mikktspace_INCLUDE_DIRS})
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
@@ -60,6 +62,7 @@ target_link_libraries(${PROJECT_NAME}
     glad::glad
     glfw
     tomlplusplus::tomlplusplus
+    mikktspace::mikktspace
 )
 
 # Include the src directory for header files, so we avoid having to use relative paths in the code

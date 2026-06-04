@@ -33,7 +33,7 @@ msaaSamples = 4
 anisotropy = 8.0
 
 [postProcess]
-exposure = 0.7
+exposure = 0.55
 
 [stats]
 enabled = true

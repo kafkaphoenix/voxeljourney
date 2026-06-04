@@ -5,6 +5,8 @@ out vec4 FragColor;
 in vec2 v_TexCoord;
 
 layout(binding = 0) uniform sampler2D u_ScreenTexture;
+layout(binding = 1) uniform sampler2D u_OITAccumTexture;
+layout(binding = 2) uniform sampler2D u_OITRevealTexture;
 
 uniform int u_Effect;      // 0=none, 1=tone map, 2=inversion, 3=grayscale, 4=sharpen, 5=blur, 6=edge detect
 uniform vec2 u_TexelSize;  // 1.0 / textureSize for kernel offsets
@@ -24,80 +26,82 @@ vec3 toneMapACESWithExposure(vec3 color, float exposure) {
     return toneMapACES(color);
 }
 
-vec3 gammaCorrect(vec3 color) {
-    return pow(color, vec3(1.0 / 2.2));
+vec3 gammaCorrect(vec3 color) { return pow(color, vec3(1.0 / 2.2)); }
+
+vec3 compositeTransparency(vec2 uv) {
+    vec3 sceneColor = texture(u_ScreenTexture, uv).rgb;
+    vec4 accum = texture(u_OITAccumTexture, uv);
+    float reveal = texture(u_OITRevealTexture, uv).r;
+
+    vec3 weightedColor = accum.rgb / max(accum.a, 1e-5);
+    float transmittance = clamp(reveal, 0.0, 1.0);
+    return sceneColor * transmittance + weightedColor * (1.0 - transmittance);
 }
 
 vec3 applyKernel(float kernel[9]) {
-    vec2 offsets[9] = vec2[](
-        vec2(-u_TexelSize.x,  u_TexelSize.y),   // top-left
-        vec2( 0.0,            u_TexelSize.y),   // top-center
-        vec2( u_TexelSize.x,  u_TexelSize.y),   // top-right
-        vec2(-u_TexelSize.x,  0.0),             // center-left
-        vec2( 0.0,            0.0),             // center
-        vec2( u_TexelSize.x,  0.0),             // center-right
-        vec2(-u_TexelSize.x, -u_TexelSize.y),   // bottom-left
-        vec2( 0.0,           -u_TexelSize.y),   // bottom-center
-        vec2( u_TexelSize.x, -u_TexelSize.y)    // bottom-right
+    vec2 offsets[9] = vec2[](vec2(-u_TexelSize.x, u_TexelSize.y),   // top-left
+                             vec2(0.0, u_TexelSize.y),              // top-center
+                             vec2(u_TexelSize.x, u_TexelSize.y),    // top-right
+                             vec2(-u_TexelSize.x, 0.0),             // center-left
+                             vec2(0.0, 0.0),                        // center
+                             vec2(u_TexelSize.x, 0.0),              // center-right
+                             vec2(-u_TexelSize.x, -u_TexelSize.y),  // bottom-left
+                             vec2(0.0, -u_TexelSize.y),             // bottom-center
+                             vec2(u_TexelSize.x, -u_TexelSize.y)    // bottom-right
     );
 
     vec3 result = vec3(0.0);
-    for (int i = 0; i < 9; i++) {
-        result += texture(u_ScreenTexture, v_TexCoord + offsets[i]).rgb * kernel[i];
-    }
+    for (int i = 0; i < 9; i++) { result += compositeTransparency(v_TexCoord + offsets[i]) * kernel[i]; }
     return result;
 }
 
 void main() {
-    vec3 color = texture(u_ScreenTexture, v_TexCoord).rgb;
+    vec3 color = compositeTransparency(v_TexCoord);
 
     switch (u_Effect) {
-        case 0: {  // No effect
-            break;
-        }
-        case 1: {  // Tone mapping and gamma correction
-            color = toneMapACESWithExposure(color, u_Exposure);
-            color = gammaCorrect(color);
-            break;
-        }
-        case 2: {  // Inversion
-            color = toneMapACESWithExposure(color, u_Exposure);
-            color = gammaCorrect(color);
-            color = vec3(1.0) - color;
-            break;
-        }
-        case 3: {  // Grayscale (perceptual luminance weights)
-            color = toneMapACESWithExposure(color, u_Exposure);
-            color = gammaCorrect(color);
-            float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-            color = vec3(luma);
-            break;
-        }
-        case 4: {  // Sharpen
-            float kernel[9] = float[](-1, -1, -1, -1, 9, -1, -1, -1, -1);
-            color = applyKernel(kernel);
-            color = toneMapACESWithExposure(color, u_Exposure);
-            color = gammaCorrect(color);
-            break;
-        }
-        case 5  : {  // Blur (Gaussian approximation)
-            float kernel[9] = float[](
-                1.0 / 16.0, 2.0 / 16.0, 1.0 / 16.0,
-                2.0 / 16.0, 4.0 / 16.0, 2.0 / 16.0,
-                1.0 / 16.0, 2.0 / 16.0, 1.0 / 16.0
-            );
-            color = applyKernel(kernel);
-            color = toneMapACESWithExposure(color, u_Exposure);
-            color = gammaCorrect(color);
-            break;
-        }
-        case 6: {  // Edge detection
-            float kernel[9] = float[](1, 1, 1, 1, -8, 1, 1, 1, 1);
-            color = applyKernel(kernel);
-            color = toneMapACESWithExposure(color, u_Exposure);
-            color = gammaCorrect(color);
-            break;
-        }
+    case 0: {  // Just composite transparency HDR
+        break;
+    }
+    case 1: {  // Tone mapping and gamma correction
+        color = toneMapACESWithExposure(color, u_Exposure);
+        color = gammaCorrect(color);
+        break;
+    }
+    case 2: {  // Inversion
+        color = toneMapACESWithExposure(color, u_Exposure);
+        color = gammaCorrect(color);
+        color = vec3(1.0) - color;
+        break;
+    }
+    case 3: {  // Grayscale (perceptual luminance weights)
+        color = toneMapACESWithExposure(color, u_Exposure);
+        color = gammaCorrect(color);
+        float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+        color = vec3(luma);
+        break;
+    }
+    case 4: {  // Sharpen
+        float kernel[9] = float[](-1, -1, -1, -1, 9, -1, -1, -1, -1);
+        color = applyKernel(kernel);
+        color = toneMapACESWithExposure(color, u_Exposure);
+        color = gammaCorrect(color);
+        break;
+    }
+    case 5: {  // Blur (Gaussian approximation)
+        float kernel[9] = float[](1.0 / 16.0, 2.0 / 16.0, 1.0 / 16.0, 2.0 / 16.0, 4.0 / 16.0, 2.0 / 16.0, 1.0 / 16.0,
+                                  2.0 / 16.0, 1.0 / 16.0);
+        color = applyKernel(kernel);
+        color = toneMapACESWithExposure(color, u_Exposure);
+        color = gammaCorrect(color);
+        break;
+    }
+    case 6: {  // Edge detection
+        float kernel[9] = float[](1, 1, 1, 1, -8, 1, 1, 1, 1);
+        color = applyKernel(kernel);
+        color = toneMapACESWithExposure(color, u_Exposure);
+        color = gammaCorrect(color);
+        break;
+    }
     }
 
     FragColor = vec4(color, 1.0);

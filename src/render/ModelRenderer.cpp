@@ -81,6 +81,13 @@ void ModelRenderer::submit(const se::scene::Renderable& renderable, const Frustu
 }
 
 void ModelRenderer::flush(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats) {
+    flushOpaque(lights, camera, stats);
+    flushTransparent(lights, camera, stats);
+    clearQueuedDraws();
+}
+
+void ModelRenderer::flushOpaque(const se::scene::LightData& lights, const se::scene::Camera& camera,
+                                RenderStats& stats) {
     if (m_Queue.isEmpty()) {
         return;
     }
@@ -89,12 +96,25 @@ void ModelRenderer::flush(const se::scene::LightData& lights, const se::scene::C
     resetStateCache();
 
     drawOpaquePass(stats);
+
+    restoreRenderState();
+}
+
+void ModelRenderer::flushTransparent(const se::scene::LightData& lights, const se::scene::Camera& camera,
+                                     RenderStats& stats) {
+    if (m_Queue.isEmpty()) {
+        return;
+    }
+
+    updateFrameUbo(lights, camera);
+    resetStateCache();
+
     drawTransparentPass(stats);
 
     restoreRenderState();
-
-    m_Queue.clear();
 }
+
+void ModelRenderer::clearQueuedDraws() { m_Queue.clear(); }
 
 void ModelRenderer::restoreRenderState() const {
     setBlendEnabled(true);
@@ -128,6 +148,76 @@ void ModelRenderer::drawOpaquePass(RenderStats& stats) const {
 }
 
 void ModelRenderer::drawTransparentPass(RenderStats& stats) {
+    drawOITTransparentPass(stats);
+    drawSortedTransparentPass(stats);
+}
+
+void ModelRenderer::configureOITBlendState() {
+    glEnablei(GL_BLEND, 0);
+    glEnablei(GL_BLEND, 1);
+    glEnablei(GL_BLEND, 2);
+
+    // Attachment 0 is regular scene color and remains unchanged in OIT mode.
+    glBlendFunci(0, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquationi(0, GL_FUNC_ADD);
+
+    // Attachment 1 stores weighted color accumulation.
+    glBlendFunci(1, GL_ONE, GL_ONE);
+    glBlendEquationi(1, GL_FUNC_ADD);
+
+    // Attachment 2 stores revealage/transmittance.
+    glBlendFunci(2, GL_ZERO, GL_SRC_COLOR);
+    glBlendEquationi(2, GL_FUNC_ADD);
+}
+
+void ModelRenderer::restoreDefaultBlendState() {
+    glDisablei(GL_BLEND, 1);
+    glDisablei(GL_BLEND, 2);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendEquation(GL_FUNC_ADD);
+}
+
+void ModelRenderer::drawOITTransparentPass(RenderStats& stats) {
+    setBlendEnabled(true);
+    setDepthMask(false);
+
+    const auto& oit = m_Queue.getOITTransparentDrawItems();
+    if (oit.empty()) {
+        return;
+    }
+
+    configureOITBlendState();
+
+    BatchKey lastKey = {};
+    std::vector<InstanceData> batch;
+    for (const auto& d : oit) {
+        if (d.animator != nullptr) {
+            if (!batch.empty()) {
+                flushBatch(lastKey, batch, stats, TransparencyPath::OIT);
+                batch.clear();
+            }
+            drawAnimatedDrawItem(d, stats, TransparencyPath::OIT);
+        } else {
+            BatchKey key{d.mesh, d.material};
+            if (key != lastKey) {
+                if (!batch.empty()) {
+                    flushBatch(lastKey, batch, stats, TransparencyPath::OIT);
+                    batch.clear();
+                }
+                lastKey = key;
+            }
+            batch.push_back({d.modelMatrix, d.normalMatrix});
+        }
+    }
+
+    if (!batch.empty()) {
+        flushBatch(lastKey, batch, stats, TransparencyPath::OIT);
+    }
+
+    restoreDefaultBlendState();
+}
+
+void ModelRenderer::drawSortedTransparentPass(RenderStats& stats) {
     setBlendEnabled(true);
     setDepthMask(false);
 
@@ -139,15 +229,15 @@ void ModelRenderer::drawTransparentPass(RenderStats& stats) {
         if (d.animator != nullptr) {  // animated transparent
             // flush any pending transparent static batch
             if (!batch.empty()) {
-                flushBatch(lastKey, batch, stats);
+                flushBatch(lastKey, batch, stats, TransparencyPath::Regular);
                 batch.clear();
             }
-            drawAnimatedDrawItem(d, stats);
+            drawAnimatedDrawItem(d, stats, TransparencyPath::Regular);
         } else {  // static transparent
             BatchKey key{d.mesh, d.material};
             if (key != lastKey) {
                 if (!batch.empty()) {
-                    flushBatch(lastKey, batch, stats);
+                    flushBatch(lastKey, batch, stats, TransparencyPath::Regular);
                     batch.clear();
                 }
                 lastKey = key;
@@ -157,11 +247,18 @@ void ModelRenderer::drawTransparentPass(RenderStats& stats) {
     }
     // flush any remaining transparent static batch
     if (!batch.empty()) {
-        flushBatch(lastKey, batch, stats);
+        flushBatch(lastKey, batch, stats, TransparencyPath::Regular);
     }
 }
 
 void ModelRenderer::setWireframe(bool enabled) { m_Wireframe = enabled; }
+
+void ModelRenderer::cycleRenderDebugView() {
+    // 0=lit, 1=normals, 2=albedo, 3=NdotL, 4=roughness, 5=metallic, 6=occlusion,
+    // 7=normal map, 8=linear depth, 9=material id, 10=oit revealage,
+    // 11=emissive, 12=shadow factor placeholder (not implemented)
+    m_DebugView = (m_DebugView + 1) % 13;
+}
 
 void ModelRenderer::setBatchSize(const size_t maxInstances) {
     assert(m_Queue.isEmpty() && "setBatchSize called mid-frame with live batches");
@@ -233,8 +330,23 @@ void ModelRenderer::bindMaterialTextures(const se::assets::MaterialTextures& tex
     bindTexture(4, textures.occlusion, m_DefaultTextures[0]);          // white
 }
 
-void ModelRenderer::flushBatch(const BatchKey& key, const std::span<const InstanceData> batch,
-                               RenderStats& stats) const {
+int ModelRenderer::getDebugMaterialId(const se::assets::Material* material) const {
+    if (material == nullptr) {
+        return 0;
+    }
+
+    const auto it = m_DebugMaterialIds.find(material);
+    if (it != m_DebugMaterialIds.end()) {
+        return it->second;
+    }
+
+    const int id = m_NextDebugMaterialId++;
+    m_DebugMaterialIds.emplace(material, id);
+    return id;
+}
+
+void ModelRenderer::flushBatch(const BatchKey& key, const std::span<const InstanceData> batch, RenderStats& stats,
+                               const TransparencyPath path) const {
     if (batch.empty()) {
         return;
     }
@@ -255,7 +367,11 @@ void ModelRenderer::flushBatch(const BatchKey& key, const std::span<const Instan
     shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
     shader->setFloat("u_MetallicFactor", params.metallicFactor);
     shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
+    shader->setFloat("u_OcclusionStrength", params.occlusionStrength);
     shader->setVec3("u_EmissiveFactor", params.emissiveFactor);
+    shader->setInt("u_TransparencyPath", static_cast<int>(path));
+    shader->setInt("u_DebugView", m_DebugView);
+    shader->setInt("u_MaterialId", getDebugMaterialId(key.material));
 
     key.mesh->updateInstanceBuffer(std::as_bytes(batch));
     key.mesh->drawInstanced(batch.size());
@@ -264,7 +380,8 @@ void ModelRenderer::flushBatch(const BatchKey& key, const std::span<const Instan
     stats.modelsTriangles += static_cast<unsigned int>((key.mesh->getIndexCount() / 3) * batch.size());
 }
 
-void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, RenderStats& stats) const {
+void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, RenderStats& stats,
+                                         const TransparencyPath path) const {
     if (!drawItem.mesh || !drawItem.material || drawItem.animator == nullptr) {
         throw std::runtime_error("Invalid animated draw call");
     }
@@ -285,7 +402,11 @@ void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, 
     shader->setFloat("u_AlphaCutoff", params.alphaCutoff);
     shader->setFloat("u_MetallicFactor", params.metallicFactor);
     shader->setFloat("u_RoughnessFactor", params.roughnessFactor);
+    shader->setFloat("u_OcclusionStrength", params.occlusionStrength);
     shader->setVec3("u_EmissiveFactor", params.emissiveFactor);
+    shader->setInt("u_TransparencyPath", static_cast<int>(path));
+    shader->setInt("u_DebugView", m_DebugView);
+    shader->setInt("u_MaterialId", getDebugMaterialId(drawItem.material));
 
     shader->setMat4("u_Model", drawItem.modelMatrix);
     shader->setMat3("u_Normal", drawItem.normalMatrix);
@@ -303,6 +424,7 @@ void ModelRenderer::updateFrameUbo(const se::scene::LightData& lights, const se:
     FrameUbo data{};
 
     data.viewProj = camera.getViewProjection();
+    data.projection = camera.getProjection();
     data.cameraPos = glm::vec4(camera.getPosition(), 1.0f);
     data.ambient = glm::vec4(lights.ambientColor, lights.ambientIntensity);
 

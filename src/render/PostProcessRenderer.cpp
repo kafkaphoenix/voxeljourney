@@ -24,13 +24,22 @@ void PostProcessRenderer::execute(const Framebuffer& source) {
     glm::vec2 texelSize = {1.0f / static_cast<float>(source.width()), 1.0f / static_cast<float>(source.height())};
     m_Shader.setVec2("u_TexelSize", texelSize);
     m_Shader.setFloat("u_Exposure", m_Exposure);
+    m_Shader.setInt("u_ScreenTexture", 0);
+    m_Shader.setInt("u_OITAccumTexture", 1);
+    m_Shader.setInt("u_OITRevealTexture", 2);
 
     source.bindColorTexture(0);
+    source.bindColorTexture(1, 1);
+    source.bindColorTexture(2, 2);
     glBindSampler(0, m_Sampler);
+    glBindSampler(1, m_Sampler);
+    glBindSampler(2, m_Sampler);
 
     m_ScreenQuad.draw();
 
     glBindSampler(0, 0);
+    glBindSampler(1, 0);
+    glBindSampler(2, 0);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
 }

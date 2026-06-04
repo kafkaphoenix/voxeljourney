@@ -11,11 +11,7 @@
 namespace se::render {
 
 // Must stay in sync with `layout(std140, binding = N)` in GLSL shaders.
-enum class UboBinding : uint8_t {
-    Frame = 0,
-    Bones = 1,
-    Terrain = 2,
-};
+enum class UboBinding : uint8_t { Frame = 0, Bones, Terrain };
 
 inline constexpr std::array<std::pair<std::string_view, UboBinding>, 3> UBO_BINDINGS = {{
     {"FrameData", UboBinding::Frame},
@@ -30,6 +26,7 @@ struct alignas(16) PointLightGpuData {
 
 struct alignas(16) FrameUbo {
     glm::mat4 viewProj;
+    glm::mat4 projection;
     glm::vec4 sunDir;
     glm::vec4 sunColor;
     glm::vec4 ambient;

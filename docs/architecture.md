@@ -40,7 +40,7 @@ The engine is organized into several modules, each responsible for a specific as
 - Shader: GLSL program compilation and uniform updates.
 - Texture: Image loading and OpenGL texture setup.
 - Material: Shader + textures + render state, matching glTF data.
-- Model: Loads glTF/glb into meshes and materials.
+- Model: Loads glTF/glb into meshes and materials, generates missing normals/tangents, and normalizes skinning weights when needed.
 - Animation: Stores skeletal clips/channels/keyframes and samples a clip into a local-space pose.
 - Skeleton: Defines bone hierarchy, inverse bind matrices, and rest pose; builds final skinning palette matrices from a sampled pose.
 
@@ -57,7 +57,7 @@ The engine is organized into several modules, each responsible for a specific as
 - TerrainRenderer: Submits visible chunk renderables to a draw list.
 - PostProcessRenderer: Full-screen post-processing pass with selectable effects (tone map, inversion, grayscale, sharpen, blur, edge detect).
 - ScreenQuad: Attributeless full-screen triangle for post-processing.
-- RenderQueue: Collects renderables each frame and classifies them into static opaque batches, animated opaque draws, and depth-sorted transparent draws.
+- RenderQueue: Collects renderables each frame and classifies them into static opaque batches, animated opaque draws, OIT transparent draws, and depth-sorted transparent draws.
 - RenderStats: Tracks draw calls, triangles for stats display.
 
 ### Scene
@@ -84,11 +84,15 @@ The engine is organized into several modules, each responsible for a specific as
 - World: Owns the ChunkMap and handles chunk streaming based on the player's position. It also coordinates with the Scene to update chunk renderables when chunks are loaded or modified.
 
 ## Frame render order
-1. Terrain
+1. Terrain pass.
 2. Static opaque (instanced where possible, grouped by material/mesh to reduce state changes).
 3. Animated opaque (non-instanced, per-draw bone palette update).
-4. Transparent (single depth-sorted stream, mixed static and animated).
-5. MSAA resolve (if enabled) and post-process full-screen pass.
+4. If MSAA is enabled: resolve scene color + depth from MSAA buffer to single-sample final buffer.
+5. Transparent OIT pass (for materials tagged as OIT; useful for particle-like and intersecting transparent effects where strict sort order is hard).
+6. Transparent depth-sorted pass (for materials tagged as sorted, and also the default fallback when no transparency tag is provided in glTF extras).
+7. Post-process full-screen pass.
+
+Note: OIT accum/reveal attachments are rendered on the single-sample final buffer (not MSAA-resolved) to avoid incorrect averaging artifacts.
 
 ## Potential improvements ideas
 - Better error handling and logging. Using a logging library like spdlog would be a good improvement.
