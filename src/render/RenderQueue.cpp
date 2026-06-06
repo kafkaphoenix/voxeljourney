@@ -62,7 +62,7 @@ void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat
         bucket.push_back({
             .viewDepth = depth,
             .mesh = renderable.mesh,
-            .material = material.get(),
+            .material = material,
             .modelMatrix = modelMatrix,
             .normalMatrix = normalMatrix,
             .animator = animator,
@@ -74,7 +74,7 @@ void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat
         m_OpaqueAnimatedDrawItems.push_back({
             .viewDepth = 0.0f,  // not used for opaque, but set to 0 for consistency
             .mesh = renderable.mesh,
-            .material = material.get(),
+            .material = material,
             .modelMatrix = modelMatrix,
             .normalMatrix = normalMatrix,
             .animator = animator,
@@ -87,7 +87,7 @@ void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat
         .normalMatrix = normalMatrix,
     };
 
-    m_StaticOpaqueBatches[{renderable.mesh, material.get()}].push_back(data);
+    m_StaticOpaqueBatches[{renderable.mesh, material}].push_back(data);
 }
 
 const std::vector<RenderQueue::DrawItem>& RenderQueue::getDepthSortedTransparentDrawItems() {

@@ -34,8 +34,9 @@ void SceneBuilder::createSky(Scene& scene) {
         .intensity = 0.15f,
     });
 
-    scene.getSky().setAmbientColor(glm::vec3(0.5f, 0.55f, 0.65f));  // cool blue-grey
-    scene.getSky().setAmbientIntensity(0.4f);
+    auto& sky = scene.getSky();
+    sky.setAmbientColor(glm::vec3(0.5f, 0.55f, 0.65f));  // cool blue-grey
+    sky.setAmbientIntensity(0.4f);
 }
 
 void SceneBuilder::loadModels(Scene& scene, se::assets::AssetManager& assetManager) {

@@ -5,7 +5,7 @@
 namespace se::assets {
 
 template <typename T>
-std::shared_ptr<T> AssetHandle<T>::get() const {
+T* AssetHandle<T>::get() const {
     if (!isValid() || m_AssetManager == nullptr) {
         return nullptr;
     }

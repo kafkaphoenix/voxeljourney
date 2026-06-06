@@ -1,5 +1,4 @@
 #pragma once
-#include <memory>
 
 #include "UUID.h"
 
@@ -18,7 +17,7 @@ public:
     AssetHandle() = default;
     AssetHandle(AssetManager* manager, UUID id) : m_AssetManager(manager), m_Id(id) {}
 
-    [[nodiscard]] std::shared_ptr<T> get() const;
+    [[nodiscard]] T* get() const;
 
     [[nodiscard]] bool isValid() const { return m_AssetManager != nullptr && m_Id.value() != 0; }
     [[nodiscard]] UUID id() const { return m_Id; }

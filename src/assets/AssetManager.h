@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <cstdint>
 #include <format>
 #include <functional>
@@ -9,6 +10,7 @@
 #include <string_view>
 #include <typeindex>
 #include <unordered_map>
+#include <utility>
 
 #include "Asset.h"
 #include "AssetHandle.h"
@@ -48,8 +50,8 @@ public:
         }
 
         UUID uuid = UUID();
-        auto tex = std::make_shared<Texture>(data, width, height, channels);
-        m_Assets[uuid] = tex;
+        auto tex = std::make_unique<Texture>(data, width, height, channels);
+        m_Assets[uuid] = std::move(tex);
         m_PathToId[path] = uuid;
         return {this, uuid};
     }
@@ -62,8 +64,8 @@ public:
         }
 
         UUID id = UUID();
-        auto tex = std::make_shared<Texture>(data, width, height, channels);
-        m_Assets[id] = tex;
+        auto tex = std::make_unique<Texture>(data, width, height, channels);
+        m_Assets[id] = std::move(tex);
         m_PathToId[key] = id;
         return {this, id};
     }
@@ -96,8 +98,8 @@ private:
             return AssetHandle<T>(this, it->second);
         }
         UUID id = UUID();
-        auto asset = std::make_shared<T>(std::forward<Args>(args)...);
-        m_Assets[id] = asset;
+        auto asset = std::make_unique<T>(std::forward<Args>(args)...);
+        m_Assets[id] = std::move(asset);
         m_PathToId[std::string(path)] = id;
         return AssetHandle<T>(this, id);
     }
@@ -120,17 +122,18 @@ private:
     }
 
     template <typename T>
-    std::shared_ptr<T> getAssetPtr(UUID id) const {
+    T* getAssetPtr(UUID id) const {
         auto it = m_Assets.find(id);
         if (it != m_Assets.end()) {
-            return std::static_pointer_cast<T>(it->second);
+            // Caller must ensure type T matches the actual asset type, otherwise this cast is unsafe.
+            return static_cast<T*>(it->second.get());
         }
         return nullptr;
     }
 
     // No multithreading support, so no need for mutexes. If you add multithreading, you'll need to add mutexes to
     // protect these maps.
-    std::unordered_map<UUID, std::shared_ptr<Asset>> m_Assets;
+    std::unordered_map<UUID, std::unique_ptr<Asset>> m_Assets;
     std::unordered_map<std::string, UUID, StringHash, std::equal_to<>> m_PathToId;
 
     template <typename T>
