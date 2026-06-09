@@ -354,7 +354,7 @@ void ModelRenderer::flushBatch(const BatchKey& key, const std::span<const Instan
     const auto& state = key.material->getState();
     setCullEnabled(state.cull);
 
-    auto shader = key.material->getShaderHandle().get();
+    auto* shader = key.material->getShaderHandle().get();
     if (!shader) {
         throw std::runtime_error("Material missing shader");
     }
@@ -389,7 +389,7 @@ void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, 
     const auto& state = drawItem.material->getState();
     setCullEnabled(state.cull);
 
-    auto shader = drawItem.material->getShaderHandle().get();
+    auto* shader = drawItem.material->getShaderHandle().get();
     if (!shader) {
         throw std::runtime_error("Animated material missing shader");
     }

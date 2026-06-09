@@ -49,7 +49,7 @@ void SceneBuilder::loadModels(Scene& scene, se::assets::AssetManager& assetManag
 }
 
 void SceneBuilder::submitModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene) {
-    auto model = handle.get();
+    auto* model = handle.get();
     if (!model) {
         throw std::runtime_error("Model handle is invalid");
     }
@@ -66,7 +66,7 @@ void SceneBuilder::submitModel(const se::assets::ModelHandle& handle, const Tran
 void SceneBuilder::submitAnimatedModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene,
                                        std::string animatedTag,
                                        const AnimationController::LocomotionClips& locomotionClips) {
-    auto model = handle.get();
+    auto* model = handle.get();
     if (!model) {
         throw std::runtime_error("Model handle is invalid");
     }

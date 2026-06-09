@@ -10,7 +10,7 @@ namespace se::scene {
 Animator::Animator(se::assets::ModelHandle handle, int clipIndex) : m_Model(handle), m_ClipIndex(clipIndex) {
     m_Bones.fill(glm::mat4{1.0f});
 
-    auto model = m_Model.get();
+    auto* model = m_Model.get();
     if (model) {
         const auto& animations = model->getAnimations();
         if (animations.empty()) {
@@ -45,7 +45,7 @@ void Animator::play(int clipIndex) {
 }
 
 void Animator::play(std::string_view clipName) {
-    auto model = m_Model.get();
+    auto* model = m_Model.get();
     if (!model) {
         throw std::runtime_error("Model handle is invalid");
     }
@@ -84,7 +84,7 @@ void Animator::blendTo(int clipIndex, float blendDuration) {
 }
 
 void Animator::blendTo(std::string_view clipName, float blendDuration) {
-    auto model = m_Model.get();
+    auto* model = m_Model.get();
     if (!model) {
         throw std::runtime_error("Model handle is invalid");
     }
@@ -169,7 +169,7 @@ void Animator::stop() {
 }
 
 const se::assets::Skeleton* Animator::skeleton() const {
-    auto model = m_Model.get();
+    auto* model = m_Model.get();
     if (!model) {
         throw std::runtime_error("Model handle is invalid");
     }
@@ -177,7 +177,7 @@ const se::assets::Skeleton* Animator::skeleton() const {
 }
 
 const se::assets::AnimationClip* Animator::clip() const {
-    auto model = m_Model.get();
+    auto* model = m_Model.get();
     if (!model) {
         throw std::runtime_error("Model handle is invalid");
     }

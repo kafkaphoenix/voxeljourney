@@ -1031,7 +1031,7 @@ Model::Model(std::string gltfPath, ShaderHandle handle, AssetManager& assetManag
         auto defaultMaterial = createDefaultMaterial(std::format("{}#default", m_Name), assetManager, handle);
         auto gltfMaterials = buildMaterials(gltfModel, assetManager, handle, gltfTextures, checkerboard, m_Name);
 
-        auto shader = handle.get();
+        auto* shader = handle.get();
         if (!shader) {
             throw std::runtime_error("Shader handle is invalid");
         }

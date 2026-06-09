@@ -36,7 +36,7 @@ void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat
         throw std::runtime_error("Renderable missing mesh");
     }
 
-    auto material = renderable.material.get();
+    auto* material = renderable.material.get();
     if (!material) {
         throw std::runtime_error("Renderable missing material");
     }
