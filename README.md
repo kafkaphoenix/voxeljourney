@@ -17,6 +17,13 @@ For a more detailed look at the engine’s architecture, check out the [game-eng
 
 ## Build & Run
 
+- Configure: `make configure`
+- Build: `make build`
+- Run: `make run`
+- RenderDoc: `make renderdoc`
+- Static analysis: `make tidy`
+- Format: `make format`
+
 See the [build instructions](docs/build.md) for detailed steps on how to build and run the engine.
 
 ## Controls

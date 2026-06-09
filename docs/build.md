@@ -25,7 +25,7 @@ Configure the project with the correct toolchain:
 ```bash
 make configure
 ```
-> This automatically detects your OS and selects the appropriate vcpkg path.
+> This automatically selects the correct CMake preset for Windows or Linux.
 ### 3. Build
 Build the project:
 ```bash
@@ -42,12 +42,13 @@ Optionally, you can clean the build files with:
 make clean
 ```
 ### 6. Attach Renderdoc
-To capture frames with Renderdoc, first launch the engine with:
+To capture frames with Renderdoc:
 ```bash
 make renderdoc
 ```
-Then open Renderdoc, select the running process, and start capturing frames.
 > Labels are used in the render logic to help identify draw calls and resources in Renderdoc.
+
+> Make sure to have Renderdoc installed and the path configured in the Makefile for this to work.
 
 ### 7. Static Analysis
 To run clang-tidy static analysis:

@@ -74,8 +74,7 @@
     {
       "name": "windows-msvc-debug",
       "configurePreset": "windows-msvc",
-      "configuration": "Debug",
-      "targets": ["ALL_BUILD"]
+      "configuration": "Debug"
     },
     {
       "name": "windows-tidy",

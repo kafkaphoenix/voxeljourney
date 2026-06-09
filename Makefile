@@ -1,5 +1,5 @@
 RENDERDOC_CMD_LINUX   := renderdoc
-RENDERDOC_CMD_WINDOWS := "C:/Program Files/RenderDoc/renderdoccmd.exe"
+RENDERDOC_CMD_WINDOWS := "C:/Program Files/RenderDoc/qrenderdoc.exe"
 
 ifeq ($(OS),Windows_NT)
 EXE           := build/windows-msvc/Debug/voxeljourney.exe
