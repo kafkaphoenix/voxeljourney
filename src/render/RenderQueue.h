@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "Mesh.h"
+#include "ModelSubmission.h"
 #include "assets/Material.h"
-#include "scene/Renderable.h"
 
 namespace se::render {
 
@@ -18,13 +18,13 @@ struct InstanceData {
 
 struct BatchKey {
     Mesh* mesh = nullptr;
-    se::assets::Material* material = nullptr;
+    const se::assets::Material* material = nullptr;
     bool operator==(const BatchKey&) const noexcept = default;
 
     struct Hash {
         size_t operator()(const BatchKey& k) const noexcept {
             const size_t h1 = std::hash<Mesh*>{}(k.mesh);
-            const size_t h2 = std::hash<se::assets::Material*>{}(k.material);
+            const size_t h2 = std::hash<const se::assets::Material*>{}(k.material);
             return h1 ^ (h2 << 1);
         }
     };
@@ -42,13 +42,13 @@ public:
     struct DrawItem {
         float viewDepth = 0.0f;
         Mesh* mesh = nullptr;
-        se::assets::Material* material = nullptr;
+        const se::assets::Material* material = nullptr;
         glm::mat4 modelMatrix{};
         glm::mat3 normalMatrix{};
-        const se::scene::Animator* animator = nullptr;  // null = static, non-null = animated
+        const se::assets::BonePalette* bones = nullptr;  // null = static, non-null = animated
     };
 
-    void submit(const se::scene::Renderable& renderable, const glm::mat4& modelMatrix, const glm::mat4& viewMatrix);
+    void submit(const ModelSubmission& submission, const glm::mat4& viewMatrix);
     void clear();
 
     bool isEmpty() const {

@@ -10,9 +10,9 @@ class Camera {
 public:
     explicit Camera(const se::core::config::Camera& config);
 
-    [[nodiscard]] glm::mat4 getProjection() const;
-    [[nodiscard]] glm::mat4 getViewProjection() const;
     [[nodiscard]] glm::vec3 getPosition() const { return m_Position; }
+    [[nodiscard]] glm::mat4 getProjectionMatrix() const;
+    [[nodiscard]] glm::mat4 getViewMatrix() const;
     [[nodiscard]] float getYaw() const { return m_Yaw; }
 
     void setAspectRatio(float aspectRatio) { m_AspectRatio = aspectRatio; }

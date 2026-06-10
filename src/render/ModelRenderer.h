@@ -1,4 +1,5 @@
 #pragma once
+
 #include <glad/glad.h>
 
 #include <array>
@@ -6,12 +7,12 @@
 #include <optional>
 #include <unordered_map>
 
+#include "FrameRenderData.h"
 #include "Frustum.h"
+#include "ModelSubmission.h"
 #include "RenderQueue.h"
 #include "RenderStats.h"
 #include "UniformBuffer.h"
-#include "scene/Camera.h"
-#include "scene/LightData.h"
 
 namespace se::render {
 
@@ -20,10 +21,10 @@ public:
     explicit ModelRenderer(float anisotropy);
     ~ModelRenderer();
 
-    void submit(const se::scene::Renderable& renderable, const Frustum& frustum, const glm::mat4& viewMatrix);
-    void flush(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats);
-    void flushOpaque(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats);
-    void flushTransparent(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats);
+    void submit(const ModelSubmission& submission, const Frustum& frustum, const glm::mat4& viewMatrix);
+    void flush(const FrameLightData& lights, const FrameCameraData& camera, RenderStats& stats);
+    void flushOpaque(const FrameLightData& lights, const FrameCameraData& camera, RenderStats& stats);
+    void flushTransparent(const FrameLightData& lights, const FrameCameraData& camera, RenderStats& stats);
     void clearQueuedDraws();
     void setWireframe(bool enabled);
     void cycleRenderDebugView();
@@ -55,7 +56,7 @@ private:
                     TransparencyPath path = TransparencyPath::Regular) const;
     void drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, RenderStats& stats,
                               TransparencyPath path = TransparencyPath::Regular) const;
-    void updateFrameUbo(const se::scene::LightData& lights, const se::scene::Camera& camera);
+    void updateFrameUbo(const FrameLightData& lights, const FrameCameraData& camera);
 
     RenderQueue m_Queue;
     size_t m_MaxBatchSize = 1000;

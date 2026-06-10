@@ -13,7 +13,6 @@
 #include "UboDefinitions.h"
 #include "assets/Shader.h"
 #include "assets/Texture.h"
-#include "scene/Animator.h"
 
 namespace se::render {
 
@@ -71,23 +70,25 @@ ModelRenderer::~ModelRenderer() {
     glDeleteTextures(static_cast<GLsizei>(m_DefaultTextures.size()), m_DefaultTextures.data());
 }
 
-void ModelRenderer::submit(const se::scene::Renderable& renderable, const Frustum& frustum,
-                           const glm::mat4& viewMatrix) {
-    const glm::mat4 modelMatrix = renderable.resolvedTransform().getMatrix();
-    if (!frustumIntersectsAABB(frustum, renderable.mesh->getAABB(), modelMatrix)) {
+void ModelRenderer::submit(const ModelSubmission& submission, const Frustum& frustum, const glm::mat4& viewMatrix) {
+    if (!submission.mesh) {
+        throw std::runtime_error("Render submission missing mesh");
+    }
+
+    if (!frustumIntersectsAABB(frustum, submission.mesh->getAABB(), submission.modelMatrix)) {
         return;
     }
-    m_Queue.submit(renderable, modelMatrix, viewMatrix);
+
+    m_Queue.submit(submission, viewMatrix);
 }
 
-void ModelRenderer::flush(const se::scene::LightData& lights, const se::scene::Camera& camera, RenderStats& stats) {
+void ModelRenderer::flush(const FrameLightData& lights, const FrameCameraData& camera, RenderStats& stats) {
     flushOpaque(lights, camera, stats);
     flushTransparent(lights, camera, stats);
     clearQueuedDraws();
 }
 
-void ModelRenderer::flushOpaque(const se::scene::LightData& lights, const se::scene::Camera& camera,
-                                RenderStats& stats) {
+void ModelRenderer::flushOpaque(const FrameLightData& lights, const FrameCameraData& camera, RenderStats& stats) {
     if (m_Queue.isEmpty()) {
         return;
     }
@@ -100,8 +101,7 @@ void ModelRenderer::flushOpaque(const se::scene::LightData& lights, const se::sc
     restoreRenderState();
 }
 
-void ModelRenderer::flushTransparent(const se::scene::LightData& lights, const se::scene::Camera& camera,
-                                     RenderStats& stats) {
+void ModelRenderer::flushTransparent(const FrameLightData& lights, const FrameCameraData& camera, RenderStats& stats) {
     if (m_Queue.isEmpty()) {
         return;
     }
@@ -191,7 +191,7 @@ void ModelRenderer::drawOITTransparentPass(RenderStats& stats) {
     BatchKey lastKey = {};
     std::vector<InstanceData> batch;
     for (const auto& d : oit) {
-        if (d.animator != nullptr) {
+        if (d.bones != nullptr) {
             if (!batch.empty()) {
                 flushBatch(lastKey, batch, stats, TransparencyPath::OIT);
                 batch.clear();
@@ -226,7 +226,7 @@ void ModelRenderer::drawSortedTransparentPass(RenderStats& stats) {
     BatchKey lastKey = {};
     std::vector<InstanceData> batch;
     for (const auto& d : sorted) {
-        if (d.animator != nullptr) {  // animated transparent
+        if (d.bones != nullptr) {  // animated transparent
             // flush any pending transparent static batch
             if (!batch.empty()) {
                 flushBatch(lastKey, batch, stats, TransparencyPath::Regular);
@@ -382,7 +382,7 @@ void ModelRenderer::flushBatch(const BatchKey& key, const std::span<const Instan
 
 void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, RenderStats& stats,
                                          const TransparencyPath path) const {
-    if (!drawItem.mesh || !drawItem.material || drawItem.animator == nullptr) {
+    if (!drawItem.mesh || !drawItem.material || drawItem.bones == nullptr) {
         throw std::runtime_error("Invalid animated draw call");
     }
 
@@ -411,8 +411,7 @@ void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, 
     shader->setMat4("u_Model", drawItem.modelMatrix);
     shader->setMat3("u_Normal", drawItem.normalMatrix);
 
-    const auto boneMatrices = drawItem.animator->bones();
-    m_BoneUbo->updateSubData(0, std::as_bytes(std::span<const glm::mat4>(boneMatrices)));
+    m_BoneUbo->updateSubData(0, std::as_bytes(std::span<const glm::mat4>(*drawItem.bones)));
 
     drawItem.mesh->draw();
 
@@ -420,34 +419,29 @@ void ModelRenderer::drawAnimatedDrawItem(const RenderQueue::DrawItem& drawItem, 
     stats.animatedModelsTriangles += static_cast<unsigned int>(drawItem.mesh->getIndexCount() / 3);
 }
 
-void ModelRenderer::updateFrameUbo(const se::scene::LightData& lights, const se::scene::Camera& camera) {
+void ModelRenderer::updateFrameUbo(const FrameLightData& lights, const FrameCameraData& camera) {
     FrameUbo data{};
 
-    data.viewProj = camera.getViewProjection();
-    data.projection = camera.getProjection();
-    data.cameraPos = glm::vec4(camera.getPosition(), 1.0f);
+    data.view = camera.viewMatrix;
+    data.projection = camera.projectionMatrix;
+    data.cameraPos = glm::vec4(camera.worldPosition, 1.0f);
     data.ambient = glm::vec4(lights.ambientColor, lights.ambientIntensity);
 
-    if (!lights.directionalLights.empty()) {
-        const auto& sun = lights.directionalLights[0];
+    if (!lights.directionalLights().empty()) {
+        const auto& sun = lights.directionalLights().front();
         data.sunDir = glm::vec4(glm::normalize(sun.direction), 0.0f);
         data.sunColor = glm::vec4(sun.color, sun.intensity);
     }
 
-    data.ambient = glm::vec4(lights.ambientColor, lights.ambientIntensity);
-
-    // (std::min) is between parentheses to avoid macro expansion, as min from windows.h causes problems with std::min
-    // usage in this file We only support up to 4 point lights in the shader, so we need to clamp the count and ignore
-    // any extra lights
-    const int pointCount = (std::min)(static_cast<int>(lights.pointLights.size()), 4);
-    data.lightCounts = glm::ivec4(pointCount, 0, 0, 0);
-
-    for (int i = 0; i < pointCount; ++i) {
-        const auto& l = lights.pointLights[i];
+    const std::size_t pointCount = lights.pointLights().size();
+    data.lightCounts = glm::ivec4(static_cast<int>(pointCount), 0, 0, 0);
+    std::size_t i = 0;
+    for (const auto& l : lights.pointLights()) {
         data.pointLights.at(i) = {
             .positionRange = glm::vec4(l.position, l.range),
             .colorIntensity = glm::vec4(l.color, l.intensity),
         };
+        ++i;
     }
 
     m_FrameUbo->updateSubData(0, data);

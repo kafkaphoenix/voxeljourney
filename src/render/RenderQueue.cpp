@@ -4,8 +4,6 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <stdexcept>
 
-#include "scene/Animator.h"
-
 namespace se::render {
 
 const std::vector<RenderQueue::StaticOpaqueBatch>& RenderQueue::getOrderedStaticOpaqueBatches() const {
@@ -30,25 +28,24 @@ const std::vector<RenderQueue::StaticOpaqueBatch>& RenderQueue::getOrderedStatic
     return m_StaticOpaqueBatchViews;
 }
 
-void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat4& modelMatrix,
-                         const glm::mat4& viewMatrix) {
-    if (!renderable.mesh) {
-        throw std::runtime_error("Renderable missing mesh");
+void RenderQueue::submit(const ModelSubmission& submission, const glm::mat4& viewMatrix) {
+    if (!submission.mesh) {
+        throw std::runtime_error("Render submission missing mesh");
     }
 
-    auto* material = renderable.material.get();
+    const auto* material = submission.material;
     if (!material) {
-        throw std::runtime_error("Renderable missing material");
+        throw std::runtime_error("Render submission missing material");
     }
 
     const bool isTransparent = material->getState().blend;
-    const se::scene::Animator* animator = renderable.resolvedAnimator();
-    const bool isAnimated = animator != nullptr;
+    const bool isAnimated = submission.isAnimated();
 
+    const glm::mat4& modelMatrix = submission.modelMatrix;
     const glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(modelMatrix)));
 
     if (isTransparent) {
-        const auto& aabb = renderable.mesh->getAABB();
+        const auto& aabb = submission.mesh->getAABB();
         const glm::vec3 localCenter = 0.5f * (aabb.min + aabb.max);
         const glm::vec4 worldCenter = modelMatrix * glm::vec4(localCenter, 1.0f);
         const float depth = -(viewMatrix * worldCenter).z;
@@ -59,25 +56,25 @@ void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat
         auto& bucket = material->getState().transparency == se::assets::TransparencyMode::OIT
                            ? m_OITTransparentDrawItems
                            : m_SortedTransparentDrawItems;
-        bucket.push_back({
+        bucket.push_back(DrawItem{
             .viewDepth = depth,
-            .mesh = renderable.mesh,
+            .mesh = submission.mesh,
             .material = material,
             .modelMatrix = modelMatrix,
             .normalMatrix = normalMatrix,
-            .animator = animator,
+            .bones = submission.bones,
         });
         return;
     }
 
     if (isAnimated) {
-        m_OpaqueAnimatedDrawItems.push_back({
+        m_OpaqueAnimatedDrawItems.push_back(DrawItem{
             .viewDepth = 0.0f,  // not used for opaque, but set to 0 for consistency
-            .mesh = renderable.mesh,
+            .mesh = submission.mesh,
             .material = material,
             .modelMatrix = modelMatrix,
             .normalMatrix = normalMatrix,
-            .animator = animator,
+            .bones = submission.bones,
         });
         return;
     }
@@ -87,7 +84,7 @@ void RenderQueue::submit(const se::scene::Renderable& renderable, const glm::mat
         .normalMatrix = normalMatrix,
     };
 
-    m_StaticOpaqueBatches[{renderable.mesh, material}].push_back(data);
+    m_StaticOpaqueBatches[BatchKey{.mesh = submission.mesh, .material = material}].push_back(data);
 }
 
 const std::vector<RenderQueue::DrawItem>& RenderQueue::getDepthSortedTransparentDrawItems() {

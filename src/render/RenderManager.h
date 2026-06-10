@@ -2,8 +2,8 @@
 
 #include <glm/mat4x4.hpp>
 #include <optional>
-#include <span>
 
+#include "FrameRenderData.h"
 #include "Framebuffer.h"
 #include "Frustum.h"
 #include "ModelRenderer.h"
@@ -16,7 +16,6 @@ class Camera;
 struct LightData;
 struct Renderable;
 struct ChunkRenderable;
-struct AnimatedRenderable;
 }
 
 namespace se::core {
@@ -53,7 +52,7 @@ private:
     void resolveMsaaSceneToFinalFramebuffer() const;
     static void setupGlState();
 
-    const se::scene::Camera* m_Camera = nullptr;
+    std::optional<FrameCameraData> m_FrameCamera;
     Frustum m_Frustum{};
     ModelRenderer m_ModelRenderer;
     TerrainRenderer m_TerrainRenderer;

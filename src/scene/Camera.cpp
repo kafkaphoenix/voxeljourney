@@ -33,12 +33,10 @@ void Camera::setClipPlanes(float nearPlane, float farPlane) {
     }
 }
 
-glm::mat4 Camera::getProjection() const { return glm::perspective(glm::radians(m_Fov), m_AspectRatio, m_Near, m_Far); }
-
-glm::mat4 Camera::getViewProjection() const {
-    const glm::mat4 view = glm::lookAt(m_Position, m_Position + m_Front, m_Up);
-    const glm::mat4 proj = getProjection();
-    return proj * view;
+glm::mat4 Camera::getProjectionMatrix() const {
+    return glm::perspective(glm::radians(m_Fov), m_AspectRatio, m_Near, m_Far);
 }
+
+glm::mat4 Camera::getViewMatrix() const { return glm::lookAt(m_Position, m_Position + m_Front, m_Up); }
 
 }  // namespace se::scene

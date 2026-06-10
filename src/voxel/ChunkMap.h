@@ -20,7 +20,7 @@ public:
     VoxelType getVoxelType(glm::ivec3 worldCoord) const;
 
 private:
-    std::unordered_map<glm::ivec3, std::unique_ptr<Chunk>> m_Chunks;
+    std::unordered_map<glm::ivec3, Chunk> m_Chunks;
 };
 
 }  // namespace se::voxel
