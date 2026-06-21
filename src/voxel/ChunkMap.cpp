@@ -1,7 +1,6 @@
 #include "ChunkMap.h"
 
 #include <glm/gtx/string_cast.hpp>
-
 #include <stdexcept>
 
 #include "ChunkCoords.h"

@@ -125,7 +125,7 @@ Config Config::load(std::string_view path) {
     readPlayer(t, cfg.m_Player);
     readCamera(t, cfg.m_Camera);
     readCharacterController(t, cfg.m_CharacterController);
-    readThirdPersonCameraController(t, cfg.m_ThirdPersonCameraController);
+    readCameraController(t, cfg.m_CameraController);
     readStats(t, cfg.m_Stats);
     readWorld(t, cfg.m_World);
     readRender(t, cfg.m_Render);
@@ -194,14 +194,18 @@ void Config::readCamera(const toml::table& t, Camera& c) {
     }
 }
 
-void Config::readThirdPersonCameraController(const toml::table& t, ThirdPersonCameraController& cc) {
-    const auto& tcc = requireTable(t, "thirdPersonCameraController");
+void Config::readCameraController(const toml::table& t, CameraController& cc) {
+    const auto& tcc = requireTable(t, "cameraController");
 
     cc.followDistance = require<float>(tcc, "followDistance");
     cc.followHeight = require<float>(tcc, "followHeight");
+    cc.eyeHeight = require<float>(tcc, "eyeHeight");
+    cc.eyeForwardOffset = require<float>(tcc, "eyeForwardOffset");
 
-    requireGreater("thirdPersonCameraController.followDistance", cc.followDistance, 0.f);
-    requireGreater("thirdPersonCameraController.followHeight", cc.followHeight, 0.f);
+    requireGreater("cameraController.followDistance", cc.followDistance, 0.f);
+    requireGreater("cameraController.followHeight", cc.followHeight, 0.f);
+    requireGreater("cameraController.eyeHeight", cc.eyeHeight, 0.f);
+    requireGreater("cameraController.eyeForwardOffset", cc.eyeForwardOffset, 0.f);
 }
 
 void Config::readStats(const toml::table& t, Stats& s) {

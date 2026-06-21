@@ -11,6 +11,8 @@
 #include "Transform.h"
 #include "assets/AssetManager.h"
 #include "core/Timer.h"
+#include "render/RenderManager.h"
+#include "render/VisibilityMask.h"
 
 namespace se::scene {
 
@@ -71,6 +73,7 @@ void SceneBuilder::submitAnimatedModel(const se::assets::ModelHandle& handle, co
         throw std::runtime_error("Model handle is invalid");
     }
 
+    const bool isPlayerBody = animatedTag == "player_body";
     auto& animatedInstance =
         scene.addAnimatedInstance(AnimatedInstance(handle, transform, std::move(animatedTag), locomotionClips));
 
@@ -79,8 +82,10 @@ void SceneBuilder::submitAnimatedModel(const se::assets::ModelHandle& handle, co
             throw std::runtime_error("SubMesh is missing mesh data");
         }
 
+        const auto visibilityMask =
+            isPlayerBody ? se::render::visibility::Layer::PlayerBody : se::render::visibility::Layer::World;
         scene.addRenderable(Renderable::makeAnimated(sub.mesh.get(), sub.material, animatedInstance.transform,
-                                                     animatedInstance.animator));
+                                                     animatedInstance.animator, visibilityMask));
     }
 }
 }  // namespace se::scene

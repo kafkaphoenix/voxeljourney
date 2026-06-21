@@ -25,21 +25,26 @@
 The engine is organized into several modules, each responsible for a specific aspect of the engine's functionality. Below is an overview of the main modules and their responsibilities.
 
 ### Core
-- Application: Owns the main loop, window, render manager, asset manager, and scene.
-- Window: GLFW setup, OpenGL context, and event callbacks.
+- Application: Owns the main loop and orchestrates the engine subsystems.
+- Window: Sets up GLFW window and OpenGL context and handles window events.
 - Input: Frame-based input state built from events.
-- EventBus: Small event queue used by window callbacks.
-- Config: Reads config.toml for runtime settings.
-- StatsTracker: Tracks and averages frame time, draw calls, etc.
-- Level: Owns and coordinates the core simulation objects: Scene, World, and Player. Each frame it drives chunk streaming and mesh rebuilding via World, forwards input to Player, and keeps Scene in sync with the current world state. Also responsible for initial scene setup on load.
+- Event: Base class for events, with derived classes for specific event types (keyboard, mouse, window, framebuffer resize)
+- EventBus: Dispatches events to registered listeners.
+- Config: Loads and stores engine configuration from a TOML file.
+- Level: Manages the current level/scene, including loading and unloading assets and scene objects.
+- StatsTracker: Tracks and displays engine stats like FPS, frame time, and draw calls.
+- MemoryUtils: Used for memory tracking.
+- Timer: Provides high-resolution timing for frame time and delta time calculations.
 
 ### Assets
-- Asset: Minimal base class with a path.
-- AssetHandle: Lightweight, type-safe references to assets.
-- AssetManager: Loads and caches shaders, textures, models, and materials.
-- Shader: GLSL program compilation and uniform updates.
-- Texture: Image loading and OpenGL texture setup.
-- Material: Shader + textures + render state, matching glTF data.
+- Asset: Base class for all asset types (shader, texture, model, material, etc).
+- UUID: Generates unique identifiers.
+- StringHash: Generates a hash from a string_view for fast lookups and comparisons.
+- AssetHandle: Lightweight handle to an asset, used for referencing assets without owning them.
+- AssetManager: Manages loading, caching, and unloading of assets. Provides a unified interface for asset access.
+- Shader: Loads GLSL shader source code, compiles and links into an OpenGL program.
+- Texture: Loads image data into an OpenGL texture using DSA.
+- Material: Defines shader, textures, and render states for rendering a mesh.
 - Model: Loads glTF/glb into meshes and materials, generates missing normals/tangents, and normalizes skinning weights when needed.
 - Animation: Stores skeletal clips/channels/keyframes and samples a clip into a local-space pose.
 - Skeleton: Defines bone hierarchy, inverse bind matrices, and rest pose; builds final skinning palette matrices from a sampled pose.
@@ -50,30 +55,38 @@ The engine is organized into several modules, each responsible for a specific as
 - Buffer: OpenGL buffer wrapper for vertex/index data.
 - Mesh: Vertex/index data loaded from models, with OpenGL buffers and VAO setup.
 - UniformBuffer: OpenGL UBO wrapper for per-frame data (camera, lights).
-- Framebuffer: Off-screen render target with color/depth attachments. Supports single-sample, MSAA, and HDR configurations.
 - Frustum: Simple CPU frustum culling for renderables outside the camera view.
-- RenderManager: Orchestrates passes (terrain, geometry, post-process), framebuffer management, and MSAA resolve.
+- ModelSubmission: Represents a single draw call for a mesh with its associated material, transform, model matrix, and optional bone matrices.
+- RenderManager: Orchestrates passes (geometry, skybox, post-process), framebuffer management, and MSAA resolve.
+- RenderStats: Tracks draw calls, triangles for stats display.
+- VisibilityMask: Defines visibility layers for renderables and cameras, allowing selective rendering of objects based on their assigned layer.
+- Framebuffer: Off-screen render target with color/depth attachments. Supports single-sample, MSAA, and HDR configurations.
+- FrameRenderData: Stores per-frame data like camera matrices, lights, and other global parameters for rendering.
+- SceneRenderAdapters: Adapts scene objects (renderables, lights, cameras) into renderable data structures for the renderer.
+- UboDefinitions: Defines the layout of uniform buffer objects (UBOs) for frames, lights, and other global data used in shaders.
 - ModelRenderer: Submits renderables to the RenderQueue and renders opaque and transparent passes for static and animated items.
-- TerrainRenderer: Submits visible chunk renderables to a draw list.
+- RenderQueue: Collects renderables each frame and classifies them into static opaque batches, animated opaque draws, OIT transparent draws, and depth-sorted transparent draws.
+- TerrainRenderer: Submits visible chunk renderables to a draw list and handles terrain-specific rendering logic.
 - PostProcessRenderer: Full-screen post-processing pass with selectable effects (tone map, inversion, grayscale, sharpen, blur, edge detect).
 - ScreenQuad: Attributeless full-screen triangle for post-processing.
-- RenderQueue: Collects renderables each frame and classifies them into static opaque batches, animated opaque draws, OIT transparent draws, and depth-sorted transparent draws.
-- RenderStats: Tracks draw calls, triangles for stats display.
 
 ### Scene
 - Scene: Owns the scene objects, lights, and the sky.
 - SceneBuilder: Builds the initial scene with a sun, sky, player and the terrain.
 - Light: Defines different light types (directional, point, and spot).
+- LightData: Stores all light properties in a format suitable for uploading to a UBO.
 - Sun: Directional light with color and intensity.
 - Sky: Simple sky color and ambient light.
-- Transform: Defines position, rotation, and scale.
 - Renderable: Defines a renderable mesh/material with either static pose data or dynamic transform/animator references.
+- Player: Represents the player character, managing the body instance, camera, and character controller.
+- Transform: Defines position, rotation, and scale.
+- Camera: Defines a camera with position, orientation, FOV, clip planes, and visibility mask for selective rendering.
+- CameraController: Handles camera movement and rotation based on input, supporting first-person and third-person modes.
 - ChunkRenderable: Renderable for a chunk composed of a mesh and transform.
-- Camera: Perspective camera with configurable projection/view settings.
-- Player: Third-person player controller with camera movement, mouse look, and animated character support.
 - Animator: Updates skeleton poses and generates bone matrices for skeletal animation.
 - AnimationController: High-level locomotion state controller driving Animator clip transitions.
 - AnimatedInstance: Runtime scene object combining model, transform, animator, controller, and tag.
+- CharacterController: Handles player movement.
 
 ### Voxel
 - Voxel: Defines a voxel with a type (e.g., air, dirt, stone).
@@ -97,7 +110,7 @@ Note: OIT accum/reveal attachments are rendered on the single-sample final buffe
 ## Potential improvements ideas
 - Better error handling and logging. Using a logging library like spdlog would be a good improvement.
 - More robust asset management with reference counting and unloading/reloading.
-- Improve renderer (forward+ or deferred) and add more features like shadows and reflections or more complex lighting logic.
+- Overhaul renderer (forward+ or deferred) and add more features like shadows and reflections or more complex lighting logic.
 - More complete input handling with action mapping and support for gamepads.
 - More complete scene management with entities, components, and systems (ECS architecture).
 - State management for different game states (main menu, gameplay, pause, etc).

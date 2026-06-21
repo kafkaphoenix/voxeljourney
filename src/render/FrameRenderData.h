@@ -8,6 +8,8 @@
 #include <ranges>
 #include <span>
 
+#include "VisibilityMask.h"
+
 namespace se::render {
 
 inline constexpr std::size_t MAX_FRAME_DIRECTIONAL_LIGHTS = 1;
@@ -17,7 +19,7 @@ struct FrameCameraData {
     glm::mat4 viewMatrix{1.0f};
     glm::mat4 projectionMatrix{1.0f};
     glm::vec3 worldPosition{0.0f};
-    float padding0 = 0.0f;
+    visibility::Layer visibilityMask = visibility::Layer::World;
 };
 
 struct DirectionalLightRenderData {

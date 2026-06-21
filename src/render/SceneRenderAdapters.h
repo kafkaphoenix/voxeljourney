@@ -16,6 +16,7 @@ namespace se::render {
         .viewMatrix = camera.getViewMatrix(),
         .projectionMatrix = camera.getProjectionMatrix(),
         .worldPosition = camera.getPosition(),
+        .visibilityMask = camera.getVisibilityMask(),
     };
 }
 

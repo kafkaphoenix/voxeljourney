@@ -35,6 +35,10 @@ void RenderManager::submit(const se::scene::Renderable& renderable) {
         throw std::runtime_error("RenderManager: submit called before beginFrame!");
     }
 
+    if (!visibility::isVisible(renderable.visibilityMask, m_FrameCamera->visibilityMask)) {
+        return;
+    }
+
     m_ModelRenderer.submit(toModelSubmission(renderable), m_Frustum, m_FrameCamera->viewMatrix);
 }
 

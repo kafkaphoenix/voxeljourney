@@ -5,6 +5,7 @@
 
 #include "Transform.h"
 #include "assets/Material.h"
+#include "render/VisibilityMask.h"
 
 namespace se::render {
 class Mesh;
@@ -26,6 +27,7 @@ struct Renderable {
     se::render::Mesh* mesh = nullptr;
     se::assets::MaterialHandle material;
     std::variant<StaticPose, DynamicPose> poseSource = StaticPose{};
+    se::render::visibility::Layer visibilityMask = se::render::visibility::Layer::World;
 
     [[nodiscard]] static Renderable makeStatic(se::render::Mesh* mesh, se::assets::MaterialHandle handle,
                                                Transform transform) {
@@ -33,15 +35,18 @@ struct Renderable {
             .mesh = mesh,
             .material = handle,
             .poseSource = StaticPose{transform},
+            .visibilityMask = se::render::visibility::Layer::World,
         };
     }
 
-    [[nodiscard]] static Renderable makeAnimated(se::render::Mesh* mesh, se::assets::MaterialHandle handle,
-                                                 const Transform& transform, const Animator& animator) {
+    [[nodiscard]] static Renderable makeAnimated(
+        se::render::Mesh* mesh, se::assets::MaterialHandle handle, const Transform& transform, const Animator& animator,
+        se::render::visibility::Layer visibilityMask = se::render::visibility::Layer::World) {
         return Renderable{
             .mesh = mesh,
             .material = handle,
             .poseSource = DynamicPose{&transform, &animator},
+            .visibilityMask = visibilityMask,
         };
     }
 

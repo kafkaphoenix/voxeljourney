@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 
 #include "core/Config.h"
+#include "render/VisibilityMask.h"
 
 namespace se::scene {
 
@@ -14,6 +15,7 @@ public:
     [[nodiscard]] glm::mat4 getProjectionMatrix() const;
     [[nodiscard]] glm::mat4 getViewMatrix() const;
     [[nodiscard]] float getYaw() const { return m_Yaw; }
+    [[nodiscard]] se::render::visibility::Layer getVisibilityMask() const { return m_VisibilityMask; }
 
     void setAspectRatio(float aspectRatio) { m_AspectRatio = aspectRatio; }
     void setPosition(const glm::vec3& position) { m_Position = position; }
@@ -24,6 +26,7 @@ public:
     }
     void setFov(float fov);
     void setClipPlanes(float nearPlane, float farPlane);
+    void setVisibilityMask(se::render::visibility::Layer mask) { m_VisibilityMask = mask; }
 
 private:
     void updateVectors();
@@ -40,6 +43,7 @@ private:
     float m_Fov = 80.0f;
     float m_Near = 0.1f;
     float m_Far = 1000.0f;
+    se::render::visibility::Layer m_VisibilityMask = se::render::visibility::FIRST_PERSON_CAMERA;
 };
 
 }  // namespace se::scene
