@@ -30,6 +30,23 @@ float Animator::duration() const {
     return c ? c->duration : 0.0f;
 }
 
+void Animator::setRootMotionEnabled(bool enabled) {
+    if (m_UseRootMotion == enabled) {
+        return;
+    }
+
+    m_UseRootMotion = enabled;
+    m_RootMotionDelta = glm::vec3{0.0f};
+    evaluateCurrentPose();
+}
+
+void Animator::setPlaybackSpeed(float playbackSpeed) { m_PlaybackSpeed = std::max(playbackSpeed, 0.001f); }
+
+void Animator::setRootMotionTranslationMask(const glm::vec3& translationMask) {
+    m_RootMotionTranslationMask = glm::clamp(translationMask, glm::vec3{0.0f}, glm::vec3{1.0f});
+    evaluateCurrentPose();
+}
+
 void Animator::play(int clipIndex) {
     if (m_ClipIndex == clipIndex) {
         return;
@@ -37,6 +54,7 @@ void Animator::play(int clipIndex) {
 
     m_ClipIndex = clipIndex;
     m_CurrentTime = 0.0f;
+    m_RootMotionDelta = glm::vec3{0.0f};
     m_Playing = true;
     m_BlendTimer = 0.0f;
     m_BlendDuration = 0.0f;
@@ -102,17 +120,28 @@ void Animator::update(float deltaTime) {
     const auto* c = clip();
 
     if (!c || !m_Playing) {
+        m_RootMotionDelta = glm::vec3{0.0f};
+        return;
+    }
+
+    const auto* s = skeleton();
+    if (s == nullptr) {
+        m_RootMotionDelta = glm::vec3{0.0f};
         return;
     }
 
     if (c->duration <= 0.0f) {
         m_CurrentTime = 0.0f;
+        m_RootMotionDelta = glm::vec3{0.0f};
         evaluateCurrentPose();
         m_Playing = false;
         return;
     }
 
-    m_CurrentTime += deltaTime;
+    const float previousTime = m_CurrentTime;
+    const float scaledDeltaTime = deltaTime * m_PlaybackSpeed;
+    const float advancedTime = m_CurrentTime + scaledDeltaTime;
+    m_CurrentTime = advancedTime;
 
     if (m_CurrentTime >= c->duration) {
         if (m_Loop) {
@@ -123,9 +152,11 @@ void Animator::update(float deltaTime) {
         }
     }
 
-    const auto* s = skeleton();
-    if (s == nullptr) {
-        return;
+    if (m_UseRootMotion) {
+        const float rootMotionEndTime = m_Loop ? advancedTime : m_CurrentTime;
+        m_RootMotionDelta = c->sampleRootDelta(previousTime, rootMotionEndTime, *s);
+    } else {
+        m_RootMotionDelta = glm::vec3{0.0f};
     }
 
     c->sample(m_CurrentTime, *s, m_LocalPose);
@@ -151,9 +182,9 @@ void Animator::update(float deltaTime) {
             blendedPose.at(i).scale = glm::mix(from.scale, to.scale, t);
         }
 
-        s->buildPalette(blendedPose, m_Bones);
+        buildBonePalette(blendedPose);
     } else {  // No blending, just use the current pose
-        s->buildPalette(m_LocalPose, m_Bones);
+        buildBonePalette(m_LocalPose);
     }
 }
 
@@ -164,8 +195,30 @@ void Animator::pause() { m_Playing = false; }
 void Animator::stop() {
     m_Playing = false;
     m_CurrentTime = 0.0f;
+    m_RootMotionDelta = glm::vec3{0.0f};
 
     evaluateCurrentPose();
+}
+
+void Animator::buildBonePalette(const se::assets::Pose& pose) {
+    const auto* s = skeleton();
+    if (!s) {
+        return;
+    }
+
+    if (!m_UseRootMotion || s->bones.empty()) {
+        s->buildPalette(pose, m_Bones);
+        return;
+    }
+
+    auto poseForPalette = pose;
+    const auto* currentClip = clip();
+    const int rootBoneIndex = currentClip ? currentClip->rootMotionBoneIndex(*s) : -1;
+    if (rootBoneIndex >= 0) {
+        poseForPalette.at(rootBoneIndex).translation = glm::mix(
+            pose.at(rootBoneIndex).translation, s->bones.at(rootBoneIndex).restPosition, m_RootMotionTranslationMask);
+    }
+    s->buildPalette(poseForPalette, m_Bones);
 }
 
 const se::assets::Skeleton* Animator::skeleton() const {
@@ -203,7 +256,7 @@ void Animator::evaluateCurrentPose() {
     }
 
     c->sample(m_CurrentTime, *s, m_LocalPose);
-    s->buildPalette(m_LocalPose, m_Bones);
+    buildBonePalette(m_LocalPose);
 }
 
 }  // namespace se::scene

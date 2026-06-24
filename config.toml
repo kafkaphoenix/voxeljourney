@@ -15,7 +15,11 @@ walkSpeed = 20.0
 runSpeed = 40.0
 mouseSensitivity = 0.1
 mouseSmoothAlpha = 0.5
+turnResponsiveness = 4.0
 useFixedStep = true
+useRootMotion = false
+rootMotionPlaybackSpeed = 1.0
+rootMotionTranslationMask = [1.0, 0.0, 1.0]
 fixedHz = 60.0
 
 [camera]
@@ -26,8 +30,8 @@ aspectRatio = 1.77777777778
 
 [cameraController]
 # Third-person camera parameters
-followDistance = 10.0
-followHeight = 10.0
+followDistance = 14.0
+followHeight = 6.0
 # First-person camera parameters
 eyeHeight = 5.0
 eyeForwardOffset = 0.15

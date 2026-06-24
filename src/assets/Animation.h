@@ -39,6 +39,8 @@ struct AnimationClip {
     // Evaluates the pose for the given time by sampling each channel and applying the animated transformations to the
     // corresponding bones in the skeleton. The resulting pose is stored in outPose.
     void sample(float time, const Skeleton& skeleton, Pose& outPose) const;
+    [[nodiscard]] int rootMotionBoneIndex(const Skeleton& skeleton) const;
+    [[nodiscard]] glm::vec3 sampleRootDelta(float previousTime, float currentTime, const Skeleton& skeleton) const;
 };
 
 }  // namespace se::assets

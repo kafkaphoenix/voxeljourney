@@ -24,6 +24,7 @@ void Level::update(float deltaTime, const Input& input) {
     m_Player.update(deltaTime, input);
     m_World.updateChunks(m_Scene, m_Player.getPosition());
     m_Scene.update(deltaTime);
+    m_Player.finalizeFrame(deltaTime);
 }
 
 void Level::render(se::render::RenderManager& renderManager) {

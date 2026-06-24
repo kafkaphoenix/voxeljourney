@@ -60,6 +60,32 @@ T require(const toml::table& t, std::string_view key) {
     return result;
 }
 
+template <GlmVec T>
+T optional(const toml::table& t, std::string_view key, T fallback) {
+    auto node = t[key];
+    if (!node) {
+        return fallback;
+    }
+
+    const auto* arr = node.as_array();
+    if (!arr || static_cast<glm::length_t>(arr->size()) != T::length()) {
+        return fallback;
+    }
+
+    T result{};
+    for (glm::length_t i = 0; i < T::length(); ++i) {
+        if (const auto* v = arr->get_as<double>(i)) {
+            result[i] = static_cast<float>(v->get());
+        } else if (const auto* v = arr->get_as<int64_t>(i)) {
+            result[i] = static_cast<float>(v->get());
+        } else {
+            return fallback;
+        }
+    }
+
+    return result;
+}
+
 template <typename T>
 T optional(const toml::table& t, std::string_view key, T fallback) {
     auto node = t[key];
@@ -163,13 +189,23 @@ void Config::readCharacterController(const toml::table& t, CharacterController& 
     cc.runSpeed = require<float>(tm, "runSpeed");
     cc.mouseSensitivity = require<float>(tm, "mouseSensitivity");
     cc.mouseSmoothAlpha = optional<float>(tm, "mouseSmoothAlpha", 0.5f);
+    cc.turnResponsiveness = optional<float>(tm, "turnResponsiveness", 5.0f);
     cc.useFixedStep = optional<bool>(tm, "useFixedStep", true);
+    cc.useRootMotion = optional<bool>(tm, "useRootMotion", false);
+    cc.rootMotionPlaybackSpeed = optional<float>(tm, "rootMotionPlaybackSpeed", 1.0f);
+    cc.rootMotionTranslationMask = optional<glm::vec3>(tm, "rootMotionTranslationMask", glm::vec3{1.0f, 0.0f, 1.0f});
     cc.fixedHz = cc.useFixedStep ? require<float>(tm, "fixedHz") : optional<float>(tm, "fixedHz", 60.f);
 
     requireGreater("characterController.walkSpeed", cc.walkSpeed, 0.f);
     requireGreater("characterController.runSpeed", cc.runSpeed, 0.f);
     requireGreater("characterController.mouseSensitivity", cc.mouseSensitivity, 0.f);
+    requireGreater("characterController.turnResponsiveness", cc.turnResponsiveness, 0.f);
+    requireGreater("characterController.rootMotionPlaybackSpeed", cc.rootMotionPlaybackSpeed, 0.f);
     requireRange("characterController.fixedHz", cc.fixedHz, 1.f, 240.f);
+
+    for (glm::length_t i = 0; i < glm::vec3::length(); ++i) {
+        requireRange("characterController.rootMotionTranslationMask", cc.rootMotionTranslationMask[i], 0.0f, 1.0f);
+    }
 
     if (cc.walkSpeed >= cc.runSpeed) {
         throwConfigError("characterController.walkSpeed must be < characterController.runSpeed");
