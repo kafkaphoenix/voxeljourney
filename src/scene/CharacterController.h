@@ -2,12 +2,9 @@
 
 #include <glm/vec3.hpp>
 
+#include "PlayerIntent.h"
 #include "Transform.h"
 #include "core/Config.h"
-
-namespace se::core {
-class Input;
-}
 
 namespace se::scene {
 
@@ -20,8 +17,8 @@ public:
 
     explicit CharacterController(const se::core::config::CharacterController& config);
 
-    void updateFirstPerson(float deltaTime, const se::core::Input& input, Transform& transform);
-    void updateThirdPerson(float deltaTime, const se::core::Input& input, Transform& transform, float cameraYaw);
+    void updateFirstPerson(float deltaTime, const PlayerIntent& intent, Transform& transform);
+    void updateThirdPerson(float deltaTime, const PlayerIntent& intent, Transform& transform, float cameraYaw);
 
     [[nodiscard]] float yaw() const { return m_Yaw; }
     [[nodiscard]] float pitch() const { return m_Pitch; }
@@ -32,8 +29,8 @@ public:
     [[nodiscard]] float movementSpeed(bool running) const { return running ? m_RunSpeed : m_WalkSpeed; }
 
 private:
-    void updateMouseLook(const se::core::Input& input);
-    void updateMovement(float deltaTime, const se::core::Input& input, Transform& transform, float movementYaw);
+    void updateMouseLook(const PlayerIntent& intent);
+    void updateMovement(float deltaTime, const PlayerIntent& intent, Transform& transform, float movementYaw);
     void updateFacing(float deltaTime, bool alignFacingToViewWhenIdle);
     void applyMovementStep(float stepSeconds, const glm::vec3& moveDirection, bool running, Transform& transform) const;
 
@@ -51,10 +48,7 @@ private:
     float m_SmoothedDy = 0.0f;
     glm::vec3 m_MoveDirection{0.0f};
 
-    bool m_UseFixedStep = true;
     bool m_UseRootMotion = false;
-    float m_FixedStep = 1.0f / 60.0f;
-    float m_MoveAccumulator = 0.0f;
 
     LocomotionIntent m_LocomotionIntent{};
 };

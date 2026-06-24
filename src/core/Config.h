@@ -24,15 +24,12 @@ struct Player {
 };
 
 struct CharacterController {
-    float walkSpeed, runSpeed, mouseSensitivity, mouseSmoothAlpha, fixedHz, turnResponsiveness;
-    bool useFixedStep;
+    float walkSpeed, runSpeed, mouseSensitivity, mouseSmoothAlpha, turnResponsiveness;
     bool useRootMotion;
-    float rootMotionPlaybackSpeed;
-    glm::vec3 rootMotionTranslationMask;
 };
 
 struct Camera {
-    float fov, nearPlane, farPlane, aspectRatio;
+    float fov, nearPlane, farPlane;
 };
 
 struct CameraController {

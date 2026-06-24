@@ -6,7 +6,7 @@
 namespace se::scene {
 
 Camera::Camera(const se::core::config::Camera& config)
-    : m_AspectRatio(config.aspectRatio), m_Fov(config.fov), m_Near(config.nearPlane), m_Far(config.farPlane) {
+    : m_Fov(config.fov), m_Near(config.nearPlane), m_Far(config.farPlane) {
     updateVectors();
 }
 

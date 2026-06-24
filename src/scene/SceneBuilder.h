@@ -2,7 +2,6 @@
 
 #include <string>
 
-#include "AnimationController.h"
 #include "assets/AssetHandle.h"
 
 namespace se::assets {
@@ -26,8 +25,7 @@ private:
     static void loadModels(Scene& scene, se::assets::AssetManager& assetManager);
     static void submitModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene);
     static void submitAnimatedModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene,
-                                    std::string animatedTag,
-                                    const AnimationController::LocomotionClips& locomotionClips);
+                                    std::string animatedTag);
 };
 
 }  // namespace se::scene

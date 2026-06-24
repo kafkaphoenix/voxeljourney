@@ -7,6 +7,12 @@
 
 namespace se::scene {
 
+namespace {
+
+constexpr glm::vec3 ROOT_MOTION_XZ_MASK{1.0f, 0.0f, 1.0f};
+
+}  // namespace
+
 Animator::Animator(se::assets::ModelHandle handle, int clipIndex) : m_Model(handle), m_ClipIndex(clipIndex) {
     m_Bones.fill(glm::mat4{1.0f});
 
@@ -37,13 +43,6 @@ void Animator::setRootMotionEnabled(bool enabled) {
 
     m_UseRootMotion = enabled;
     m_RootMotionDelta = glm::vec3{0.0f};
-    evaluateCurrentPose();
-}
-
-void Animator::setPlaybackSpeed(float playbackSpeed) { m_PlaybackSpeed = std::max(playbackSpeed, 0.001f); }
-
-void Animator::setRootMotionTranslationMask(const glm::vec3& translationMask) {
-    m_RootMotionTranslationMask = glm::clamp(translationMask, glm::vec3{0.0f}, glm::vec3{1.0f});
     evaluateCurrentPose();
 }
 
@@ -139,8 +138,7 @@ void Animator::update(float deltaTime) {
     }
 
     const float previousTime = m_CurrentTime;
-    const float scaledDeltaTime = deltaTime * m_PlaybackSpeed;
-    const float advancedTime = m_CurrentTime + scaledDeltaTime;
+    const float advancedTime = m_CurrentTime + deltaTime;
     m_CurrentTime = advancedTime;
 
     if (m_CurrentTime >= c->duration) {
@@ -154,7 +152,7 @@ void Animator::update(float deltaTime) {
 
     if (m_UseRootMotion) {
         const float rootMotionEndTime = m_Loop ? advancedTime : m_CurrentTime;
-        m_RootMotionDelta = c->sampleRootDelta(previousTime, rootMotionEndTime, *s);
+        m_RootMotionDelta = c->sampleRootDelta(previousTime, rootMotionEndTime, *s) * ROOT_MOTION_XZ_MASK;
     } else {
         m_RootMotionDelta = glm::vec3{0.0f};
     }
@@ -215,8 +213,8 @@ void Animator::buildBonePalette(const se::assets::Pose& pose) {
     const auto* currentClip = clip();
     const int rootBoneIndex = currentClip ? currentClip->rootMotionBoneIndex(*s) : -1;
     if (rootBoneIndex >= 0) {
-        poseForPalette.at(rootBoneIndex).translation = glm::mix(
-            pose.at(rootBoneIndex).translation, s->bones.at(rootBoneIndex).restPosition, m_RootMotionTranslationMask);
+        poseForPalette.at(rootBoneIndex).translation =
+            glm::mix(pose.at(rootBoneIndex).translation, s->bones.at(rootBoneIndex).restPosition, ROOT_MOTION_XZ_MASK);
     }
     s->buildPalette(poseForPalette, m_Bones);
 }

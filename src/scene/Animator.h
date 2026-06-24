@@ -30,8 +30,6 @@ public:
 
     void setLooping(bool loop) { m_Loop = loop; }
     void setRootMotionEnabled(bool enabled);
-    void setPlaybackSpeed(float playbackSpeed);
-    void setRootMotionTranslationMask(const glm::vec3& translationMask);
 
     [[nodiscard]] const se::assets::BonePalette& bones() const { return m_Bones; }
     [[nodiscard]] int boneCount() const;
@@ -41,8 +39,6 @@ public:
     [[nodiscard]] float duration() const;
     [[nodiscard]] bool isRootMotionEnabled() const { return m_UseRootMotion; }
     [[nodiscard]] const glm::vec3& rootMotionDelta() const { return m_RootMotionDelta; }
-    [[nodiscard]] float playbackSpeed() const { return m_PlaybackSpeed; }
-    [[nodiscard]] const glm::vec3& rootMotionTranslationMask() const { return m_RootMotionTranslationMask; }
 
 private:
     void buildBonePalette(const se::assets::Pose& pose);
@@ -56,8 +52,6 @@ private:
 
     float m_CurrentTime = 0.0f;
     glm::vec3 m_RootMotionDelta{0.0f};
-    float m_PlaybackSpeed = 1.0f;
-    glm::vec3 m_RootMotionTranslationMask{1.0f, 0.0f, 1.0f};
 
     bool m_Loop = true;
     bool m_Playing = true;

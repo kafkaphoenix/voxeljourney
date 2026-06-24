@@ -160,32 +160,43 @@ glm::vec3 interpolateScale(const AnimationChannel& channel, float time) {
     return glm::mix(keys[i].value, keys[i + 1].value, t);
 }
 
-glm::vec3 sampleBonePosition(const AnimationClip& clip, float time, const Skeleton& skeleton, int boneIndex,
-                             bool wrapSampleTime) {
-    if (boneIndex < 0 || boneIndex >= static_cast<int>(skeleton.bones.size())) {
-        return glm::vec3{0.0f};
-    }
-
-    float sampleTime = time;
-    if (clip.duration > 0.0f) {
-        sampleTime = wrapSampleTime ? wrapTime(time, clip.duration) : std::clamp(time, 0.0f, clip.duration);
-    }
-
-    Pose pose{};
-    clip.sample(sampleTime, skeleton, pose);
-
-    glm::mat4 worldTransform{1.0f};
+glm::vec3 sampleRootBonePosition(const AnimationClip& clip, float time, 
+                                  const Skeleton& skeleton, int boneIndex) {
+    // Walk up the bone chain collecting indices
+    std::vector<int> chain;
     int current = boneIndex;
     while (current >= 0) {
-        const auto& bonePose = pose.at(current);
-        const glm::mat4 localTransform = glm::translate(glm::mat4{1.0f}, bonePose.translation) *
-                                         glm::mat4_cast(bonePose.rotation) *
-                                         glm::scale(glm::mat4{1.0f}, bonePose.scale);
-        worldTransform = localTransform * worldTransform;
-        current = skeleton.bones[static_cast<size_t>(current)].parent;
+        chain.push_back(current);
+        current = skeleton.bones[current].parent;
     }
-
-    return glm::vec3(worldTransform[3]);
+    // chain is [boneIndex, parent, grandparent, ..., root]
+    
+    // Build world transform from root downward
+    glm::mat4 worldTransform{1.0f};
+    for (int i = static_cast<int>(chain.size()) - 1; i >= 0; --i) {
+        const int idx = chain[i];
+        const auto& bone = skeleton.bones[idx];
+        
+        // Start from rest pose
+        glm::vec3 t = bone.restPosition;
+        glm::quat r = bone.restRotation;
+        glm::vec3 s = bone.restScale;
+        
+        // Override with clip channel if it exists
+        const AnimationChannel* chan = findChannel(clip, idx);
+        if (chan) {
+            if (!chan->translations.empty()) t = interpolatePosition(*chan, time);
+            if (!chan->rotations.empty())    r = interpolateRotation(*chan, time);
+            if (!chan->scales.empty())       s = interpolateScale(*chan, time);
+        }
+        
+        const glm::mat4 local = glm::translate(glm::mat4{1.0f}, t)
+                              * glm::mat4_cast(r)
+                              * glm::scale(glm::mat4{1.0f}, s);
+        worldTransform = worldTransform * local;
+    }
+    
+    return glm::vec3(worldTransform[3].x, worldTransform[3].y, worldTransform[3].z);
 }
 
 }  // namespace
@@ -263,20 +274,20 @@ glm::vec3 AnimationClip::sampleRootDelta(float previousTime, float currentTime, 
     const float currentWrappedTime = wrapTime(currentTime, duration);
 
     if (previousLoop == currentLoop) {
-        return sampleBonePosition(*this, currentWrappedTime, skeleton, rootBoneIndex, false) -
-               sampleBonePosition(*this, previousWrappedTime, skeleton, rootBoneIndex, false);
+        return sampleRootBonePosition(*this, currentWrappedTime, skeleton, rootBoneIndex) -
+               sampleRootBonePosition(*this, previousWrappedTime, skeleton, rootBoneIndex);
     }
 
-    const glm::vec3 startPosition = sampleBonePosition(*this, 0.0f, skeleton, rootBoneIndex, false);
-    const glm::vec3 endPosition = sampleBonePosition(*this, duration, skeleton, rootBoneIndex, false);
+    const glm::vec3 startPosition = sampleRootBonePosition(*this, 0.0f, skeleton, rootBoneIndex);
+    const glm::vec3 endPosition = sampleRootBonePosition(*this, duration, skeleton, rootBoneIndex);
 
-    glm::vec3 totalDelta = endPosition - sampleBonePosition(*this, previousWrappedTime, skeleton, rootBoneIndex, false);
+    glm::vec3 totalDelta = endPosition - sampleRootBonePosition(*this, previousWrappedTime, skeleton, rootBoneIndex);
 
     if (currentLoop - previousLoop > 1) {
         totalDelta += (endPosition - startPosition) * static_cast<float>(currentLoop - previousLoop - 1);
     }
 
-    totalDelta += sampleBonePosition(*this, currentWrappedTime, skeleton, rootBoneIndex, false) - startPosition;
+    totalDelta += sampleRootBonePosition(*this, currentWrappedTime, skeleton, rootBoneIndex) - startPosition;
     return totalDelta;
 }
 

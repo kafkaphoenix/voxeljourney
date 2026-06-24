@@ -25,13 +25,14 @@
 The engine is organized into several modules, each responsible for a specific aspect of the engine's functionality. Below is an overview of the main modules and their responsibilities.
 
 ### Core
+- main: Minimal entry point that boots the application.
 - Application: Owns the main loop and orchestrates the engine subsystems.
 - Window: Sets up GLFW window and OpenGL context and handles window events.
-- Input: Frame-based input state built from events.
+- Input: Frame-based input state built from events; sampled once per render frame before simulation.
 - Event: Base class for events, with derived classes for specific event types (keyboard, mouse, window, framebuffer resize)
 - EventBus: Dispatches events to registered listeners.
 - Config: Loads and stores engine configuration from a TOML file.
-- Level: Manages the current level/scene, including loading and unloading assets and scene objects.
+- Level: Owns the fixed-step gameplay loop, samples player intent, and advances player, scene animation, and root motion on a shared 60 Hz tick.
 - StatsTracker: Tracks and displays engine stats like FPS, frame time, and draw calls.
 - MemoryUtils: Used for memory tracking.
 - Timer: Provides high-resolution timing for frame time and delta time calculations.
@@ -78,15 +79,37 @@ The engine is organized into several modules, each responsible for a specific as
 - Sun: Directional light with color and intensity.
 - Sky: Simple sky color and ambient light.
 - Renderable: Defines a renderable mesh/material with either static pose data or dynamic transform/animator references.
-- Player: Represents the player character, managing the body instance, camera, and character controller.
+- ChunkRenderable: Renderable for a chunk composed of a mesh and transform.
+- Player: Owns player-specific gameplay orchestration, including camera mode, locomotion animation state, intent sampling, and body sync.
+- PlayerIntent: Stores gameplay intent produced once per render frame from the current `Input` state and consumed by fixed simulation steps.
 - Transform: Defines position, rotation, and scale.
 - Camera: Defines a camera with position, orientation, FOV, clip planes, and visibility mask for selective rendering.
-- CameraController: Handles camera movement and rotation based on input, supporting first-person and third-person modes.
-- ChunkRenderable: Renderable for a chunk composed of a mesh and transform.
-- Animator: Updates skeleton poses and generates bone matrices for skeletal animation.
+- CameraController: Handles orbit/first-person camera state from sampled player intent and syncs the render camera to the player.
+- Animator: Updates skeleton poses, extracts grounded root motion, and generates bone matrices for skeletal animation.
 - AnimationController: High-level locomotion state controller driving Animator clip transitions.
-- AnimatedInstance: Runtime scene object combining model, transform, animator, controller, and tag.
-- CharacterController: Handles player movement.
+- AnimatedInstance: Runtime scene object combining model, transform, animator, and tag.
+- CharacterController: Converts player intent into facing, movement direction, and non-root-motion translation.
+
+## Gameplay update flow
+
+1. `Application::beginFrame` clears transient input state and dispatches window/input events.
+2. `Level::update` reads the current `Input` state once, converts it into a `PlayerIntent`, and accumulates render-frame time.
+3. While the accumulator contains at least one fixed step, `Level` advances the simulation in this order:
+    - `Player::update` consumes `PlayerIntent` and updates controller/camera mode state.
+    - `Scene::update` advances all `Animator` instances on the same fixed tick.
+    - `Player::finalizeFrame` consumes root motion, syncs the camera, and syncs the player body transform.
+4. Per-frame events in `PlayerIntent` such as mouse delta and camera toggles are cleared after the first simulation step that consumes them, while continuous state such as movement and running persists.
+
+This avoids replaying edge-triggered input across multiple fixed substeps and keeps controller-authored movement, animation sampling, and root motion on the same timestep.
+
+## Animation and root motion flow
+
+Animated content flows through the engine in four stages:
+
+1. `assets::Model` loads meshes, materials, skeletons, skins, and animation clips from glTF.
+2. `assets::AnimationClip` stores channels and can sample a local pose for any clip time. It also identifies the best root-motion bone by preferring translated bones named like `root`, `hip`, or `pelvis` and then choosing the shallowest match.
+3. `scene::Animator` advances clip time, samples the current pose, extracts root-motion delta on the X/Z plane, and builds the final skinning palette. When root motion is enabled, the same mask used for gameplay motion is applied when locking the animated root bone back toward its rest translation so the mesh does not visually double-move.
+4. `scene::Player` decides how to use the extracted delta. If root motion is enabled, it applies the animator's delta in world space during `finalizeFrame`; if the clip displacement is too small relative to controller-authored fallback movement, it uses the fallback translation instead (defined by walk/run speeds and facing). The player body transform is then copied to the `AnimatedInstance` for rendering.
 
 ### Voxel
 - Voxel: Defines a voxel with a type (e.g., air, dirt, stone).

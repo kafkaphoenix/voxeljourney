@@ -3,8 +3,6 @@
 #include <cmath>
 #include <glm/common.hpp>
 
-#include "core/Input.h"
-
 namespace se::scene {
 
 CameraController::CameraController(const se::core::config::CameraController& config)
@@ -13,15 +11,15 @@ CameraController::CameraController(const se::core::config::CameraController& con
       m_EyeHeight(config.eyeHeight),
       m_EyeForwardOffset(config.eyeForwardOffset) {}
 
-void CameraController::updateThirdPersonOrbit(const se::core::Input& input, float initialYaw, float initialPitch) {
+void CameraController::updateThirdPersonOrbit(const PlayerIntent& intent, float initialYaw, float initialPitch) {
     if (!m_ThirdPersonOrbitInitialized) {
         m_ThirdPersonYaw = initialYaw;
         m_ThirdPersonPitch = glm::clamp(initialPitch - 15.0f, -80.0f, 45.0f);
         m_ThirdPersonOrbitInitialized = true;
     }
 
-    m_ThirdPersonYaw += input.getMouseDeltaX() * 0.1f;
-    m_ThirdPersonPitch = glm::clamp(m_ThirdPersonPitch - input.getMouseDeltaY() * 0.1f, -80.0f, 45.0f);
+    m_ThirdPersonYaw += intent.lookDelta.x * 0.1f;
+    m_ThirdPersonPitch = glm::clamp(m_ThirdPersonPitch - intent.lookDelta.y * 0.1f, -80.0f, 45.0f);
 }
 
 void CameraController::sync(const Transform& target, float yaw, float pitch, Camera& camera) const {

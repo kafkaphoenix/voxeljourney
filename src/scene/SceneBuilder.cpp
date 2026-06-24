@@ -46,8 +46,7 @@ void SceneBuilder::loadModels(Scene& scene, se::assets::AssetManager& assetManag
     auto animShader = assetManager.getOrLoadShader("assets/shaders/animated_model", "assets/shaders/model");
     auto handle = assetManager.getOrLoadModel("assets/models/fox.glb", animShader);
     std::println("Animated models loaded in {} ms", timer.millis());
-    submitAnimatedModel(handle, Transform{.scale = {0.1f, 0.1f, 0.1f}}, scene, "player_body",
-                        AnimationController::LocomotionClips{.idle = "Survey", .walk = "Walk", .run = "Run"});
+    submitAnimatedModel(handle, Transform{.scale = {0.1f, 0.1f, 0.1f}}, scene, "player_body");
 }
 
 void SceneBuilder::submitModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene) {
@@ -66,16 +65,14 @@ void SceneBuilder::submitModel(const se::assets::ModelHandle& handle, const Tran
 }
 
 void SceneBuilder::submitAnimatedModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene,
-                                       std::string animatedTag,
-                                       const AnimationController::LocomotionClips& locomotionClips) {
+                                       std::string animatedTag) {
     auto* model = handle.get();
     if (!model) {
         throw std::runtime_error("Model handle is invalid");
     }
 
     const bool isPlayerBody = animatedTag == "player_body";
-    auto& animatedInstance =
-        scene.addAnimatedInstance(AnimatedInstance(handle, transform, std::move(animatedTag), locomotionClips));
+    auto& animatedInstance = scene.addAnimatedInstance(AnimatedInstance(handle, transform, std::move(animatedTag)));
 
     for (const auto& sub : model->getSubMeshes()) {
         if (!sub.mesh) {

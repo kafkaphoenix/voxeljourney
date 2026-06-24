@@ -190,22 +190,12 @@ void Config::readCharacterController(const toml::table& t, CharacterController& 
     cc.mouseSensitivity = require<float>(tm, "mouseSensitivity");
     cc.mouseSmoothAlpha = optional<float>(tm, "mouseSmoothAlpha", 0.5f);
     cc.turnResponsiveness = optional<float>(tm, "turnResponsiveness", 5.0f);
-    cc.useFixedStep = optional<bool>(tm, "useFixedStep", true);
     cc.useRootMotion = optional<bool>(tm, "useRootMotion", false);
-    cc.rootMotionPlaybackSpeed = optional<float>(tm, "rootMotionPlaybackSpeed", 1.0f);
-    cc.rootMotionTranslationMask = optional<glm::vec3>(tm, "rootMotionTranslationMask", glm::vec3{1.0f, 0.0f, 1.0f});
-    cc.fixedHz = cc.useFixedStep ? require<float>(tm, "fixedHz") : optional<float>(tm, "fixedHz", 60.f);
 
     requireGreater("characterController.walkSpeed", cc.walkSpeed, 0.f);
     requireGreater("characterController.runSpeed", cc.runSpeed, 0.f);
     requireGreater("characterController.mouseSensitivity", cc.mouseSensitivity, 0.f);
     requireGreater("characterController.turnResponsiveness", cc.turnResponsiveness, 0.f);
-    requireGreater("characterController.rootMotionPlaybackSpeed", cc.rootMotionPlaybackSpeed, 0.f);
-    requireRange("characterController.fixedHz", cc.fixedHz, 1.f, 240.f);
-
-    for (glm::length_t i = 0; i < glm::vec3::length(); ++i) {
-        requireRange("characterController.rootMotionTranslationMask", cc.rootMotionTranslationMask[i], 0.0f, 1.0f);
-    }
 
     if (cc.walkSpeed >= cc.runSpeed) {
         throwConfigError("characterController.walkSpeed must be < characterController.runSpeed");
@@ -218,12 +208,10 @@ void Config::readCamera(const toml::table& t, Camera& c) {
     c.fov = require<float>(tc, "fov");
     c.nearPlane = require<float>(tc, "nearPlane");
     c.farPlane = require<float>(tc, "farPlane");
-    c.aspectRatio = optional<float>(tc, "aspectRatio", 16.f / 9.f);
 
     requireRange("camera.fov", c.fov, 1.f, 179.f);
     requireGreater("camera.nearPlane", c.nearPlane, 0.f);
     requireGreater("camera.farPlane", c.farPlane, 0.f);
-    requireGreater("camera.aspectRatio", c.aspectRatio, 0.f);
 
     if (c.farPlane <= c.nearPlane) {
         throwConfigError("camera.farPlane must be > nearPlane");

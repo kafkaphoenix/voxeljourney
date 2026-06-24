@@ -16,17 +16,12 @@ runSpeed = 40.0
 mouseSensitivity = 0.1
 mouseSmoothAlpha = 0.5
 turnResponsiveness = 4.0
-useFixedStep = true
-useRootMotion = false
-rootMotionPlaybackSpeed = 1.0
-rootMotionTranslationMask = [1.0, 0.0, 1.0]
-fixedHz = 60.0
+useRootMotion = true
 
 [camera]
 fov = 90.0
 nearPlane = 0.5
 farPlane = 500.0
-aspectRatio = 1.77777777778
 
 [cameraController]
 # Third-person camera parameters
