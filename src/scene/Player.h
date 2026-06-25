@@ -20,7 +20,7 @@ public:
     explicit Player(const se::core::Config& config);
     ~Player() = default;
 
-    [[nodiscard]] PlayerIntent sampleIntent(const se::core::Input& input) const;
+    [[nodiscard]] static PlayerIntent sampleIntent(const se::core::Input& input);
     void update(float deltaTime, const PlayerIntent& intent);
     void finalizeFrame(float deltaTime);
     void setBodyInstance(AnimatedInstance* bodyInstance);

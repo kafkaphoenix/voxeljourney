@@ -53,8 +53,8 @@ bool containsInsensitive(std::string_view text, std::string_view needle) {
     for (size_t start = 0; start + needle.size() <= text.size(); ++start) {
         bool matches = true;
         for (size_t i = 0; i < needle.size(); ++i) {
-            const unsigned char lhs = static_cast<unsigned char>(text[start + i]);
-            const unsigned char rhs = static_cast<unsigned char>(needle[i]);
+            const auto lhs = static_cast<unsigned char>(text[start + i]);
+            const auto rhs = static_cast<unsigned char>(needle[i]);
             if (std::tolower(lhs) != std::tolower(rhs)) {
                 matches = false;
                 break;
@@ -160,8 +160,7 @@ glm::vec3 interpolateScale(const AnimationChannel& channel, float time) {
     return glm::mix(keys[i].value, keys[i + 1].value, t);
 }
 
-glm::vec3 sampleRootBonePosition(const AnimationClip& clip, float time, 
-                                  const Skeleton& skeleton, int boneIndex) {
+glm::vec3 sampleRootBonePosition(const AnimationClip& clip, float time, const Skeleton& skeleton, int boneIndex) {
     // Walk up the bone chain collecting indices
     std::vector<int> chain;
     int current = boneIndex;
@@ -170,33 +169,37 @@ glm::vec3 sampleRootBonePosition(const AnimationClip& clip, float time,
         current = skeleton.bones[current].parent;
     }
     // chain is [boneIndex, parent, grandparent, ..., root]
-    
+
     // Build world transform from root downward
     glm::mat4 worldTransform{1.0f};
     for (int i = static_cast<int>(chain.size()) - 1; i >= 0; --i) {
         const int idx = chain[i];
         const auto& bone = skeleton.bones[idx];
-        
+
         // Start from rest pose
         glm::vec3 t = bone.restPosition;
         glm::quat r = bone.restRotation;
         glm::vec3 s = bone.restScale;
-        
+
         // Override with clip channel if it exists
         const AnimationChannel* chan = findChannel(clip, idx);
         if (chan) {
-            if (!chan->translations.empty()) t = interpolatePosition(*chan, time);
-            if (!chan->rotations.empty())    r = interpolateRotation(*chan, time);
-            if (!chan->scales.empty())       s = interpolateScale(*chan, time);
+            if (!chan->translations.empty()) {
+                t = interpolatePosition(*chan, time);
+            }
+            if (!chan->rotations.empty()) {
+                r = interpolateRotation(*chan, time);
+            }
+            if (!chan->scales.empty()) {
+                s = interpolateScale(*chan, time);
+            }
         }
-        
-        const glm::mat4 local = glm::translate(glm::mat4{1.0f}, t)
-                              * glm::mat4_cast(r)
-                              * glm::scale(glm::mat4{1.0f}, s);
+
+        const glm::mat4 local = glm::translate(glm::mat4{1.0f}, t) * glm::mat4_cast(r) * glm::scale(glm::mat4{1.0f}, s);
         worldTransform = worldTransform * local;
     }
-    
-    return glm::vec3(worldTransform[3].x, worldTransform[3].y, worldTransform[3].z);
+
+    return {worldTransform[3].x, worldTransform[3].y, worldTransform[3].z};
 }
 
 }  // namespace

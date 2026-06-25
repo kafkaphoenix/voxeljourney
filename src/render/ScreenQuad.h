@@ -1,4 +1,5 @@
 #pragma once
+
 #include "VertexArray.h"
 
 namespace se::render {

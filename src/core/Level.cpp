@@ -30,7 +30,7 @@ void Level::update(float deltaTime) {
         return;
     }
 
-    m_PendingPlayerIntent.accumulateFrame(m_Player.sampleIntent(*m_Input));
+    m_PendingPlayerIntent.accumulateFrame(scene::Player::sampleIntent(*m_Input));
     m_Accumulator += deltaTime;
 
     int steps = 0;

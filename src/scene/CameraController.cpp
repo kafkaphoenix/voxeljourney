@@ -11,11 +11,11 @@ CameraController::CameraController(const se::core::config::CameraController& con
       m_EyeHeight(config.eyeHeight),
       m_EyeForwardOffset(config.eyeForwardOffset) {}
 
-void CameraController::updateThirdPersonOrbit(const PlayerIntent& intent, float initialYaw, float initialPitch) {
-    if (!m_ThirdPersonOrbitInitialized) {
+void CameraController::updateThirdPerson(const PlayerIntent& intent, float initialYaw, float initialPitch) {
+    if (!m_ThirdPersonInitialized) {
         m_ThirdPersonYaw = initialYaw;
         m_ThirdPersonPitch = glm::clamp(initialPitch - 15.0f, -80.0f, 45.0f);
-        m_ThirdPersonOrbitInitialized = true;
+        m_ThirdPersonInitialized = true;
     }
 
     m_ThirdPersonYaw += intent.lookDelta.x * 0.1f;

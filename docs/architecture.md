@@ -84,7 +84,7 @@ The engine is organized into several modules, each responsible for a specific as
 - PlayerIntent: Stores gameplay intent produced once per render frame from the current `Input` state and consumed by fixed simulation steps.
 - Transform: Defines position, rotation, and scale.
 - Camera: Defines a camera with position, orientation, FOV, clip planes, and visibility mask for selective rendering.
-- CameraController: Handles orbit/first-person camera state from sampled player intent and syncs the render camera to the player.
+- CameraController: Handles third/first-person camera state from sampled player intent and syncs the render camera to the player.
 - Animator: Updates skeleton poses, extracts grounded root motion, and generates bone matrices for skeletal animation.
 - AnimationController: High-level locomotion state controller driving Animator clip transitions.
 - AnimatedInstance: Runtime scene object combining model, transform, animator, and tag.

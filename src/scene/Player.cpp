@@ -46,7 +46,7 @@ Player::Player(const se::core::Config& config)
     m_Camera.setAspectRatio(static_cast<float>(config.window().width) / static_cast<float>(config.window().height));
 }
 
-PlayerIntent Player::sampleIntent(const se::core::Input& input) const {
+PlayerIntent Player::sampleIntent(const se::core::Input& input) {
     PlayerIntent intent{};
 
     if (input.isKeyDown(GLFW_KEY_W)) {
@@ -66,8 +66,7 @@ PlayerIntent Player::sampleIntent(const se::core::Input& input) const {
         intent.moveInput = glm::normalize(intent.moveInput);
     }
 
-    intent.lookDelta =
-        glm::vec2{static_cast<float>(input.getMouseDeltaX()), static_cast<float>(input.getMouseDeltaY())};
+    intent.lookDelta = glm::vec2{input.getMouseDeltaX(), input.getMouseDeltaY()};
     intent.running = input.isKeyDown(GLFW_KEY_LEFT_SHIFT) || input.isKeyDown(GLFW_KEY_RIGHT_SHIFT);
     intent.toggleCamera = input.isKeyPressed(GLFW_KEY_V);
     return intent;
@@ -102,7 +101,7 @@ void Player::setBodyInstance(AnimatedInstance* bodyInstance) {
 }
 
 void Player::updateThirdPerson(float deltaTime, const PlayerIntent& intent) {
-    m_CameraController.updateThirdPersonOrbit(intent, m_CharacterController.facingYaw(), m_CharacterController.pitch());
+    m_CameraController.updateThirdPerson(intent, m_CharacterController.facingYaw(), m_CharacterController.pitch());
     m_CharacterController.updateThirdPerson(deltaTime, intent, m_Transform, m_CameraController.thirdPersonYaw());
 }
 

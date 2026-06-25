@@ -1,14 +1,11 @@
-RENDERDOC_CMD_LINUX   := renderdoc
-RENDERDOC_CMD_WINDOWS := "C:/Program Files/RenderDoc/qrenderdoc.exe"
-
 ifeq ($(OS),Windows_NT)
-EXE           := build/windows-msvc/Debug/voxeljourney.exe
-RENDERDOC_CMD := $(RENDERDOC_CMD_WINDOWS)
+EXE           := build/windows-msvc/Debug/simpleengine.exe
+RENDERDOC_CMD := "C:/Program Files/RenderDoc/qrenderdoc.exe"
 CONFIGURE_PRESET := windows-msvc
 TIDY_PRESET      := windows-tidy
 else
-EXE           := build/ubuntu-gcc/voxeljourney
-RENDERDOC_CMD := $(RENDERDOC_CMD_LINUX)
+EXE           := build/ubuntu-gcc/simpleengine
+RENDERDOC_CMD := renderdoc
 CONFIGURE_PRESET := ubuntu-gcc
 TIDY_PRESET      := ubuntu-tidy
 endif

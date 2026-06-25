@@ -14,7 +14,7 @@ class CameraController {
 public:
     explicit CameraController(const se::core::config::CameraController& config);
 
-    void updateThirdPersonOrbit(const PlayerIntent& intent, float initialYaw, float initialPitch);
+    void updateThirdPerson(const PlayerIntent& intent, float initialYaw, float initialPitch);
     void sync(const Transform& target, float yaw, float pitch, Camera& camera) const;
 
     void setMode(CameraMode mode) { m_Mode = mode; }
@@ -40,7 +40,7 @@ private:
     float m_EyeForwardOffset = 0.15f;  // forward offset of the camera from the character's position
     float m_ThirdPersonYaw = 0.0f;
     float m_ThirdPersonPitch = -15.0f;
-    bool m_ThirdPersonOrbitInitialized = false;
+    bool m_ThirdPersonInitialized = false;
 };
 
 }  // namespace se::scene
