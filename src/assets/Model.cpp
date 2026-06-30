@@ -722,13 +722,6 @@ TransparencyMode extractTransparencyMode(const tinygltf::Material& mat) {
         return TransparencyMode::Sorted;
     };
 
-    if (mat.extras.Has("renderQueue")) {
-        const auto& rq = mat.extras.Get("renderQueue");
-        if (rq.IsString()) {
-            return parseTag(rq.Get<std::string>());
-        }
-    }
-
     if (mat.extras.Has("transparencyMode")) {
         const auto& tm = mat.extras.Get("transparencyMode");
         if (tm.IsString()) {
