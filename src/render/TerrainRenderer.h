@@ -30,7 +30,7 @@ private:
     void updateUbo(const FrameLightData& lights, const FrameCameraData& camera);
 
     se::assets::ShaderHandle m_Shader;
-    std::vector<const Mesh*> m_Meshes;
+    std::vector<TerrainSubmission> m_Submissions;
     std::optional<UniformBuffer> m_TerrainUbo;
     bool m_Wireframe = false;
 };

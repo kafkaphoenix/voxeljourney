@@ -64,6 +64,7 @@ The engine is organized into several modules, each responsible for a specific as
 - UniformBuffer: OpenGL UBO wrapper for per-frame data (camera, lights).
 - Frustum: Simple CPU frustum culling for renderables outside the camera view.
 - ModelSubmission: Represents a single draw call for a mesh, including its material, transform, model matrix, and optional skeletal bone palette for animated rendering.
+- TerrainSubmission: Represents a single draw call for a terrain chunk, including its mesh, and model matrix for world positioning.
 - RenderManager: Orchestrates the full rendering pipeline, including render passes (geometry, skybox, post-processing), framebuffer management, MSAA resolve, and submission coordination.
 - RenderStats: Tracks rendering statistics such as draw calls and triangle counts for both static and animated geometry, used for debugging and performance monitoring.
 - VisibilityMask: Defines visibility layers for renderables and cameras, allowing selective rendering of objects based on their assigned layer.
@@ -74,7 +75,7 @@ The engine is organized into several modules, each responsible for a specific as
 - ModelRenderer: Performs frustum culling, submits renderables to the RenderQueue, batches compatible static draws, and renders opaque and transparent passes for both static and animated geometry.
 - RenderQueue: Collects renderables each frame and classifies them into static opaque batches, animated opaque draws, OIT transparent draws, and depth-sorted transparent draws.
 - TerrainRenderer: Submits visible chunk renderables to a draw list and handles terrain-specific rendering logic.
-- PostProcessRenderer: Full-screen post-processing pass with selectable effects (tone map, inversion, grayscale, sharpen, blur, edge detect).
+- PostProcessRenderer: Full-screen post-processing pass that applies tone mapping, color grading, and other effects to the final image.
 - ScreenQuad: Attributeless full-screen triangle for post-processing.
 
 ### Scene
@@ -137,25 +138,3 @@ Animated content flows through the engine in four stages:
 7. Post-process full-screen pass.
 
 Note: OIT accum/reveal buffers are written to the single-sample target (not the MSAA buffer) to avoid blending artifacts during resolve.
-
-## Potential improvements ideas
-
-- Better error handling and logging. Using a logging library like spdlog would be a good improvement.
-- More robust asset management with reference counting and unloading/reloading.
-- Evolve rendering pipeline toward forward+ or clustered lighting, with expanded shadowing and reflection support.
-- More complete input handling with action mapping and support for gamepads.
-- More complete scene management with entities, components, and systems (ECS architecture).
-- State management for different game states (main menu, gameplay, pause, etc).
-- Debug rendering and tools for inspecting the scene and assets. Using a library like ImGui would be great for this.
-- UI system for in-game menus, HUD, etc. Using RmlUI or similar would be a good option.
-- Multithreaded asset loading and streaming (render thread remains single-context, with possible future migration to Vulkan for broader parallelism)
-- Potential future migration to Vulkan for explicit control, modern GPU features, and improved multithreaded submission, at the cost of a full renderer rewrite.
-- Serialization for saving/loading scenes and assets.
-- Editor mode with real-time scene editing and asset management.
-- Memory and Performance profiling to identify bottlenecks and optimize critical paths. Using a profiler like Tracy would be very helpful for this.
-- Event system improvements:
-    1. Add a handled flag or priority to stop propagation (useful for UI capturing input).
-    2. Add event categories to subscribe to groups (e.g., an input layer only listens to keyboard/mouse, editor tools only listen to window events).
-    3. Keep deferred (queued) events but optionally add immediate dispatch for input-only events (keyboard, mouse).
-- Multi-window support.
-- Physics integration or character collision system (e.g. camera collision, environment interaction).

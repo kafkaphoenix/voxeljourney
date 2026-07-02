@@ -1,6 +1,6 @@
 #version 460 core
 
-layout(location = 0) in vec3 a_Position;
+layout(location = 0) in uvec4 a_Position;
 layout(location = 1) in vec2 a_Uv;
 
 layout(std140, binding = 2) uniform TerrainFrame {
@@ -10,6 +10,6 @@ layout(std140, binding = 2) uniform TerrainFrame {
     vec4 ambient;
 };
 
-void main() {
-    gl_Position = viewProj * vec4(a_Position, 1.0);
-}
+uniform mat4 u_Model;
+
+void main() { gl_Position = viewProj * u_Model * vec4(vec3(a_Position.xyz), 1.0); }

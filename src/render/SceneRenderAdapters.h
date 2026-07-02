@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "FrameRenderData.h"
 #include "ModelSubmission.h"
 #include "TerrainSubmission.h"
@@ -8,6 +10,7 @@
 #include "scene/ChunkRenderable.h"
 #include "scene/LightData.h"
 #include "scene/Renderable.h"
+#include "voxel/ChunkCoords.h"
 
 namespace se::render {
 
@@ -58,6 +61,7 @@ namespace se::render {
 [[nodiscard]] inline TerrainSubmission toTerrainSubmission(const se::scene::ChunkRenderable& chunkRenderable) {
     return TerrainSubmission{
         .mesh = chunkRenderable.mesh.get(),
+        .modelMatrix = chunkRenderable.getMatrix(),
     };
 }
 

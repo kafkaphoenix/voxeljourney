@@ -1,6 +1,7 @@
 #include "ChunkMesher.h"
 
 #include <array>
+#include <cstdint>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <ranges>
@@ -18,33 +19,35 @@ namespace {
 #pragma pack(push, 1)  // to ensure no padding is added to ChunkVertex, since we use sizeof(ChunkVertex) for buffer
                        // strides and offsets
 struct ChunkVertex {
-    glm::vec3 position;  // 12 bytes
-    glm::vec2 uv;        // 8 bytes
+    uint8_t posX;  // 1 byte
+    uint8_t posY;  // 1 byte
+    uint8_t posZ;  // 1 byte
+    glm::vec2 uv;  // 8 bytes
 };
 #pragma pack(pop)
 
-static_assert(sizeof(ChunkVertex) == 20);
-static_assert(offsetof(ChunkVertex, uv) == 12);
+static_assert(sizeof(ChunkVertex) == 11);
+static_assert(offsetof(ChunkVertex, uv) == 3);
 
 struct VoxelFace {
     glm::ivec3 normal;
-    std::array<glm::vec3, 4> corners;
+    std::array<glm::ivec3, 4> corners;
 };
 
 // counter-clockwise winding
 const std::array<VoxelFace, 6> FACES = {{
     // +X
-    {{1, 0, 0}, {glm::vec3(1, 0, 0), glm::vec3(1, 0, 1), glm::vec3(1, 1, 1), glm::vec3(1, 1, 0)}},
+    {{1, 0, 0}, {glm::ivec3(1, 0, 0), glm::ivec3(1, 0, 1), glm::ivec3(1, 1, 1), glm::ivec3(1, 1, 0)}},
     // -X
-    {{-1, 0, 0}, {glm::vec3(0, 0, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 1, 1)}},
+    {{-1, 0, 0}, {glm::ivec3(0, 0, 1), glm::ivec3(0, 0, 0), glm::ivec3(0, 1, 0), glm::ivec3(0, 1, 1)}},
     // +Y
-    {{0, 1, 0}, {glm::vec3(0, 1, 1), glm::vec3(0, 1, 0), glm::vec3(1, 1, 0), glm::vec3(1, 1, 1)}},
+    {{0, 1, 0}, {glm::ivec3(0, 1, 1), glm::ivec3(0, 1, 0), glm::ivec3(1, 1, 0), glm::ivec3(1, 1, 1)}},
     // -Y
-    {{0, -1, 0}, {glm::vec3(0, 0, 0), glm::vec3(0, 0, 1), glm::vec3(1, 0, 1), glm::vec3(1, 0, 0)}},
+    {{0, -1, 0}, {glm::ivec3(0, 0, 0), glm::ivec3(0, 0, 1), glm::ivec3(1, 0, 1), glm::ivec3(1, 0, 0)}},
     // +Z
-    {{0, 0, 1}, {glm::vec3(1, 0, 1), glm::vec3(0, 0, 1), glm::vec3(0, 1, 1), glm::vec3(1, 1, 1)}},
+    {{0, 0, 1}, {glm::ivec3(1, 0, 1), glm::ivec3(0, 0, 1), glm::ivec3(0, 1, 1), glm::ivec3(1, 1, 1)}},
     // -Z
-    {{0, 0, -1}, {glm::vec3(0, 0, 0), glm::vec3(1, 0, 0), glm::vec3(1, 1, 0), glm::vec3(0, 1, 0)}},
+    {{0, 0, -1}, {glm::ivec3(0, 0, 0), glm::ivec3(1, 0, 0), glm::ivec3(1, 1, 0), glm::ivec3(0, 1, 0)}},
 }};
 
 // This will be replaced with proper block textures later, but for now we
@@ -96,7 +99,9 @@ std::unique_ptr<se::render::Mesh> buildMesh(const Chunk& chunk, const glm::ivec3
                     const auto base = static_cast<unsigned int>(vertices.size());
                     for (auto [corner, uv] : std::views::zip(vf.corners, FACE_UVS)) {
                         vertices.push_back({
-                            .position = glm::vec3(voxelWorldCoord) + corner,
+                            .posX = static_cast<uint8_t>(x + corner.x),
+                            .posY = static_cast<uint8_t>(y + corner.y),
+                            .posZ = static_cast<uint8_t>(z + corner.z),
                             .uv = uv,
                         });
                     }
@@ -118,11 +123,11 @@ std::unique_ptr<se::render::Mesh> buildMesh(const Chunk& chunk, const glm::ivec3
     }
 
     se::render::AABB aabb{};
-    aabb.min = glm::vec3(chunkWorldOrigin);
-    aabb.max = glm::vec3(chunkWorldOrigin) + glm::vec3(Chunk::SIZE);
+    aabb.min = glm::vec3(0.0f);
+    aabb.max = glm::vec3(Chunk::SIZE);
 
     se::render::BufferLayout layout({
-        {"a_Position", GL_FLOAT, sizeof(float), 0, 3, GL_FALSE},
+        {"a_Position", GL_UNSIGNED_BYTE, sizeof(uint8_t), 0, 3, GL_FALSE},
         {"a_Uv", GL_FLOAT, sizeof(float), 0, 2, GL_FALSE},
     });
 

@@ -14,14 +14,14 @@ void TerrainRenderer::submit(const TerrainSubmission& submission, const Frustum&
         return;
     }
 
-    if (!frustumIntersectsAABB(frustum, submission.mesh->getAABB())) {
+    if (!frustumIntersectsAABB(frustum, submission.mesh->getAABB(), submission.modelMatrix)) {
         return;
     }
-    m_Meshes.push_back(submission.mesh);
+    m_Submissions.push_back(submission);
 }
 
 void TerrainRenderer::flush(const FrameLightData& lights, const FrameCameraData& camera, RenderStats& stats) {
-    if (m_Meshes.empty()) {
+    if (m_Submissions.empty()) {
         return;
     }
 
@@ -33,16 +33,17 @@ void TerrainRenderer::flush(const FrameLightData& lights, const FrameCameraData&
     glEnable(GL_CULL_FACE);
     glPolygonMode(GL_FRONT_AND_BACK, m_Wireframe ? GL_LINE : GL_FILL);
 
-    for (const auto* mesh : m_Meshes) {
-        mesh->draw();
+    for (const auto& submission : m_Submissions) {
+        m_Shader.get()->setMat4("u_Model", submission.modelMatrix);
+        submission.mesh->draw();
         stats.chunksDrawCalls++;
-        stats.chunksTriangles += static_cast<unsigned int>(mesh->getIndexCount() / 3);
+        stats.chunksTriangles += static_cast<unsigned int>(submission.mesh->getIndexCount() / 3);
     }
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_BLEND);
 
-    m_Meshes.clear();
+    m_Submissions.clear();
 }
 
 void TerrainRenderer::updateUbo(const FrameLightData& lights, const FrameCameraData& camera) {

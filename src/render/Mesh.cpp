@@ -32,10 +32,15 @@ static size_t nextPowerOfTwo(size_t v) {
 void Mesh::setDefaultInstanceCapacityBytes(size_t bytes) { s_DefaultInstanceCapacityBytes = nextPowerOfTwo(bytes); }
 
 GLuint Mesh::setupVertexAttributes(const BufferLayout& layout) {
+    auto isIntegralType = [](GLenum type) {
+        return type == GL_BYTE || type == GL_UNSIGNED_BYTE || type == GL_SHORT || type == GL_UNSIGNED_SHORT ||
+               type == GL_INT || type == GL_UNSIGNED_INT;
+    };
+
     GLuint attribIndex = 0;
     for (const auto& element : layout.getElements()) {
         m_Vao.enableAttrib(attribIndex);
-        if (element.type == GL_INT || element.type == GL_UNSIGNED_INT) {
+        if (isIntegralType(element.type) && element.normalized == GL_FALSE) {
             m_Vao.setAttribIFormat(attribIndex, element.count, element.type, element.offset);
         } else {
             m_Vao.setAttribFormat(attribIndex, element.count, element.type, element.normalized, element.offset);
