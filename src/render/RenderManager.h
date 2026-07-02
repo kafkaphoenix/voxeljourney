@@ -36,13 +36,10 @@ public:
     void resizeFramebuffer(int width, int height);
     void toggleWireframe();
     void cycleRenderDebugView();
-    void cyclePostEffect();
-    void setPostEffect(PostEffect effect);
     void setBatchSize(size_t maxInstances);
     void setTerrainShader(se::assets::ShaderHandle shader);
     void reset();
 
-    [[nodiscard]] PostEffect getPostEffect() const noexcept { return m_PostProcess.getEffect(); }
     [[nodiscard]] const RenderStats& getStats() const noexcept { return m_Stats; }
 
 private:

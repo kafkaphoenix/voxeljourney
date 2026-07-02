@@ -104,10 +104,6 @@ void RenderManager::toggleWireframe() {
 
 void RenderManager::cycleRenderDebugView() { m_ModelRenderer.cycleRenderDebugView(); }
 
-void RenderManager::cyclePostEffect() { m_PostProcess.cycleEffect(); }
-
-void RenderManager::setPostEffect(PostEffect effect) { m_PostProcess.setEffect(effect); }
-
 void RenderManager::setBatchSize(const size_t maxInstances) { m_ModelRenderer.setBatchSize(maxInstances); }
 
 void RenderManager::setTerrainShader(se::assets::ShaderHandle shader) { m_TerrainRenderer.setShader(shader); }

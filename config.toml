@@ -8,7 +8,7 @@ vsync = true
 mode = "windowed"
 
 [player]
-spawn = [0, 0, 0]
+spawn = [0, 1, 0]
 
 [characterController]
 walkSpeed = 20.0
@@ -24,11 +24,11 @@ nearPlane = 0.5
 farPlane = 500.0
 
 [cameraController]
-# Third-person camera parameters
-followDistance = 14.0
-followHeight = 6.0
+# Third-person camera parameters3   
+followDistance = 10.0
+followHeight = 5.0
 # First-person camera parameters
-eyeHeight = 5.0
+eyeHeight = 3.0
 eyeForwardOffset = 0.15
 
 [render]

@@ -78,10 +78,6 @@ void Application::handleShortcuts() {
         m_RenderManager.toggleWireframe();
     }
 
-    if (m_Input.isKeyPressed(GLFW_KEY_F4)) {
-        m_RenderManager.cyclePostEffect();
-    }
-
     if (m_Input.isKeyPressed(GLFW_KEY_F5)) {
         m_StatsTracker.cycleDisplayMode();
     }

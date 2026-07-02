@@ -28,14 +28,6 @@ void SceneBuilder::createSky(Scene& scene) {
         .intensity = 2.0f,
     });
 
-    // Additional fill light to reduce contrast and give impression of light bouncing around the scene. Not physically
-    // accurate but looks better.
-    scene.addDirectionalLight(DirectionalLight{
-        .direction = glm::normalize(glm::vec3(0.5f, 0.5f, 0.3f)),  // opposite of sun
-        .color = glm::vec3(0.6f, 0.65f, 0.75f),                    // cool fill
-        .intensity = 0.15f,
-    });
-
     auto& sky = scene.getSky();
     sky.setAmbientColor(glm::vec3(0.5f, 0.55f, 0.65f));  // cool blue-grey
     sky.setAmbientIntensity(0.4f);
@@ -46,7 +38,7 @@ void SceneBuilder::loadModels(Scene& scene, se::assets::AssetManager& assetManag
     auto animShader = assetManager.getOrLoadShader("assets/shaders/animated_model", "assets/shaders/model");
     auto handle = assetManager.getOrLoadModel("assets/models/fox.glb", animShader);
     std::println("Animated models loaded in {} ms", timer.millis());
-    submitAnimatedModel(handle, Transform{.scale = {0.1f, 0.1f, 0.1f}}, scene, "player_body");
+    submitAnimatedModel(handle, Transform{.scale = {0.05f, 0.05f, 0.05f}}, scene, "player_body");
 }
 
 void SceneBuilder::submitModel(const se::assets::ModelHandle& handle, const Transform& transform, Scene& scene) {
