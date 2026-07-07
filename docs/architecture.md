@@ -49,8 +49,10 @@ The engine is organized into several modules, each responsible for a specific as
 - AssetHandle: Lightweight handle to an asset, used for referencing assets without owning them.
 - AssetManager: Manages loading, caching, and unloading of assets. Provides a unified interface for asset access.
 - Shader: Loads GLSL shader source code, compiles and links into an OpenGL program.
-- Texture: Loads image data into an OpenGL texture using DSA.
 - Material: Defines shader, textures, and render states for rendering a mesh.
+- Texture: Loads a single 2D image (from file or in-memory data) into a GL_TEXTURE_2D.
+- TextureArray: Uploads pre-assembled in-memory pixel data (no file loading) into a GL_TEXTURE_2D_ARRAY layer stack.
+- TextureUtils: Shared helpers used by Texture/TextureArray.
 - Model: Loads glTF/glb assets, including meshes, materials, skeletons, skins, and animation clips. Generates missing tangents, normalizes skinning weights, and creates the runtime asset representation.
 - Animation: Stores skeletal animation clips, including channels and keyframes, and samples them into a local-space pose.
 - Skeleton: Defines bone hierarchy, inverse bind poses, and rest pose, and builds the final skinning palette from a sampled pose.

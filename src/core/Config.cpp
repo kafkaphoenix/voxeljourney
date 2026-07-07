@@ -49,12 +49,14 @@ T require(const toml::table& t, std::string_view key) {
 
     T result{};
     for (glm::length_t i = 0; i < N; ++i) {
-        if (const auto* v = arr->get_as<double>(i)) {
-            result[i] = static_cast<float>(v->get());
-        } else if (const auto* v = arr->get_as<int64_t>(i)) {
-            result[i] = static_cast<float>(v->get());
-        } else {
-            throwConfigError(std::format("'{}[{}]' must be a number", key, i));
+        if (auto* val = arr->get(i)) {
+            if (const auto* d = val->as_floating_point()) {
+                result[i] = static_cast<float>(d->get());
+            } else if (const auto* n = val->as_integer()) {
+                result[i] = static_cast<float>(n->get());
+            } else {
+                throwConfigError(std::format("'{}[{}]' must be a number", key, i));
+            }
         }
     }
     return result;
@@ -74,12 +76,14 @@ T optional(const toml::table& t, std::string_view key, T fallback) {
 
     T result{};
     for (glm::length_t i = 0; i < T::length(); ++i) {
-        if (const auto* v = arr->get_as<double>(i)) {
-            result[i] = static_cast<float>(v->get());
-        } else if (const auto* v = arr->get_as<int64_t>(i)) {
-            result[i] = static_cast<float>(v->get());
-        } else {
-            return fallback;
+        if (auto* val = arr->get(i)) {
+            if (const auto* d = val->as_floating_point()) {
+                result[i] = static_cast<float>(d->get());
+            } else if (const auto* n = val->as_integer()) {
+                result[i] = static_cast<float>(n->get());
+            } else {
+                return fallback;
+            }
         }
     }
 

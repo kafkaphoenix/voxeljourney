@@ -9,6 +9,7 @@ class Asset;
 class Model;
 class Shader;
 class Texture;
+class TextureArray;
 class Material;
 
 template <typename T>
@@ -35,6 +36,7 @@ private:
 using ModelHandle = AssetHandle<Model>;
 using ShaderHandle = AssetHandle<Shader>;
 using TextureHandle = AssetHandle<Texture>;
+using TextureArrayHandle = AssetHandle<TextureArray>;
 using MaterialHandle = AssetHandle<Material>;
 
 }  // namespace se::assets

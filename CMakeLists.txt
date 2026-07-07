@@ -35,13 +35,28 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cp
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-find_package(glad CONFIG REQUIRED)
-
-if(WIN32)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE "WIN32_LEAN_AND_MEAN" "NOMINMAX" "VC_EXTRA_LEAN") # Prevent windows.h from defining min and max macros, which interfere with std::min and std::max
-    target_compile_options(${PROJECT_NAME} PRIVATE /wd4005) # Disable warning about macro redefinition, since glad 1 defines APIENTRY, which windows.h also defines, and we have to include windows.h for memory usage tracking on Windows. Glad 2 doesn't have this issue but it's not in vcpkg yet.
+# it needs to be after add_executable, otherwise it won't work
+# enable warnings for all compilers, and treat warnings as errors
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
 endif()
 
+if(WIN32) 
+    # Prevent windows.h from defining min and max macros, which interfere with std::min and std::max and avoid stb_image warnings about unsafe functions
+    target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX VC_EXTRA_LEAN _CRT_SECURE_NO_WARNINGS)
+
+    # Disable warning about macro redefinition, since glad 1 defines APIENTRY, which windows.h also defines, and we have to include windows.h
+    # for memory usage tracking on Windows. Glad 2 doesn't have this issue but it's not in vcpkg yet.
+    if(MSVC)
+        target_compile_options(${PROJECT_NAME} PRIVATE /wd4005)
+    else()
+        target_compile_options(${PROJECT_NAME} PRIVATE -Wno-macro-redefined)
+    endif()
+endif()
+
+find_package(glad CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 target_compile_definitions(${PROJECT_NAME} PRIVATE "GLFW_INCLUDE_NONE") # Prevent glfw from including OpenGL headers, since glad will handle that
 find_package(glm CONFIG REQUIRED)
@@ -56,9 +71,8 @@ find_package(mikktspace CONFIG REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${mikktspace_INCLUDE_DIRS})
 
 target_link_libraries(${PROJECT_NAME}
-    PUBLIC
-    glm::glm-header-only
     PRIVATE
+    glm::glm-header-only
     glad::glad
     glfw
     tomlplusplus::tomlplusplus

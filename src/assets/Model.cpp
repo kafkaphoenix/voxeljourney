@@ -788,11 +788,11 @@ std::vector<MaterialHandle> buildMaterials(const tinygltf::Model& gltfModel, Ass
 }
 
 MaterialHandle resolveMaterial(const tinygltf::Primitive& primitive, const std::vector<MaterialHandle>& materials,
-                               const MaterialHandle& fallback) {
+                               const MaterialHandle& fallbackMaterialhandle) {
     if (primitive.material >= 0 && primitive.material < static_cast<int>(materials.size())) {
         return materials[primitive.material];
     }
-    return fallback;
+    return fallbackMaterialhandle;
 }
 
 struct NodeTRS {

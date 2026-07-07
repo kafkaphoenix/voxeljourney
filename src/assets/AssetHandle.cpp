@@ -15,6 +15,7 @@ T* AssetHandle<T>::get() const {
 template class AssetHandle<Model>;
 template class AssetHandle<Shader>;
 template class AssetHandle<Texture>;
+template class AssetHandle<TextureArray>;
 template class AssetHandle<Material>;
 
 }  // namespace se::assets
